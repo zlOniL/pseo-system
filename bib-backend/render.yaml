@@ -3,7 +3,7 @@ services:
     name: bib-backend
     runtime: node
     rootDir: bib-backend
-    buildCommand: npm ci && npm run build
+    buildCommand: cp ../CITIES.md . && npm ci && npm run build
     startCommand: npm run start:prod
     envVars:
       - key: SUPABASE_URL

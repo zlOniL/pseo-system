@@ -29,8 +29,9 @@ export class CitiesService implements OnModuleInit {
   private regions: Map<string, string[]> = new Map();
 
   onModuleInit() {
+    const localPath = path.join(process.cwd(), 'CITIES.md');
     const citiesPath = process.env.CITIES_PATH
-      ?? path.join(process.cwd(), '../CITIES.md');
+      ?? (fs.existsSync(localPath) ? localPath : path.join(process.cwd(), '../CITIES.md'));
 
     try {
       const content = fs.readFileSync(citiesPath, 'utf-8');
