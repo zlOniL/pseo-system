@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import Link from "next/link";
+import LogoutButton from "./_components/LogoutButton";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           >
             Gerar página
           </Link>
+          <LogoutButton />
         </nav>
         <main className="flex-1 min-h-0 overflow-hidden">{children}</main>
       </body>
