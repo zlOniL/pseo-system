@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: bib-backend
+    runtime: node
+    rootDir: bib-backend
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: GOOGLE_AI_API_KEY
+        sync: false
+      - key: GOOGLE_AI_MODEL
+        value: gemini-2.0-flash
+      - key: WP_BASE_URL
+        sync: false
+      - key: WP_SECRET
+        sync: false

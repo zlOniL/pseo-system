@@ -1,0 +1,219 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   BIB Design System — componentes de UI internos
+   Usar estas classes em todas as páginas/formulários do sistema (não no HTML
+   gerado para WordPress).
+   ───────────────────────────────────────────────────────────────────────────── */
+@layer components {
+
+  /* Página — raiz scrollável */
+  .bib-page {
+    height: 100%;
+    overflow-y: auto;
+    background-color: #fff;
+  }
+
+  /* Página — container central com padding */
+  .bib-container {
+    max-width: 48rem; /* ~768px — consistente com max-w-3xl */
+    margin-left: auto;
+    margin-right: auto;
+    padding: 2rem 1.5rem;
+  }
+
+  .bib-container-wide {
+    max-width: 64rem; /* ~1024px — para layouts de dois painéis */
+    margin-left: auto;
+    margin-right: auto;
+    padding: 2rem 1.5rem;
+  }
+
+  /* Cabeçalho de página — linha com título + acção primária */
+  .bib-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+  }
+
+  /* Título principal */
+  .bib-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #111827; /* gray-900 */
+    line-height: 1.4;
+  }
+
+  /* Subtítulo / contagem */
+  .bib-subtitle {
+    font-size: 0.875rem;
+    color: #9ca3af; /* gray-400 */
+    margin-top: 0.125rem;
+  }
+
+  /* Breadcrumb / link de retorno */
+  .bib-back {
+    display: inline-block;
+    font-size: 0.75rem;
+    color: #6b7280; /* gray-500 */
+    margin-bottom: 0.5rem;
+    transition: color 0.15s;
+  }
+  .bib-back:hover { color: #111827; }
+
+  /* Card — caixa branca com borda */
+  .bib-card {
+    background-color: #fff;
+    border: 1px solid #e5e7eb; /* gray-200 */
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+  }
+
+  /* Divisor horizontal */
+  .bib-divider {
+    border-top: 1px solid #f3f4f6; /* gray-100 */
+  }
+
+  /* ── Formulários ─────────────────────────────────────────────────────────── */
+
+  .bib-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #4b5563; /* gray-600 */
+    margin-bottom: 0.375rem;
+  }
+
+  .bib-label-hint {
+    font-weight: 400;
+    color: #9ca3af; /* gray-400 */
+  }
+
+  .bib-input {
+    width: 100%;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: #111827;
+    background-color: #fff;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .bib-input::placeholder { color: #9ca3af; }
+  .bib-input:focus {
+    border-color: #9ca3af;
+    box-shadow: 0 0 0 3px rgba(17,24,39,0.06);
+  }
+
+  .bib-textarea {
+    width: 100%;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: #111827;
+    background-color: #fff;
+    outline: none;
+    resize: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .bib-textarea::placeholder { color: #9ca3af; }
+  .bib-textarea:focus {
+    border-color: #9ca3af;
+    box-shadow: 0 0 0 3px rgba(17,24,39,0.06);
+  }
+
+  /* ── Botões ──────────────────────────────────────────────────────────────── */
+
+  /* Botão primário — fundo escuro */
+  .bib-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    transition: background-color 0.15s, opacity 0.15s;
+    cursor: pointer;
+  }
+  .bib-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .bib-btn-primary {
+    background-color: #111827;
+    color: #fff;
+    border: none;
+  }
+  .bib-btn-primary:hover:not(:disabled) { background-color: #374151; }
+
+  /* Botão secundário — borda */
+  .bib-btn-secondary {
+    background-color: #fff;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+  }
+  .bib-btn-secondary:hover:not(:disabled) { background-color: #f9fafb; }
+
+  /* Botão fantasma — apenas texto */
+  .bib-btn-ghost {
+    background: none;
+    color: #6b7280;
+    border: none;
+    padding: 0.25rem 0.5rem;
+  }
+  .bib-btn-ghost:hover:not(:disabled) { color: #111827; }
+
+  /* Botão destrutivo */
+  .bib-btn-danger {
+    background-color: #fff;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+  }
+  .bib-btn-danger:hover:not(:disabled) { background-color: #fef2f2; }
+
+  /* ── Feedback ────────────────────────────────────────────────────────────── */
+
+  .bib-error {
+    font-size: 0.875rem;
+    color: #dc2626;
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .bib-empty {
+    text-align: center;
+    padding: 5rem 0;
+    color: #9ca3af;
+    font-size: 0.875rem;
+  }
+}
