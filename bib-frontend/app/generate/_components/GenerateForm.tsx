@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { ScoreCard } from "./ScoreCard";
 import { Content, RelatedService } from "@/lib/types";
+import { CITIES_DATA } from "@/lib/cities";
 
 const IMAGE_PLACEHOLDERS = [
   "Imagem 1 — antes de Procura em Buscadores",
@@ -21,6 +22,7 @@ export function GenerateForm() {
   const router = useRouter();
   const [service, setService] = useState("");
   const [city, setCity] = useState("");
+  const [openCity, setOpenCity] = useState<string | null>(null);
   const [keyword, setKeyword] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
   const [relatedServices, setRelatedServices] = useState<RelatedService[]>([
@@ -97,14 +99,80 @@ export function GenerateForm() {
             className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
+        {/* ── Cidade / Bairro (acordeão) ── */}
         <div>
-          <label className="block text-sm font-medium mb-1">Cidade / Bairro *</label>
+          <label className="block text-sm font-medium mb-1">
+            Cidade / Bairro *
+          </label>
+
+          {/* Valor seleccionado */}
+          {city ? (
+            <div className="flex items-center gap-2 mb-2">
+              <span className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm bg-gray-50 text-gray-800">
+                {city}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCity("")}
+                className="text-gray-400 hover:text-gray-700 text-xs px-2 py-1 border border-gray-200 rounded"
+              >
+                limpar
+              </button>
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400 mb-2">Seleccione uma cidade ou bairro abaixo</p>
+          )}
+
+          {/* Acordeão de cidades */}
+          <div className="border border-gray-200 rounded-lg overflow-hidden divide-y divide-gray-100">
+            {CITIES_DATA.map((group) => (
+              <div key={group.city}>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenCity(openCity === group.city ? null : group.city)
+                  }
+                  className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <span>{group.city}</span>
+                  <span className="text-gray-400 text-xs">
+                    {openCity === group.city ? "▲" : "▼"}
+                  </span>
+                </button>
+                {openCity === group.city && (
+                  <div className="px-3 py-2 bg-gray-50 flex flex-wrap gap-1.5">
+                    {group.places.map((place) => (
+                      <button
+                        key={place}
+                        type="button"
+                        onClick={() => {
+                          setCity(place);
+                          setOpenCity(null);
+                        }}
+                        className={`text-xs px-2 py-1 rounded border transition-colors ${
+                          city === place
+                            ? "bg-gray-800 text-white border-gray-800"
+                            : "bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:text-gray-900"
+                        }`}
+                      >
+                        {place}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Campo hidden para garantir validação do formulário */}
           <input
+            type="text"
             required
             value={city}
-            onChange={(e) => setCity(e.target.value)}
-            placeholder="ex: Lisboa | Cascais | Ajuda"
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onChange={() => {}}
+            className="sr-only"
+            tabIndex={-1}
+            aria-hidden
           />
         </div>
         <div>
