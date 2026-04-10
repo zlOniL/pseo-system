@@ -48,11 +48,11 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
 
     const input: CreateServiceInput = {
       name: name.trim(),
-      video_url: videoUrl || undefined,
+      video_url: videoUrl || null,
       images,
       related_services: relatedServices.filter((r) => r.name && r.url),
-      service_notes: serviceNotes || undefined,
-      tone: tone || undefined,
+      service_notes: serviceNotes || null,
+      tone: tone,
       min_words: minWords,
     };
 

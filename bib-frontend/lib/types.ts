@@ -34,6 +34,8 @@ export interface GenerateInput {
   related_services?: RelatedService[];
   images?: string[];
   video_url?: string;
+  locality_notes?: string;
+  service_notes?: string;
 }
 
 export interface RegenerateInput extends GenerateInput {
