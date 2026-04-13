@@ -42,6 +42,7 @@ export default function ScalePage() {
   const [stats, setStats] = useState<QueueStats | null>(null);
   const [selectedCities, setSelectedCities] = useState<Set<string>>(new Set());
   const [expandedRegions, setExpandedRegions] = useState<Set<string>>(new Set());
+  const [mode, setMode] = useState<'ai' | 'template'>('ai');
   const [enqueueing, setEnqueueing] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -75,7 +76,7 @@ export default function ScalePage() {
   const itemMap = new Map<string, QueueItem>(queueItems.map((q) => [q.city, q]));
 
   function toggleCity(city: string, status: CityStatus) {
-    if (status !== 'free') return; // only free cities can be selected
+    if (status !== 'free' && status !== 'failed') return;
     setSelectedCities((prev) => {
       const next = new Set(prev);
       if (next.has(city)) next.delete(city);
@@ -94,15 +95,18 @@ export default function ScalePage() {
   }
 
   function toggleRegion(region: RegionWithCities) {
-    const freeCities = region.cities.filter((c) => getCityStatus(c, itemMap) === 'free');
-    const allSelected = freeCities.every((c) => selectedCities.has(c));
+    const selectableCities = region.cities.filter((c) => {
+      const s = getCityStatus(c, itemMap);
+      return s === 'free' || s === 'failed';
+    });
+    const allSelected = selectableCities.length > 0 && selectableCities.every((c) => selectedCities.has(c));
 
     setSelectedCities((prev) => {
       const next = new Set(prev);
       if (allSelected) {
-        freeCities.forEach((c) => next.delete(c));
+        selectableCities.forEach((c) => next.delete(c));
       } else {
-        freeCities.forEach((c) => next.add(c));
+        selectableCities.forEach((c) => next.add(c));
       }
       return next;
     });
@@ -113,7 +117,7 @@ export default function ScalePage() {
     setEnqueueing(true);
     setError('');
     try {
-      await api.enqueue({ service_id: serviceId, cities: [...selectedCities] });
+      await api.enqueue({ service_id: serviceId, cities: [...selectedCities], mode });
       setSelectedCities(new Set());
       poll();
     } catch (err) {
@@ -163,9 +167,10 @@ export default function ScalePage() {
 
               <div className="space-y-4 max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
                 {regions.map((region) => {
-                  const freeCities = region.cities.filter(
-                    (c) => getCityStatus(c, itemMap) === 'free',
-                  );
+                  const freeCities = region.cities.filter((c) => {
+                    const s = getCityStatus(c, itemMap);
+                    return s === 'free' || s === 'failed';
+                  });
                   const allSelected =
                     freeCities.length > 0 && freeCities.every((c) => selectedCities.has(c));
                   const someSelected = freeCities.some((c) => selectedCities.has(c));
@@ -214,9 +219,10 @@ export default function ScalePage() {
                         {region.cities.map((city) => {
                           const status = getCityStatus(city, itemMap);
                           const item = itemMap.get(city);
-                          const isFree = status === 'free';
+                          const isSelectable = status === 'free' || status === 'failed';
                           const isSelected = selectedCities.has(city);
 
+                          // Done with content → link to content page
                           if (status === 'done' && item?.content_id) {
                             return (
                               <div key={city} className="flex items-center gap-1.5">
@@ -231,25 +237,42 @@ export default function ScalePage() {
                             );
                           }
 
+                          // Pending or processing → non-interactive
+                          if (status === 'pending' || status === 'processing') {
+                            return (
+                              <div key={city} className="flex items-center gap-1.5">
+                                <StatusBadge status={status} />
+                                <span className="text-xs text-gray-400">{city}</span>
+                              </div>
+                            );
+                          }
+
+                          // Free or failed → selectable checkbox
                           return (
                             <label
                               key={city}
-                              className={`flex items-center gap-1.5 ${isFree ? 'cursor-pointer' : 'cursor-default'}`}
+                              title={status === 'failed' && item?.error ? item.error : undefined}
+                              className="flex items-center gap-1.5 cursor-pointer"
                             >
-                              {isFree ? (
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => toggleCity(city, status)}
-                                  className="w-3 h-3 accent-gray-900"
-                                />
-                              ) : (
-                                <StatusBadge status={status} />
-                              )}
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleCity(city, status)}
+                                className="w-3 h-3 accent-gray-900"
+                              />
                               <span
-                                className={`text-xs ${isFree ? (isSelected ? 'text-gray-900 font-medium' : 'text-gray-600') : 'text-gray-400'}`}
+                                className={`text-xs ${
+                                  status === 'failed'
+                                    ? 'text-red-500 font-medium'
+                                    : isSelected
+                                      ? 'text-gray-900 font-medium'
+                                      : 'text-gray-600'
+                                }`}
                               >
                                 {city}
+                                {status === 'failed' && (
+                                  <span className="ml-1 text-red-400 font-normal">✗</span>
+                                )}
                               </span>
                             </label>
                           );
@@ -261,12 +284,39 @@ export default function ScalePage() {
                 })}
               </div>
 
-              {/* Botão enfileirar */}
+              {/* Modo de geração */}
               <div className="mt-4 pt-4 bib-divider">
+                <p className="text-xs text-gray-500 mb-2">Modo de geração</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setMode('ai')}
+                    className={`flex-1 text-xs py-2 rounded-lg border font-medium transition-colors ${
+                      mode === 'ai'
+                        ? 'bg-gray-900 text-white border-gray-900'
+                        : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
+                    }`}
+                  >
+                    Gerar com IA
+                  </button>
+                  <button
+                    onClick={() => setMode('template')}
+                    className={`flex-1 text-xs py-2 rounded-lg border font-medium transition-colors ${
+                      mode === 'template'
+                        ? 'bg-gray-900 text-white border-gray-900'
+                        : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
+                    }`}
+                  >
+                    Com Template
+                  </button>
+                </div>
+              </div>
+
+              {/* Botão enfileirar */}
+              <div className="mt-3">
                 <button
                   onClick={handleEnqueue}
                   disabled={selectedCities.size === 0 || enqueueing}
-                  className="bib-btn bib-btn-primary w-full py-2.5 mt-4"
+                  className="bib-btn bib-btn-primary w-full py-2.5"
                 >
                   {enqueueing
                     ? 'A enfileirar...'
@@ -340,6 +390,11 @@ export default function ScalePage() {
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0 ml-3">
+                        {item.mode === 'template' && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium">
+                            template
+                          </span>
+                        )}
                         <span
                           className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                             item.status === 'done'

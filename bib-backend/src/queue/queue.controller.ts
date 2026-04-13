@@ -22,7 +22,7 @@ export class QueueController {
   @Post('enqueue')
   @HttpCode(201)
   async enqueue(@Body() dto: EnqueueDto) {
-    const items = await this.queueService.enqueue(dto.service_id, dto.cities);
+    const items = await this.queueService.enqueue(dto.service_id, dto.cities, dto.mode ?? 'ai');
     // Fire-and-forget: activate the worker without blocking the HTTP response
     void this.worker.processQueue();
     return items;

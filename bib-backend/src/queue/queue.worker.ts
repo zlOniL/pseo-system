@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { QueueService } from './queue.service';
 import { ServicesService } from '../services/services.service';
 import { GenerationService } from '../generation/generation.service';
+import { TemplateEngineService } from '../template-engine/template-engine.service';
 
 @Injectable()
 export class QueueWorker implements OnModuleInit {
@@ -12,6 +13,7 @@ export class QueueWorker implements OnModuleInit {
     private readonly queue: QueueService,
     private readonly services: ServicesService,
     private readonly generation: GenerationService,
+    private readonly templateEngine: TemplateEngineService,
   ) {}
 
   onModuleInit() {
@@ -35,23 +37,30 @@ export class QueueWorker implements OnModuleInit {
 
           const service = await this.services.findById(item.service_id);
           const mainKeyword = `${service.name} em ${item.city}`;
+          const mode = item.mode ?? 'ai';
 
-          this.logger.log(`Processing: ${mainKeyword}`);
+          this.logger.log(`Processing [${mode}]: ${mainKeyword}`);
 
-          const content = await this.generation.generate({
-            main_keyword: mainKeyword,
-            service: service.name,
-            city: item.city,
-            video_url: service.video_url ?? undefined,
-            images: service.images.length ? service.images : undefined,
-            related_services: service.related_services.length
-              ? service.related_services
-              : undefined,
-            service_notes: service.service_notes ?? undefined,
-            tone: service.tone ?? undefined,
-            min_words: service.min_words,
-            service_id: service.id,
-          });
+          let content;
+
+          if (mode === 'template') {
+            content = await this.templateEngine.generate({ service, city: item.city });
+          } else {
+            content = await this.generation.generate({
+              main_keyword: mainKeyword,
+              service: service.name,
+              city: item.city,
+              video_url: service.video_url ?? undefined,
+              images: service.images.length ? service.images : undefined,
+              related_services: service.related_services.length
+                ? service.related_services
+                : undefined,
+              service_notes: service.service_notes ?? undefined,
+              tone: service.tone ?? undefined,
+              min_words: service.min_words,
+              service_id: service.id,
+            });
+          }
 
           await this.queue.markDone(item.id, content.id);
           this.logger.log(`Done: ${mainKeyword} → content ${content.id}`);

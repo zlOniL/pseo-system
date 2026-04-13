@@ -57,6 +57,7 @@ export interface Service {
   tone: string;
   min_words: number;
   status: 'active' | 'archived';
+  wordpress_category: string | null;
 }
 
 export type CreateServiceInput = Omit<Service, 'id' | 'created_at' | 'slug' | 'status'>;
@@ -69,11 +70,19 @@ export interface QueueItem {
   service_id: string;
   city: string;
   status: 'pending' | 'processing' | 'done' | 'failed';
+  mode: 'ai' | 'template';
   content_id: string | null;
   error: string | null;
   started_at: string | null;
   finished_at: string | null;
   attempts: number;
+}
+
+export interface WpCategory {
+  id: number;
+  name: string;
+  slug: string;
+  parent: number;
 }
 
 export interface QueueStats {

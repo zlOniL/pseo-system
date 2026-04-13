@@ -10,6 +10,7 @@ import {
   RegionWithCities,
   MediaResponse,
   BulkPublishResult,
+  WpCategory,
 } from './types';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -87,7 +88,7 @@ export const api = {
 
   // ── Queue ─────────────────────────────────────────────────────────────────────
 
-  enqueue: (input: { service_id: string; cities: string[] }) =>
+  enqueue: (input: { service_id: string; cities: string[]; mode?: 'ai' | 'template' }) =>
     request<QueueItem[]>('/queue/enqueue', { method: 'POST', body: JSON.stringify(input) }),
 
   getQueueForService: (serviceId: string) =>
@@ -104,4 +105,8 @@ export const api = {
     request<MediaResponse>(
       `/wordpress/media?type=${type}&page=${page}&search=${encodeURIComponent(search)}`,
     ),
+
+  // ── WordPress Categories ─────────────────────────────────────────────────────
+
+  getWpCategories: () => request<WpCategory[]>('/wordpress/categories'),
 };

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Service, CreateServiceInput, RelatedService } from '@/lib/types';
+import { Service, CreateServiceInput, RelatedService, WpCategory } from '@/lib/types';
 import MediaPickerModal from '@/app/_components/MediaPickerModal';
 
 interface ServiceFormProps {
@@ -23,10 +23,23 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
   const [serviceNotes, setServiceNotes] = useState(initialData?.service_notes ?? '');
   const [tone, setTone] = useState(initialData?.tone ?? '');
   const [minWords, setMinWords] = useState(initialData?.min_words ?? 5000);
+  const [wordpressCategory, setWordpressCategory] = useState(initialData?.wordpress_category ?? '');
+  const [wpCategories, setWpCategories] = useState<WpCategory[]>([]);
+  const [wpCatLoading, setWpCatLoading] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [showNewCategory, setShowNewCategory] = useState(false);
 
   const [mediaModal, setMediaModal] = useState<{ open: boolean; mode: 'video' | 'images' } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    setWpCatLoading(true);
+    api.getWpCategories()
+      .then(setWpCategories)
+      .catch(() => {/* WP pode não estar acessível em dev — falha silenciosa */})
+      .finally(() => setWpCatLoading(false));
+  }, []);
 
   function addRelated() {
     setRelatedServices((prev) => [...prev, { name: '', url: '' }]);
@@ -54,6 +67,7 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
       service_notes: serviceNotes || null,
       tone: tone,
       min_words: minWords,
+      wordpress_category: wordpressCategory || null,
     };
 
     try {
@@ -231,6 +245,90 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
             <p className="text-xs text-gray-400">Nenhum serviço adicionado.</p>
           )}
         </div>
+      </div>
+
+      <div className="bib-divider" />
+
+      {/* Categoria WordPress */}
+      <div>
+        <label className="bib-label">
+          Categoria WordPress <span className="bib-label-hint">(opcional)</span>
+        </label>
+
+        {wpCatLoading ? (
+          <p className="text-xs text-gray-400">A carregar categorias...</p>
+        ) : (
+          <>
+            <div className="flex gap-2">
+              <select
+                className="bib-input"
+                value={showNewCategory ? '__new__' : (wordpressCategory || '')}
+                onChange={(e) => {
+                  if (e.target.value === '__new__') {
+                    setShowNewCategory(true);
+                    setWordpressCategory('');
+                  } else {
+                    setShowNewCategory(false);
+                    setWordpressCategory(e.target.value);
+                  }
+                }}
+              >
+                <option value="">— Sem categoria —</option>
+                {wpCategories
+                  .filter((c) => c.name.toLowerCase() !== 'uncategorized')
+                  .map((c) => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                <option value="__new__">+ Criar nova categoria...</option>
+              </select>
+            </div>
+
+            {showNewCategory && (
+              <div className="flex gap-2 mt-2">
+                <input
+                  className="bib-input"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="Nome da nova categoria"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  disabled={!newCategoryName.trim()}
+                  onClick={() => {
+                    const name = newCategoryName.trim();
+                    if (!name) return;
+                    setWordpressCategory(name);
+                    setShowNewCategory(false);
+                    setNewCategoryName('');
+                    // Optimistically add to list so it appears selected
+                    setWpCategories((prev) =>
+                      prev.some((c) => c.name.toLowerCase() === name.toLowerCase())
+                        ? prev
+                        : [...prev, { id: -1, name, slug: name.toLowerCase(), parent: 0 }],
+                    );
+                  }}
+                  className="bib-btn bib-btn-secondary shrink-0 text-xs px-3"
+                >
+                  Confirmar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowNewCategory(false); setNewCategoryName(''); }}
+                  className="bib-btn bib-btn-ghost text-xs shrink-0"
+                >
+                  Cancelar
+                </button>
+              </div>
+            )}
+
+            {wordpressCategory && !showNewCategory && (
+              <p className="mt-1 text-xs text-gray-400">
+                Será criada/associada automaticamente ao publicar no WordPress.
+              </p>
+            )}
+          </>
+        )}
       </div>
 
       {/* Submit */}

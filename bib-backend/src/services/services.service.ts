@@ -16,6 +16,7 @@ export interface Service {
   tone: string;
   min_words: number;
   status: 'active' | 'archived';
+  wordpress_category: string | null;
 }
 
 @Injectable()
@@ -38,6 +39,7 @@ export class ServicesService {
         tone: dto.tone ?? 'profissional, confiável e direto',
         min_words: dto.min_words ?? 5000,
         status: 'active',
+        wordpress_category: dto.wordpress_category ?? null,
       })
       .select()
       .single();
@@ -82,6 +84,7 @@ export class ServicesService {
     if (dto.service_notes !== undefined) patch.service_notes = dto.service_notes;
     if (dto.tone !== undefined) patch.tone = dto.tone;
     if (dto.min_words !== undefined) patch.min_words = dto.min_words;
+    if (dto.wordpress_category !== undefined) patch.wordpress_category = dto.wordpress_category;
 
     const { data, error } = await this.supabase
       .getClient()

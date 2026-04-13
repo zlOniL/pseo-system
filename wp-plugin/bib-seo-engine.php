@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BIB SEO Engine Adapter
  * Description: Recebe páginas HTML geradas pelo BIB SEO Engine e publica no WordPress.
- * Version: 1.3.0
+ * Version: 1.4.0
  * Author: BIB
  */
 
@@ -24,6 +24,18 @@ add_action('rest_api_init', function () {
     register_rest_route('custom/v1', '/media', [
         'methods'             => 'GET',
         'callback'            => 'bib_list_media',
+        'permission_callback' => 'bib_authenticate',
+    ]);
+
+    register_rest_route('custom/v1', '/categories', [
+        'methods'             => 'GET',
+        'callback'            => 'bib_list_categories',
+        'permission_callback' => 'bib_authenticate',
+    ]);
+
+    register_rest_route('custom/v1', '/categories', [
+        'methods'             => 'POST',
+        'callback'            => 'bib_create_category',
         'permission_callback' => 'bib_authenticate',
     ]);
 });
@@ -68,6 +80,9 @@ function bib_create_or_update_post(WP_REST_Request $request): WP_REST_Response {
     $raw     = $params['content'] ?? '';
     $status  = sanitize_text_field($params['status']  ?? 'publish');
     $slug    = sanitize_title($params['slug']          ?? $title);
+    $categories = isset($params['categories']) && is_array($params['categories'])
+        ? array_map('intval', $params['categories'])
+        : [];
 
     // Sanitizar HTML mantendo atributos necessários para vídeo
     $allowed = wp_kses_allowed_html('post');
@@ -121,6 +136,11 @@ function bib_create_or_update_post(WP_REST_Request $request): WP_REST_Response {
         ], true);
     }
 
+    // Assign categories (if provided)
+    if (!is_wp_error($post_id) && !empty($categories)) {
+        wp_set_post_categories($post_id, $categories, false);
+    }
+
     remove_filter('the_content', 'bib_disable_wpautop_for_post', 0);
 
     if (is_wp_error($post_id)) {
@@ -160,6 +180,72 @@ function bib_maybe_disable_wpautop(string $content): string {
 
 function bib_disable_wpautop_for_post(string $content): string {
     return $content;
+}
+
+function bib_list_categories(WP_REST_Request $request): WP_REST_Response {
+    $terms = get_terms([
+        'taxonomy'   => 'category',
+        'hide_empty' => false,
+    ]);
+
+    if (is_wp_error($terms)) {
+        return new WP_REST_Response(['error' => $terms->get_error_message()], 500);
+    }
+
+    $result = array_map(function ($term) {
+        return [
+            'id'     => $term->term_id,
+            'name'   => $term->name,
+            'slug'   => $term->slug,
+            'parent' => $term->parent,
+        ];
+    }, $terms);
+
+    return new WP_REST_Response($result, 200);
+}
+
+function bib_create_category(WP_REST_Request $request): WP_REST_Response {
+    $params      = $request->get_json_params();
+    $name        = sanitize_text_field($params['name']   ?? '');
+    $parent_name = sanitize_text_field($params['parent'] ?? 'Blog');
+
+    if (empty($name)) {
+        return new WP_REST_Response(['error' => 'name é obrigatório'], 400);
+    }
+
+    // Check if category already exists (idempotent)
+    $existing = get_term_by('name', $name, 'category');
+    if ($existing) {
+        return new WP_REST_Response([
+            'id'     => $existing->term_id,
+            'name'   => $existing->name,
+            'slug'   => $existing->slug,
+            'parent' => $existing->parent,
+        ], 200);
+    }
+
+    // Resolve parent category ID
+    $parent_id = 0;
+    if (!empty($parent_name)) {
+        $parent_term = get_term_by('name', $parent_name, 'category');
+        if ($parent_term) {
+            $parent_id = $parent_term->term_id;
+        }
+    }
+
+    $result = wp_insert_term($name, 'category', ['parent' => $parent_id]);
+
+    if (is_wp_error($result)) {
+        return new WP_REST_Response(['error' => $result->get_error_message()], 500);
+    }
+
+    $term = get_term($result['term_id'], 'category');
+    return new WP_REST_Response([
+        'id'     => $term->term_id,
+        'name'   => $term->name,
+        'slug'   => $term->slug,
+        'parent' => $term->parent,
+    ], 201);
 }
 
 function bib_list_media(WP_REST_Request $request): WP_REST_Response {

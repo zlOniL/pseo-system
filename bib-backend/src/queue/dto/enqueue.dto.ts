@@ -1,4 +1,4 @@
-import { IsArray, IsString, IsUUID, ArrayMinSize } from 'class-validator';
+import { IsArray, IsString, IsUUID, ArrayMinSize, IsOptional, IsIn } from 'class-validator';
 
 export class EnqueueDto {
   @IsUUID()
@@ -8,4 +8,8 @@ export class EnqueueDto {
   @IsString({ each: true })
   @ArrayMinSize(1)
   cities: string[];
+
+  @IsOptional()
+  @IsIn(['ai', 'template'])
+  mode?: 'ai' | 'template';
 }

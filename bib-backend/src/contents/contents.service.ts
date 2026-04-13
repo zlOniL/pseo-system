@@ -20,13 +20,21 @@ export interface Content {
   images: string[] | null;
   related_services: Array<{ name: string; url: string }> | null;
   meta_description: string | null;
+  service_id: string | null;
+  generation_mode: 'ai' | 'template';
 }
 
 @Injectable()
 export class ContentsService {
   constructor(private readonly supabase: SupabaseService) {}
 
-  async save(input: GenerateDto, html: string, validation: ValidationResult, metaDescription?: string): Promise<Content> {
+  async save(
+    input: GenerateDto,
+    html: string,
+    validation: ValidationResult,
+    metaDescription?: string,
+    generationMode: 'ai' | 'template' = 'ai',
+  ): Promise<Content> {
     const { data, error } = await this.supabase
       .getClient()
       .from('contents')
@@ -44,6 +52,7 @@ export class ContentsService {
         related_services: input.related_services ?? null,
         meta_description: metaDescription ?? null,
         service_id: input.service_id ?? null,
+        generation_mode: generationMode,
       })
       .select()
       .single();
@@ -121,6 +130,15 @@ export class ContentsService {
     if (content.status === 'published') {
       throw new Error('Cannot delete a published page');
     }
+
+    // Remove queue items that reference this content so the city becomes
+    // selectable again in the scale page (done items with no content are useless)
+    await this.supabase
+      .getClient()
+      .from('queue')
+      .delete()
+      .eq('content_id', id);
+
     const { error } = await this.supabase
       .getClient()
       .from('contents')

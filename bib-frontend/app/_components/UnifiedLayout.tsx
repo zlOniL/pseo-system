@@ -528,7 +528,7 @@ export function UnifiedLayout({ initialContent }: Props) {
 
         {/* Preview */}
         <div className="flex-1 overflow-auto p-6">
-          <PreviewPane html={content?.html ?? null} videoUrl={videoUrl} loading={loading} />
+          <PreviewPane html={content?.html ?? null} videoUrl={videoUrl} loading={loading} generationMode={content?.generation_mode} />
         </div>
       </div>
 

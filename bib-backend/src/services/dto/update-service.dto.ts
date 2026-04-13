@@ -43,4 +43,8 @@ export class UpdateServiceDto {
   @Min(100)
   @Max(10000)
   min_words?: number;
+
+  @IsOptional()
+  @IsString()
+  wordpress_category?: string;
 }
