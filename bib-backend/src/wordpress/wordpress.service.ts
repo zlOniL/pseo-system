@@ -106,7 +106,7 @@ export class WordPressService {
   }
 
   async getCategories(): Promise<WpCategory[]> {
-    const url = `${process.env.WP_BASE_URL}/wp-json/custom/v1/categories`;
+    const url = `${process.env.WP_BASE_URL}/wp-json/custom/v1/wp-cats`;
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${process.env.WP_SECRET}` },
     });
@@ -118,7 +118,7 @@ export class WordPressService {
   }
 
   async createCategory(name: string, parent: string = 'Blog'): Promise<WpCategory> {
-    const url = `${process.env.WP_BASE_URL}/wp-json/custom/v1/categories`;
+    const url = `${process.env.WP_BASE_URL}/wp-json/custom/v1/wp-cats`;
     const response = await fetch(url, {
       method: 'POST',
       headers: {
