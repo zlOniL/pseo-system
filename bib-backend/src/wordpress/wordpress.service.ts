@@ -36,13 +36,25 @@ export class WordPressService {
     private readonly services: ServicesService,
   ) {}
 
+  /**
+   * Returns the base URL for WordPress API calls.
+   * If WP_PROXY_BASE is set, routes through the Vercel proxy to avoid
+   * Render IP blocks (e.g. Imunify360 on the WordPress host).
+   */
+  private wpApiBase(): string {
+    const proxy = process.env.WP_PROXY_BASE?.replace(/\/$/, '');
+    if (proxy) return `${proxy}/api/wp-proxy`;
+    const base = process.env.WP_BASE_URL?.replace(/\/$/, '') ?? '';
+    return `${base}/wp-json/custom/v1`;
+  }
+
   async publish(contentId: string): Promise<Content> {
     const content = await this.contents.findById(contentId);
     const fullHtml = content.generation_mode === 'template'
       ? assembleTemplateHtml(content.html, content.video_url)
       : assemblePageHtml(content.html, content.video_url);
 
-    const wpUrl = `${process.env.WP_BASE_URL}/wp-json/custom/v1/post`;
+    const wpUrl = `${this.wpApiBase()}/post`;
     const slug = slugify(content.main_keyword);
     const title = content.main_keyword;
     const seoTitle = `${content.main_keyword} — Atendimento 24h`;
@@ -106,7 +118,7 @@ export class WordPressService {
   }
 
   async getCategories(): Promise<WpCategory[]> {
-    const url = `${process.env.WP_BASE_URL}/wp-json/custom/v1/wp-cats`;
+    const url = `${this.wpApiBase()}/wp-cats`;
     this.logger.log(`getCategories → GET ${url}`);
     const response = await fetch(url, {
       headers: {
@@ -123,7 +135,7 @@ export class WordPressService {
   }
 
   async createCategory(name: string, parent: string = 'Blog'): Promise<WpCategory> {
-    const url = `${process.env.WP_BASE_URL}/wp-json/custom/v1/wp-cats`;
+    const url = `${this.wpApiBase()}/wp-cats`;
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -164,7 +176,7 @@ export class WordPressService {
     });
     if (search) params.set('search', search);
 
-    const wpUrl = `${process.env.WP_BASE_URL}/wp-json/custom/v1/media?${params.toString()}`;
+    const wpUrl = `${this.wpApiBase()}/media?${params.toString()}`;
 
     const response = await fetch(wpUrl, {
       headers: {
