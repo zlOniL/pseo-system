@@ -86,7 +86,7 @@ export class WordPressService {
     }
 
     this.logger.log(
-      `Publishing content ${contentId} as slug: ${slug}, categories: [${categories.join(',')}]`,
+      `Publishing content ${contentId} → POST ${wpUrl}, categories: [${categories.join(',')}]`,
     );
 
     const response = await fetch(wpUrl, {
@@ -109,7 +109,7 @@ export class WordPressService {
 
     if (!response.ok) {
       const error = await response.text();
-      this.logger.error(`WordPress publish error ${response.status}: ${error}`);
+      this.logger.error(`WordPress publish error ${response.status} (url: ${wpUrl}): ${error}`);
       throw new InternalServerErrorException('WordPress publish failed');
     }
 

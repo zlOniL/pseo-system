@@ -33,13 +33,18 @@ async function proxy(request: NextRequest, pathSegments: string[]): Promise<Next
   const body = hasBody ? await request.text() : undefined;
 
   try {
+    console.log(`[wp-proxy] ${method} ${wpUrl}`);
     const res = await fetch(wpUrl, { method, headers, body, cache: 'no-store' });
     const resBody = await res.text();
+    if (!res.ok) {
+      console.error(`[wp-proxy] ${res.status} from ${wpUrl}: ${resBody.slice(0, 300)}`);
+    }
     return new NextResponse(resBody, {
       status: res.status,
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (err) {
+    console.error(`[wp-proxy] fetch error to ${wpUrl}:`, err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
