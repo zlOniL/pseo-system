@@ -15,6 +15,7 @@ export interface Content {
   images: string[] | null;
   related_services: RelatedService[] | null;
   meta_description: string | null;
+  generation_mode: 'ai' | 'template';
 }
 
 export type ContentSummary = Omit<Content, 'html'>;
