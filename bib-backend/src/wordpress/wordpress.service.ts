@@ -108,7 +108,10 @@ export class WordPressService {
   async getCategories(): Promise<WpCategory[]> {
     const url = `${process.env.WP_BASE_URL}/wp-json/custom/v1/wp-cats`;
     const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${process.env.WP_SECRET}` },
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${process.env.WP_SECRET}`,
+      },
     });
     if (!response.ok) {
       const err = await response.text();
@@ -162,7 +165,10 @@ export class WordPressService {
     const wpUrl = `${process.env.WP_BASE_URL}/wp-json/custom/v1/media?${params.toString()}`;
 
     const response = await fetch(wpUrl, {
-      headers: { Authorization: `Bearer ${process.env.WP_SECRET}` },
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${process.env.WP_SECRET}`,
+      },
     });
 
     if (!response.ok) {
