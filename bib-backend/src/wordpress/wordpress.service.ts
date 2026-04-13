@@ -107,9 +107,11 @@ export class WordPressService {
 
   async getCategories(): Promise<WpCategory[]> {
     const url = `${process.env.WP_BASE_URL}/wp-json/custom/v1/wp-cats`;
+    this.logger.log(`getCategories → GET ${url}`);
     const response = await fetch(url, {
       headers: {
-        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
         Authorization: `Bearer ${process.env.WP_SECRET}`,
       },
     });
