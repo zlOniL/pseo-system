@@ -106,7 +106,14 @@ export const api = {
       `/wordpress/media?type=${type}&page=${page}&search=${encodeURIComponent(search)}`,
     ),
 
-  // ── WordPress Categories ─────────────────────────────────────────────────────
+  // ── WordPress Categories (proxied via Vercel to avoid Render IP block) ───────
 
-  getWpCategories: () => request<WpCategory[]>('/wordpress/categories'),
+  getWpCategories: async () => {
+    const res = await fetch('/api/wp-cats', { headers: { 'Content-Type': 'application/json' } });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`API error ${res.status}: ${body}`);
+    }
+    return res.json() as Promise<WpCategory[]>;
+  },
 };
