@@ -26,6 +26,7 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
   const [wordpressCategory, setWordpressCategory] = useState(initialData?.wordpress_category ?? '');
   const [wpCategories, setWpCategories] = useState<WpCategory[]>([]);
   const [wpCatLoading, setWpCatLoading] = useState(false);
+  const [wpCatError, setWpCatError] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showNewCategory, setShowNewCategory] = useState(false);
 
@@ -37,7 +38,7 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
     setWpCatLoading(true);
     api.getWpCategories()
       .then(setWpCategories)
-      .catch(() => {/* WP pode não estar acessível em dev — falha silenciosa */})
+      .catch((err: Error) => setWpCatError(err.message))
       .finally(() => setWpCatLoading(false));
   }, []);
 
@@ -257,6 +258,8 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
 
         {wpCatLoading ? (
           <p className="text-xs text-gray-400">A carregar categorias...</p>
+        ) : wpCatError ? (
+          <p className="text-xs text-red-500">{wpCatError}</p>
         ) : (
           <>
             <div className="flex gap-2">
