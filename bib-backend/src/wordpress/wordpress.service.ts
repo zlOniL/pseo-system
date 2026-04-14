@@ -76,13 +76,14 @@ export class WordPressService {
       }
     }
 
-    // Resolve categories: always Blog (parent) + service subcategory
+    // Resolve categories: always Blog (primary) + service subcategory
     const categories: number[] = [];
+    let blogCategoryId: number | null = null;
 
-    // 1. Ensure "Blog" parent category
+    // 1. Ensure "Blog" parent category (always primary)
     try {
-      const blogId = await this.ensureCategoryExists('Blog');
-      categories.push(blogId);
+      blogCategoryId = await this.ensureCategoryExists('Blog');
+      categories.push(blogCategoryId);
     } catch (err) {
       this.logger.warn(`Could not resolve "Blog" category: ${(err as Error).message}`);
     }
@@ -129,7 +130,7 @@ export class WordPressService {
         status: 'publish',
         slug,
         categories,
-        primary_category_id: categories[0] ?? null,
+        primary_category_id: blogCategoryId,
       }),
     });
 
