@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BIB SEO Engine Adapter
  * Description: Recebe páginas HTML geradas pelo BIB SEO Engine e publica no WordPress.
- * Version: 1.4.0
+ * Version: 1.5.0
  * Author: BIB
  */
 
@@ -213,17 +213,6 @@ function bib_create_category(WP_REST_Request $request): WP_REST_Response {
         return new WP_REST_Response(['error' => 'name é obrigatório'], 400);
     }
 
-    // Check if category already exists (idempotent)
-    $existing = get_term_by('name', $name, 'category');
-    if ($existing) {
-        return new WP_REST_Response([
-            'id'     => $existing->term_id,
-            'name'   => $existing->name,
-            'slug'   => $existing->slug,
-            'parent' => $existing->parent,
-        ], 200);
-    }
-
     // Resolve parent category ID
     $parent_id = 0;
     if (!empty($parent_name)) {
@@ -231,6 +220,22 @@ function bib_create_category(WP_REST_Request $request): WP_REST_Response {
         if ($parent_term) {
             $parent_id = $parent_term->term_id;
         }
+    }
+
+    // Check if category already exists
+    $existing = get_term_by('name', $name, 'category');
+    if ($existing) {
+        // If it exists as top-level but should be under a parent, fix it
+        if ($parent_id > 0 && (int) $existing->parent !== $parent_id) {
+            wp_update_term($existing->term_id, 'category', ['parent' => $parent_id]);
+            $existing = get_term($existing->term_id, 'category');
+        }
+        return new WP_REST_Response([
+            'id'     => $existing->term_id,
+            'name'   => $existing->name,
+            'slug'   => $existing->slug,
+            'parent' => $existing->parent,
+        ], 200);
     }
 
     $result = wp_insert_term($name, 'category', ['parent' => $parent_id]);
