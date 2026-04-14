@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 function buildPreviewHtml(contentHtml: string, videoUrl?: string, generationMode?: 'ai' | 'template'): string {
   const video = videoUrl?.trim() ?? "";
   const videoBlock = video
-    ? `<section style="margin:0;padding:0"><article style="max-width:900px;margin:0 auto;padding:0 20px"><video src="${video}" style="width:100%;max-width:900px;height:auto;display:block;margin:0 auto" autoplay loop muted controls width="300" height="150"></video></article></section>`
+    ? `<section style="margin:0;padding:0"><article style="max-width:900px;margin:0 auto;padding:0 20px"><video src="${video}" style="width:100%;height:auto;display:block;" autoplay loop muted controls></video></article></section>`
     : "";
 
   const body = generationMode === 'template'

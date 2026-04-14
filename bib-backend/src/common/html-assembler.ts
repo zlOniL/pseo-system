@@ -7,7 +7,7 @@ export function assembleTemplateHtml(templateHtml: string, videoUrl?: string | n
   const video = videoUrl?.trim() ?? '';
   if (!video) return templateHtml;
 
-  const videoSection = `<section style="margin: 0; padding: 0;"><article style="max-width: 1200px; margin: 0 auto;"><video src="${video}" style="width: 100%; max-width: 900px; height: auto; display: block; margin: 0 auto;" autoplay="autoplay" loop="loop" muted="" controls="controls" width="300" height="150"></video></article></section>\n`;
+  const videoSection = `<section style="margin: 0; padding: 0;"><article style="max-width: 1200px; margin: 0 auto;"><video src="${video}" style="width: 100%; height: auto; display: block;" autoplay="autoplay" loop="loop" muted="" controls="controls"></video></article></section>\n`;
   return videoSection + templateHtml;
 }
 
@@ -20,7 +20,7 @@ export function assemblePageHtml(contentHtml: string, videoUrl?: string | null):
   const video = videoUrl?.trim() ?? '';
 
   const videoSection = video
-    ? `<section style="margin: 0; padding: 0;"><article style="max-width: 1200px; margin: 0 auto;"><video src="${video}" style="width: 100%; max-width: 900px; height: auto; display: block; margin: 0 auto;" autoplay="autoplay" loop="loop" muted="" controls="controls" width="300" height="150"></video></article></section>\n`
+    ? `<section style="margin: 0; padding: 0;"><article style="max-width: 1200px; margin: 0 auto;"><video src="${video}" style="width: 100%; height: auto; display: block;" autoplay="autoplay" loop="loop" muted="" controls="controls"></video></article></section>\n`
     : '';
 
   return `${videoSection}<div style="max-width: 1200px; margin: 0 auto; text-align: left; color: #320000;">
