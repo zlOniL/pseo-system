@@ -3,6 +3,7 @@ import { ContentsService, Content } from '../contents/contents.service';
 import { ServicesService } from '../services/services.service';
 import { assemblePageHtml, assembleTemplateHtml } from '../common/html-assembler';
 import { slugify } from '../common/slug';
+import { getSeoForTemplate } from './seo-templates';
 
 export interface MediaItem {
   id: number;
@@ -57,36 +58,60 @@ export class WordPressService {
     const wpUrl = `${this.wpApiBase()}/post`;
     const slug = slugify(content.main_keyword);
     const title = content.main_keyword;
-    const seoTitle = `${content.main_keyword} — Atendimento 24h`;
 
-    // Resolve WordPress category if the service has one configured
-    let categories: number[] = [];
+    // SEO title and description
+    let seoTitle = `${content.main_keyword} — Atendimento 24h`;
+    let metaDescription = content.meta_description ?? '';
+
+    // For template pages, pull SEO from the templates map (SEO.md data)
+    if (content.generation_mode === 'template') {
+      const serviceSlug = slugify(content.service);
+      const seo = getSeoForTemplate(serviceSlug, content.city);
+      if (seo) {
+        seoTitle = seo.title;
+        metaDescription = seo.description;
+        this.logger.log(`Template SEO resolved for "${serviceSlug}": "${seoTitle}"`);
+      } else {
+        this.logger.warn(`No SEO template found for service slug "${serviceSlug}" — using default`);
+      }
+    }
+
+    // Resolve categories: always Blog (parent) + service subcategory
+    const categories: number[] = [];
+
+    // 1. Ensure "Blog" parent category
+    try {
+      const blogId = await this.ensureCategoryExists('Blog');
+      categories.push(blogId);
+    } catch (err) {
+      this.logger.warn(`Could not resolve "Blog" category: ${(err as Error).message}`);
+    }
+
+    // 2. Ensure service subcategory (under Blog)
     if (!content.service_id) {
-      this.logger.warn(`Content ${contentId} has no service_id — skipping category resolution`);
+      this.logger.warn(`Content ${contentId} has no service_id — skipping service category`);
     } else {
       try {
         const service = await this.services.findById(content.service_id);
         if (!service.wordpress_category) {
           this.logger.warn(
-            `Service "${service.name}" (${content.service_id}) has no wordpress_category set — skipping`,
+            `Service "${service.name}" has no wordpress_category set — skipping`,
           );
         } else {
-          this.logger.log(
-            `Resolving WP category "${service.wordpress_category}" for service "${service.name}"`,
-          );
-          const categoryId = await this.ensureCategoryExists(service.wordpress_category);
-          categories = [categoryId];
-          this.logger.log(`Resolved category ID: ${categoryId}`);
+          this.logger.log(`Resolving WP subcategory "${service.wordpress_category}"`);
+          const catId = await this.ensureCategoryExists(service.wordpress_category);
+          if (!categories.includes(catId)) categories.push(catId);
+          this.logger.log(`Resolved subcategory ID: ${catId}`);
         }
       } catch (err) {
         this.logger.warn(
-          `Could not resolve WP category for service ${content.service_id}: ${(err as Error).message}`,
+          `Could not resolve service category for ${content.service_id}: ${(err as Error).message}`,
         );
       }
     }
 
     this.logger.log(
-      `Publishing content ${contentId} → POST ${wpUrl}, categories: [${categories.join(',')}]`,
+      `Publishing "${title}" → ${wpUrl} | seoTitle: "${seoTitle}" | categories: [${categories.join(',')}]`,
     );
 
     const response = await fetch(wpUrl, {
@@ -99,8 +124,8 @@ export class WordPressService {
         title,
         seo_title: seoTitle,
         content: fullHtml,
-        excerpt: content.meta_description ?? '',
-        meta_description: content.meta_description ?? '',
+        excerpt: metaDescription,
+        meta_description: metaDescription,
         status: 'publish',
         slug,
         categories,
@@ -156,9 +181,17 @@ export class WordPressService {
     const existing = categories.find(
       (c) => c.name.toLowerCase() === name.toLowerCase(),
     );
-    if (existing) return existing.id;
+    if (existing) {
+      // Warn if a non-Blog category exists at top level (parent === 0) — it should be under Blog
+      if (name.toLowerCase() !== 'blog' && existing.parent === 0) {
+        this.logger.warn(
+          `Category "${name}" exists as a top-level category (parent=0), expected under "Blog"`,
+        );
+      }
+      return existing.id;
+    }
 
-    this.logger.log(`Category "${name}" not found in WordPress — creating under "Blog"`);
+    this.logger.log(`Category "${name}" not found — creating under "Blog"`);
     const created = await this.createCategory(name, 'Blog');
     return created.id;
   }
