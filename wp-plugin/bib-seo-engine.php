@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BIB SEO Engine Adapter
  * Description: Recebe páginas HTML geradas pelo BIB SEO Engine e publica no WordPress.
- * Version: 1.5.0
+ * Version: 1.6.0
  * Author: BIB
  */
 
@@ -83,6 +83,9 @@ function bib_create_or_update_post(WP_REST_Request $request): WP_REST_Response {
     $categories = isset($params['categories']) && is_array($params['categories'])
         ? array_map('intval', $params['categories'])
         : [];
+    $primary_category_id = isset($params['primary_category_id'])
+        ? intval($params['primary_category_id'])
+        : 0;
 
     // Sanitizar HTML mantendo atributos necessários para vídeo
     $allowed = wp_kses_allowed_html('post');
@@ -141,6 +144,11 @@ function bib_create_or_update_post(WP_REST_Request $request): WP_REST_Response {
         wp_set_post_categories($post_id, $categories, false);
     }
 
+    // Primary category — Yoast SEO
+    if (!is_wp_error($post_id) && $primary_category_id > 0) {
+        update_post_meta($post_id, '_yoast_wpseo_primary_category', $primary_category_id);
+    }
+
     remove_filter('the_content', 'bib_disable_wpautop_for_post', 0);
 
     if (is_wp_error($post_id)) {
@@ -157,11 +165,32 @@ function bib_create_or_update_post(WP_REST_Request $request): WP_REST_Response {
     }
 
     // Meta description — RankMath SEO
-    if (!empty($meta_desc) && function_exists('rank_math')) {
-        update_post_meta($post_id, 'rank_math_description', $meta_desc);
-        update_post_meta($post_id, 'rank_math_title', $seo_title);
-    }
+    // if (!empty($meta_desc) && function_exists('rank_math')) {
+    //    update_post_meta($post_id, 'rank_math_description', $meta_desc);
+    //    update_post_meta($post_id, 'rank_math_title', $seo_title);
+    //    update_post_meta($post_id, 'rank_math_focus_keyword', $title);
+    // }
+    
+    if (function_exists('rank_math')) {
 
+        if (!empty($meta_desc)) {
+            update_post_meta($post_id, 'rank_math_description', $meta_desc);
+            update_post_meta($post_id, 'rank_math_title', $seo_title);
+        }
+
+        update_post_meta($post_id, 'rank_math_focus_keyword', $title);
+
+        // Primary category — RankMath
+        if ($primary_category_id > 0) {
+            update_post_meta($post_id, 'rank_math_primary_category', $primary_category_id);
+        }
+
+        do_action('rank_math/post_saved', $post_id);
+        do_action('save_post', $post_id, get_post($post_id), true);
+
+        clean_post_cache($post_id);
+   	}
+    
     return new WP_REST_Response([
         'id'   => $post_id,
         'link' => get_permalink($post_id),

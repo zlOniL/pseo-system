@@ -129,6 +129,7 @@ export class WordPressService {
         status: 'publish',
         slug,
         categories,
+        primary_category_id: categories[0] ?? null,
       }),
     });
 
