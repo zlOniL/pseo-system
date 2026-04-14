@@ -59,8 +59,8 @@ export default function ScalePage() {
   const [loading, setLoading] = useState(true);
 
   const poll = useCallback(() => {
-    void api.getQueueForService(serviceId).then(setQueueItems).catch(() => {});
-    void api.getQueueStats().then(setStats).catch(() => {});
+    void api.getQueueForService(serviceId).then(setQueueItems).catch(() => { });
+    void api.getQueueStats().then(setStats).catch(() => { });
   }, [serviceId]);
 
   useEffect(() => {
@@ -150,9 +150,9 @@ export default function ScalePage() {
 
   const filterOptions: { value: StatusFilter; label: string }[] = [
     { value: 'all', label: 'Todas' },
-    { value: 'free', label: 'Não feitas' },
-    { value: 'failed', label: 'Erro' },
-    { value: 'done', label: 'Concluídas' },
+    { value: 'free', label: 'Pendentes' },
+    { value: 'failed', label: 'Falhados' },
+    { value: 'done', label: 'Concluídos' },
   ];
 
   return (
@@ -192,11 +192,10 @@ export default function ScalePage() {
                   <button
                     key={opt.value}
                     onClick={() => setStatusFilter(opt.value)}
-                    className={`flex-1 text-xs py-1 rounded-md border font-medium transition-colors ${
-                      statusFilter === opt.value
+                    className={`flex-1 text-xs py-1 rounded-md border font-medium transition-colors ${statusFilter === opt.value
                         ? 'bg-gray-900 text-white border-gray-900'
                         : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-                    }`}
+                      }`}
                   >
                     {opt.label}
                   </button>
@@ -291,8 +290,7 @@ export default function ScalePage() {
                                   className="w-3 h-3 accent-gray-900"
                                 />
                                 <span
-                                  className={`text-xs ${
-                                    status === 'failed'
+                                  className={`text-xs ${status === 'failed'
                                       ? 'text-red-500 font-medium'
                                       : status === 'done'
                                         ? isSelected
@@ -301,7 +299,7 @@ export default function ScalePage() {
                                         : isSelected
                                           ? 'text-gray-900 font-medium'
                                           : 'text-gray-600'
-                                  }`}
+                                    }`}
                                 >
                                   {city}
                                   {status === 'failed' && (
@@ -333,21 +331,19 @@ export default function ScalePage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setMode('ai')}
-                    className={`flex-1 text-xs py-1.5 rounded-lg border font-medium transition-colors ${
-                      mode === 'ai'
+                    className={`flex-1 text-xs py-1.5 rounded-lg border font-medium transition-colors ${mode === 'ai'
                         ? 'bg-gray-900 text-white border-gray-900'
                         : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
-                    }`}
+                      }`}
                   >
                     Gerar com IA
                   </button>
                   <button
                     onClick={() => setMode('template')}
-                    className={`flex-1 text-xs py-1.5 rounded-lg border font-medium transition-colors ${
-                      mode === 'template'
+                    className={`flex-1 text-xs py-1.5 rounded-lg border font-medium transition-colors ${mode === 'template'
                         ? 'bg-gray-900 text-white border-gray-900'
                         : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
-                    }`}
+                      }`}
                   >
                     Com Template
                   </button>
@@ -441,15 +437,14 @@ export default function ScalePage() {
                           </span>
                         )}
                         <span
-                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            item.status === 'done'
+                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${item.status === 'done'
                               ? 'bg-emerald-50 text-emerald-700'
                               : item.status === 'processing'
                                 ? 'bg-amber-50 text-amber-700'
                                 : item.status === 'failed'
                                   ? 'bg-red-50 text-red-600'
                                   : 'bg-gray-100 text-gray-500'
-                          }`}
+                            }`}
                         >
                           {item.status}
                         </span>
