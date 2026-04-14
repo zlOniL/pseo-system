@@ -33,7 +33,8 @@ add_action('rest_api_init', function () {
         'permission_callback' => 'bib_authenticate',
     ]);
 
-    register_rest_route('custom/v1', '/wp-cats', [
+    register_r
+    est_route('custom/v1', '/wp-cats', [
         'methods'             => 'POST',
         'callback'            => 'bib_create_category',
         'permission_callback' => 'bib_authenticate',

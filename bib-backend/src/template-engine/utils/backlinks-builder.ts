@@ -45,7 +45,7 @@ export function buildBacklinksHtml(
   const col2 = items.slice(half);
 
   return [
-    `<h2 style="color: #320000;">Atendemos Também</h2>`,
+    `<h2 style="color: #320000;">Também Atendemos nas Seguintes Localidades</h2>`,
     `<div style="display: flex; flex-wrap: wrap; gap: 20px;">`,
     `<div style="flex: 1; min-width: 260px;"><ul style="list-style: none; padding-left: 0;">`,
     ...col1,
