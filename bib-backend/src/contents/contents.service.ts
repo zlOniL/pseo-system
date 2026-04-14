@@ -147,6 +147,23 @@ export class ContentsService {
     if (error) throw new Error(error.message);
   }
 
+  async findByServiceAndCity(serviceId: string, city: string): Promise<Content[]> {
+    const { data, error } = await this.supabase
+      .getClient()
+      .from('contents')
+      .select()
+      .eq('service_id', serviceId)
+      .eq('city', city);
+    if (error) throw new Error(error.message);
+    return (data ?? []) as Content[];
+  }
+
+  async forceDelete(id: string): Promise<void> {
+    await this.supabase.getClient().from('queue').delete().eq('content_id', id);
+    const { error } = await this.supabase.getClient().from('contents').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+  }
+
   async bulkDelete(ids: string[]): Promise<{ deleted: number; skipped: number }> {
     // Filter out published contents — those cannot be deleted
     const CHUNK_SIZE = 100;

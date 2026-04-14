@@ -3,6 +3,7 @@ import { QueueService } from './queue.service';
 import { ServicesService } from '../services/services.service';
 import { GenerationService } from '../generation/generation.service';
 import { TemplateEngineService } from '../template-engine/template-engine.service';
+import { ContentsService } from '../contents/contents.service';
 
 @Injectable()
 export class QueueWorker implements OnModuleInit {
@@ -14,6 +15,7 @@ export class QueueWorker implements OnModuleInit {
     private readonly services: ServicesService,
     private readonly generation: GenerationService,
     private readonly templateEngine: TemplateEngineService,
+    private readonly contents: ContentsService,
   ) {}
 
   onModuleInit() {
@@ -40,6 +42,13 @@ export class QueueWorker implements OnModuleInit {
           const mode = item.mode ?? 'ai';
 
           this.logger.log(`Processing [${mode}]: ${mainKeyword}`);
+
+          // Delete any existing content for this service+city before regenerating
+          const existing = await this.contents.findByServiceAndCity(service.id, item.city);
+          for (const old of existing) {
+            await this.contents.forceDelete(old.id);
+            this.logger.log(`Deleted old content ${old.id} for ${item.city} (status: ${old.status})`);
+          }
 
           let content;
 
