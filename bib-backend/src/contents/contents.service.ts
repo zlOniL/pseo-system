@@ -151,15 +151,24 @@ export class ContentsService {
     ids: string[],
     status: 'approved' | 'published',
   ): Promise<Content[]> {
-    const { data, error } = await this.supabase
-      .getClient()
-      .from('contents')
-      .update({ status })
-      .in('id', ids)
-      .select();
+    // PostgREST has a URL length limit — chunk large batches to avoid 400 errors
+    const CHUNK_SIZE = 100;
+    const results: Content[] = [];
 
-    if (error) throw new Error(error.message);
-    return data as Content[];
+    for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+      const chunk = ids.slice(i, i + CHUNK_SIZE);
+      const { data, error } = await this.supabase
+        .getClient()
+        .from('contents')
+        .update({ status })
+        .in('id', chunk)
+        .select();
+
+      if (error) throw new Error(error.message);
+      results.push(...(data as Content[]));
+    }
+
+    return results;
   }
 
   async setPublished(id: string, wpPostId: number, wpPostUrl: string): Promise<Content> {
