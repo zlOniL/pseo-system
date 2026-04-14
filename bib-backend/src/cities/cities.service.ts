@@ -97,7 +97,7 @@ export class CitiesService implements OnModuleInit {
     const region = this.findRegion(cityName);
     if (!region) {
       this.logger.warn(`City "${cityName}" not found in CITIES.md — "Atendemos Também" will be empty`);
-      return `<h2 style="color: #320000;">Atendemos Também</h2>\n<ul>\n</ul>`;
+      return `<h2 style="color: #320000;">Também Atendemos nas Seguintes Localidades</h2>\n<ul>\n</ul>`;
     }
 
     const localities = this.getLocalities(region, cityName);
@@ -115,7 +115,7 @@ export class CitiesService implements OnModuleInit {
     const col2 = items.slice(half);
 
     return [
-      `<h2 style="color: #320000;">Atendemos Também</h2>`,
+      `<h2 style="color: #320000;">Também Atendemos nas Seguintes Localidades</h2>`,
       `<div style="display: flex; flex-wrap: wrap; gap: 20px;">`,
       `<div style="flex: 1; min-width: 260px;"><ul style="list-style: none; padding-left: 0;">`,
       ...col1,
@@ -138,7 +138,7 @@ export class CitiesService implements OnModuleInit {
       if (!line) continue;
 
       const hasSeparator = line.includes(' - ') || line.includes(' | ') ||
-                           line.includes('- ') || line.includes(' -');
+        line.includes('- ') || line.includes(' -');
 
       if (!hasSeparator) {
         // This is a region header
