@@ -112,7 +112,7 @@ export class WordPressService {
     }
 
     this.logger.log(
-      `Publishing "${title}" → ${wpUrl} | seoTitle: "${seoTitle}" | categories: [${categories.join(',')}]`,
+      `Publishing "${title}" → ${wpUrl} | seoTitle: "${seoTitle}" | categories: [${categories.join(',')}] | primary_category_id: ${blogCategoryId ?? 'null'}`,
     );
 
     const response = await fetch(wpUrl, {
