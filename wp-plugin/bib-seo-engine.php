@@ -144,11 +144,6 @@ function bib_create_or_update_post(WP_REST_Request $request): WP_REST_Response {
         wp_set_post_categories($post_id, $categories, false);
     }
 
-    // Primary category — Yoast SEO
-    if (!is_wp_error($post_id) && $primary_category_id > 0) {
-        update_post_meta($post_id, '_yoast_wpseo_primary_category', $primary_category_id);
-    }
-
     remove_filter('the_content', 'bib_disable_wpautop_for_post', 0);
 
     if (is_wp_error($post_id)) {
@@ -164,32 +159,20 @@ function bib_create_or_update_post(WP_REST_Request $request): WP_REST_Response {
         update_post_meta($post_id, '_yoast_wpseo_title', $seo_title . ' %%page%% %%sep%% %%sitename%%');
     }
 
-    // Meta description — RankMath SEO
-    // if (!empty($meta_desc) && function_exists('rank_math')) {
-    //    update_post_meta($post_id, 'rank_math_description', $meta_desc);
-    //    update_post_meta($post_id, 'rank_math_title', $seo_title);
-    //    update_post_meta($post_id, 'rank_math_focus_keyword', $title);
-    // }
-    
-    if (function_exists('rank_math')) {
+    // Meta description — RankMath SEO (sempre, sem verificar function_exists)
+    if (!empty($meta_desc)) {
+        update_post_meta($post_id, 'rank_math_description', $meta_desc);
+        update_post_meta($post_id, 'rank_math_title', $seo_title);
+    }
 
-        if (!empty($meta_desc)) {
-            update_post_meta($post_id, 'rank_math_description', $meta_desc);
-            update_post_meta($post_id, 'rank_math_title', $seo_title);
-        }
+    update_post_meta($post_id, 'rank_math_focus_keyword', $title);
 
-        update_post_meta($post_id, 'rank_math_focus_keyword', $title);
+    // Primary category — RankMath (meta key confirmado via pt24_postmeta)
+    if ($primary_category_id > 0) {
+        update_post_meta($post_id, 'rank_math_primary_category', $primary_category_id);
+    }
 
-        // Primary category — RankMath
-        if ($primary_category_id > 0) {
-            update_post_meta($post_id, 'rank_math_primary_category', $primary_category_id);
-        }
-
-        do_action('rank_math/post_saved', $post_id);
-        do_action('save_post', $post_id, get_post($post_id), true);
-
-        clean_post_cache($post_id);
-   	}
+    clean_post_cache($post_id);
     
     return new WP_REST_Response([
         'id'   => $post_id,

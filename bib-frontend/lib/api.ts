@@ -61,6 +61,12 @@ export const api = {
       body: JSON.stringify({ ids }),
     }),
 
+  bulkDelete: (ids: string[]) =>
+    request<{ deleted: number; skipped: number }>('/contents/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }),
+
   bulkPublish: (ids: string[]) =>
     request<BulkPublishResult[]>('/contents/bulk-publish', {
       method: 'POST',

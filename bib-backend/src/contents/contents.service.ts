@@ -147,6 +147,50 @@ export class ContentsService {
     if (error) throw new Error(error.message);
   }
 
+  async bulkDelete(ids: string[]): Promise<{ deleted: number; skipped: number }> {
+    // Filter out published contents — those cannot be deleted
+    const CHUNK_SIZE = 100;
+    let deleted = 0;
+    let skipped = 0;
+
+    for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+      const chunk = ids.slice(i, i + CHUNK_SIZE);
+
+      // Fetch statuses for this chunk
+      const { data: rows } = await this.supabase
+        .getClient()
+        .from('contents')
+        .select('id, status')
+        .in('id', chunk);
+
+      const deletableIds = (rows ?? [])
+        .filter((r: { id: string; status: string }) => r.status !== 'published')
+        .map((r: { id: string; status: string }) => r.id);
+
+      skipped += chunk.length - deletableIds.length;
+
+      if (deletableIds.length === 0) continue;
+
+      // Remove queue items first (FK constraint)
+      await this.supabase
+        .getClient()
+        .from('queue')
+        .delete()
+        .in('content_id', deletableIds);
+
+      const { error } = await this.supabase
+        .getClient()
+        .from('contents')
+        .delete()
+        .in('id', deletableIds);
+
+      if (error) throw new Error(error.message);
+      deleted += deletableIds.length;
+    }
+
+    return { deleted, skipped };
+  }
+
   async bulkUpdateStatus(
     ids: string[],
     status: 'approved' | 'published',

@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { QueueItem, QueueStats, RegionWithCities, Service } from '@/lib/types';
 
 type CityStatus = 'done' | 'processing' | 'pending' | 'failed' | 'free';
+type StatusFilter = 'all' | 'free' | 'failed' | 'done';
 
 function getCityStatus(city: string, itemMap: Map<string, QueueItem>): CityStatus {
   const item = itemMap.get(city);
@@ -32,6 +33,15 @@ function StatusBadge({ status }: { status: CityStatus }) {
   return null;
 }
 
+function matchesFilter(status: CityStatus, filter: StatusFilter): boolean {
+  if (filter === 'all') return true;
+  return status === filter;
+}
+
+function isSelectable(status: CityStatus): boolean {
+  return status === 'free' || status === 'failed' || status === 'done';
+}
+
 export default function ScalePage() {
   const params = useParams<{ id: string }>();
   const serviceId = params.id;
@@ -42,6 +52,7 @@ export default function ScalePage() {
   const [stats, setStats] = useState<QueueStats | null>(null);
   const [selectedCities, setSelectedCities] = useState<Set<string>>(new Set());
   const [expandedRegions, setExpandedRegions] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [mode, setMode] = useState<'ai' | 'template'>('ai');
   const [enqueueing, setEnqueueing] = useState(false);
   const [error, setError] = useState('');
@@ -62,7 +73,8 @@ export default function ScalePage() {
       .then(([svc, r, q, s]) => {
         setService(svc);
         setRegions(r);
-        setExpandedRegions(new Set(r.map((reg) => reg.region)));
+        // Start with all regions collapsed
+        setExpandedRegions(new Set());
         setQueueItems(q);
         setStats(s);
       })
@@ -76,7 +88,7 @@ export default function ScalePage() {
   const itemMap = new Map<string, QueueItem>(queueItems.map((q) => [q.city, q]));
 
   function toggleCity(city: string, status: CityStatus) {
-    if (status !== 'free' && status !== 'failed') return;
+    if (!isSelectable(status)) return;
     setSelectedCities((prev) => {
       const next = new Set(prev);
       if (next.has(city)) next.delete(city);
@@ -97,9 +109,10 @@ export default function ScalePage() {
   function toggleRegion(region: RegionWithCities) {
     const selectableCities = region.cities.filter((c) => {
       const s = getCityStatus(c, itemMap);
-      return s === 'free' || s === 'failed';
+      return isSelectable(s) && matchesFilter(s, statusFilter);
     });
-    const allSelected = selectableCities.length > 0 && selectableCities.every((c) => selectedCities.has(c));
+    const allSelected =
+      selectableCities.length > 0 && selectableCities.every((c) => selectedCities.has(c));
 
     setSelectedCities((prev) => {
       const next = new Set(prev);
@@ -135,6 +148,13 @@ export default function ScalePage() {
     );
   }
 
+  const filterOptions: { value: StatusFilter; label: string }[] = [
+    { value: 'all', label: 'Todas' },
+    { value: 'free', label: 'Não feitas' },
+    { value: 'failed', label: 'Erro' },
+    { value: 'done', label: 'Concluídas' },
+  ];
+
   return (
     <div className="bib-page">
       <div className="bib-container-wide">
@@ -153,34 +173,59 @@ export default function ScalePage() {
           {/* Painel esquerdo: seleção de cidades */}
           <div className="w-72 shrink-0">
             <div className="sticky top-0">
-              <div className="flex items-center justify-between mb-3">
+              {/* Header + Limpar */}
+              <div className="flex items-center justify-between mb-2">
                 <h2 className="bib-title" style={{ fontSize: '0.875rem' }}>Regiões e Cidades</h2>
                 {selectedCities.size > 0 && (
                   <button
                     onClick={() => setSelectedCities(new Set())}
                     className="bib-btn bib-btn-ghost text-xs"
                   >
-                    Limpar
+                    Limpar ({selectedCities.size})
                   </button>
                 )}
               </div>
 
-              <div className="space-y-4 max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
-                {regions.map((region) => {
-                  const freeCities = region.cities.filter((c) => {
-                    const s = getCityStatus(c, itemMap);
-                    return s === 'free' || s === 'failed';
-                  });
-                  const allSelected =
-                    freeCities.length > 0 && freeCities.every((c) => selectedCities.has(c));
-                  const someSelected = freeCities.some((c) => selectedCities.has(c));
+              {/* Filtro de estado */}
+              <div className="flex gap-1 mb-2">
+                {filterOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setStatusFilter(opt.value)}
+                    className={`flex-1 text-xs py-1 rounded-md border font-medium transition-colors ${
+                      statusFilter === opt.value
+                        ? 'bg-gray-900 text-white border-gray-900'
+                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
 
+              {/* Lista de regiões */}
+              <div className="space-y-3 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
+                {regions.map((region) => {
+                  const visibleCities = region.cities.filter((c) => {
+                    const s = getCityStatus(c, itemMap);
+                    return matchesFilter(s, statusFilter);
+                  });
+
+                  if (visibleCities.length === 0) return null;
+
+                  const selectableCities = visibleCities.filter((c) =>
+                    isSelectable(getCityStatus(c, itemMap)),
+                  );
+                  const allSelected =
+                    selectableCities.length > 0 &&
+                    selectableCities.every((c) => selectedCities.has(c));
+                  const someSelected = selectableCities.some((c) => selectedCities.has(c));
                   const isExpanded = expandedRegions.has(region.region);
 
                   return (
                     <div key={region.region}>
                       {/* Região */}
-                      <div className="flex items-center gap-2 mb-1.5">
+                      <div className="flex items-center gap-2 mb-1">
                         <label className="flex items-center gap-2 cursor-pointer group flex-1 min-w-0">
                           <input
                             type="checkbox"
@@ -189,14 +234,14 @@ export default function ScalePage() {
                               if (el) el.indeterminate = someSelected && !allSelected;
                             }}
                             onChange={() => toggleRegion(region)}
-                            disabled={freeCities.length === 0}
+                            disabled={selectableCities.length === 0}
                             className="w-3.5 h-3.5 accent-gray-900"
                           />
                           <span className="text-xs font-semibold text-gray-700 group-hover:text-gray-900 uppercase tracking-wide">
                             {region.region}
                           </span>
                           <span className="text-xs text-gray-400">
-                            ({region.cities.length})
+                            ({visibleCities.length})
                           </span>
                         </label>
                         <button
@@ -215,68 +260,66 @@ export default function ScalePage() {
 
                       {/* Cidades */}
                       {isExpanded && (
-                        <div className="ml-5 space-y-1">
-                        {region.cities.map((city) => {
-                          const status = getCityStatus(city, itemMap);
-                          const item = itemMap.get(city);
-                          const isSelectable = status === 'free' || status === 'failed';
-                          const isSelected = selectedCities.has(city);
+                        <div className="ml-5 space-y-0.5">
+                          {visibleCities.map((city) => {
+                            const status = getCityStatus(city, itemMap);
+                            const item = itemMap.get(city);
+                            const selectable = isSelectable(status);
+                            const isSelected = selectedCities.has(city);
 
-                          // Done with content → link to content page
-                          if (status === 'done' && item?.content_id) {
+                            // Pending or processing → non-interactive
+                            if (status === 'pending' || status === 'processing') {
+                              return (
+                                <div key={city} className="flex items-center gap-1.5">
+                                  <StatusBadge status={status} />
+                                  <span className="text-xs text-gray-400">{city}</span>
+                                </div>
+                              );
+                            }
+
+                            // Selectable: free, failed, done
                             return (
-                              <div key={city} className="flex items-center gap-1.5">
-                                <StatusBadge status={status} />
-                                <Link
-                                  href={`/contents/${item.content_id}`}
-                                  className="text-xs text-emerald-600 hover:underline"
+                              <label
+                                key={city}
+                                title={status === 'failed' && item?.error ? item.error : undefined}
+                                className={`flex items-center gap-1.5 ${selectable ? 'cursor-pointer' : 'cursor-default'}`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => toggleCity(city, status)}
+                                  className="w-3 h-3 accent-gray-900"
+                                />
+                                <span
+                                  className={`text-xs ${
+                                    status === 'failed'
+                                      ? 'text-red-500 font-medium'
+                                      : status === 'done'
+                                        ? isSelected
+                                          ? 'text-emerald-700 font-medium'
+                                          : 'text-emerald-600'
+                                        : isSelected
+                                          ? 'text-gray-900 font-medium'
+                                          : 'text-gray-600'
+                                  }`}
                                 >
                                   {city}
-                                </Link>
-                              </div>
+                                  {status === 'failed' && (
+                                    <span className="ml-1 text-red-400 font-normal">✗</span>
+                                  )}
+                                  {status === 'done' && item?.content_id && !isSelected && (
+                                    <Link
+                                      href={`/contents/${item.content_id}`}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="ml-1 text-emerald-500 hover:underline font-normal"
+                                    >
+                                      ✓
+                                    </Link>
+                                  )}
+                                </span>
+                              </label>
                             );
-                          }
-
-                          // Pending or processing → non-interactive
-                          if (status === 'pending' || status === 'processing') {
-                            return (
-                              <div key={city} className="flex items-center gap-1.5">
-                                <StatusBadge status={status} />
-                                <span className="text-xs text-gray-400">{city}</span>
-                              </div>
-                            );
-                          }
-
-                          // Free or failed → selectable checkbox
-                          return (
-                            <label
-                              key={city}
-                              title={status === 'failed' && item?.error ? item.error : undefined}
-                              className="flex items-center gap-1.5 cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => toggleCity(city, status)}
-                                className="w-3 h-3 accent-gray-900"
-                              />
-                              <span
-                                className={`text-xs ${
-                                  status === 'failed'
-                                    ? 'text-red-500 font-medium'
-                                    : isSelected
-                                      ? 'text-gray-900 font-medium'
-                                      : 'text-gray-600'
-                                }`}
-                              >
-                                {city}
-                                {status === 'failed' && (
-                                  <span className="ml-1 text-red-400 font-normal">✗</span>
-                                )}
-                              </span>
-                            </label>
-                          );
-                        })}
+                          })}
                         </div>
                       )}
                     </div>
@@ -285,12 +328,12 @@ export default function ScalePage() {
               </div>
 
               {/* Modo de geração */}
-              <div className="mt-4 pt-4 bib-divider">
-                <p className="text-xs text-gray-500 mb-2">Modo de geração</p>
+              <div className="mt-3 pt-3 bib-divider">
+                <p className="text-xs text-gray-500 mb-1.5">Modo de geração</p>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setMode('ai')}
-                    className={`flex-1 text-xs py-2 rounded-lg border font-medium transition-colors ${
+                    className={`flex-1 text-xs py-1.5 rounded-lg border font-medium transition-colors ${
                       mode === 'ai'
                         ? 'bg-gray-900 text-white border-gray-900'
                         : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
@@ -300,7 +343,7 @@ export default function ScalePage() {
                   </button>
                   <button
                     onClick={() => setMode('template')}
-                    className={`flex-1 text-xs py-2 rounded-lg border font-medium transition-colors ${
+                    className={`flex-1 text-xs py-1.5 rounded-lg border font-medium transition-colors ${
                       mode === 'template'
                         ? 'bg-gray-900 text-white border-gray-900'
                         : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
@@ -312,15 +355,17 @@ export default function ScalePage() {
               </div>
 
               {/* Botão enfileirar */}
-              <div className="mt-3">
+              <div className="mt-2">
                 <button
                   onClick={handleEnqueue}
                   disabled={selectedCities.size === 0 || enqueueing}
-                  className="bib-btn bib-btn-primary w-full py-2.5"
+                  className="bib-btn bib-btn-primary w-full py-2"
                 >
                   {enqueueing
                     ? 'A enfileirar...'
-                    : `Enfileirar ${selectedCities.size} cidade${selectedCities.size !== 1 ? 's' : ''}`}
+                    : selectedCities.size > 0
+                      ? `Enfileirar ${selectedCities.size} cidade${selectedCities.size !== 1 ? 's' : ''}`
+                      : 'Seleciona cidades'}
                 </button>
               </div>
             </div>

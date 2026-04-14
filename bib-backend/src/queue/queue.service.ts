@@ -27,14 +27,14 @@ export class QueueService {
   constructor(private readonly supabase: SupabaseService) {}
 
   async enqueue(serviceId: string, cities: string[], mode: 'ai' | 'template' = 'ai'): Promise<QueueItem[]> {
-    // Remove failed items so they can be re-queued fresh
+    // Remove failed and done items so they can be re-queued fresh
     await this.supabase
       .getClient()
       .from('queue')
       .delete()
       .eq('service_id', serviceId)
       .in('city', cities)
-      .eq('status', 'failed');
+      .in('status', ['failed', 'done']);
 
     const rows = cities.map((city) => ({
       service_id: serviceId,

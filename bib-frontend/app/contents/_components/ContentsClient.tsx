@@ -68,6 +68,30 @@ export default function ContentsClient({ contents, services, activeFilters }: Co
     }
   }
 
+  async function handleBulkDelete() {
+    const ids = [...selectedIds].filter(
+      (id) => contents.find((c) => c.id === id)?.status !== 'published',
+    );
+    if (ids.length === 0) return;
+    const confirmed = window.confirm(
+      `Apagar ${ids.length} conteúdo${ids.length !== 1 ? 's' : ''}? Esta acção não pode ser desfeita.`,
+    );
+    if (!confirmed) return;
+    setBulkLoading(true);
+    try {
+      const result = await api.bulkDelete(ids);
+      setSelectedIds(new Set());
+      router.refresh();
+      if (result.skipped > 0) {
+        alert(`${result.deleted} apagado${result.deleted !== 1 ? 's' : ''}. ${result.skipped} publicado${result.skipped !== 1 ? 's' : ''} ignorado${result.skipped !== 1 ? 's' : ''} (não é possível apagar publicados).`);
+      }
+    } catch (err) {
+      alert((err as Error).message);
+    } finally {
+      setBulkLoading(false);
+    }
+  }
+
   async function handleBulkPublish() {
     const ids = [...selectedIds].filter(
       (id) => contents.find((c) => c.id === id)?.status === 'approved',
@@ -94,6 +118,9 @@ export default function ContentsClient({ contents, services, activeFilters }: Co
   );
   const canPublish = selectedList.some(
     (id) => contents.find((c) => c.id === id)?.status === 'approved',
+  );
+  const canDelete = selectedList.some(
+    (id) => contents.find((c) => c.id === id)?.status !== 'published',
   );
 
   return (
@@ -170,6 +197,14 @@ export default function ContentsClient({ contents, services, activeFilters }: Co
                   className="text-sm px-3 py-1.5 border border-gray-600 rounded-lg hover:bg-gray-700 transition-colors"
                 >
                   Publicar selecionados
+                </button>
+              )}
+              {canDelete && (
+                <button
+                  onClick={handleBulkDelete}
+                  className="text-sm px-3 py-1.5 border border-red-500 text-red-400 rounded-lg hover:bg-red-900/30 transition-colors"
+                >
+                  Apagar selecionados
                 </button>
               )}
               <button

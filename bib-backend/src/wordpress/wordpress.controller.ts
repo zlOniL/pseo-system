@@ -31,6 +31,12 @@ export class WordPressController {
     return results;
   }
 
+  @Post('bulk-delete')
+  @HttpCode(200)
+  bulkDelete(@Body() dto: BulkActionDto) {
+    return this.contentsService.bulkDelete(dto.ids);
+  }
+
   @Post(':id/publish')
   @HttpCode(200)
   publish(@Param('id') id: string) {
