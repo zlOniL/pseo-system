@@ -69,9 +69,7 @@ export default function ContentsClient({ contents, services, activeFilters }: Co
   }
 
   async function handleBulkDelete() {
-    const ids = [...selectedIds].filter(
-      (id) => contents.find((c) => c.id === id)?.status !== 'published',
-    );
+    const ids = [...selectedIds];
     if (ids.length === 0) return;
     const confirmed = window.confirm(
       `Apagar ${ids.length} conteúdo${ids.length !== 1 ? 's' : ''}? Esta acção não pode ser desfeita.`,
@@ -82,9 +80,6 @@ export default function ContentsClient({ contents, services, activeFilters }: Co
       const result = await api.bulkDelete(ids);
       setSelectedIds(new Set());
       router.refresh();
-      if (result.skipped > 0) {
-        alert(`${result.deleted} apagado${result.deleted !== 1 ? 's' : ''}. ${result.skipped} publicado${result.skipped !== 1 ? 's' : ''} ignorado${result.skipped !== 1 ? 's' : ''} (não é possível apagar publicados).`);
-      }
     } catch (err) {
       alert((err as Error).message);
     } finally {
@@ -119,9 +114,7 @@ export default function ContentsClient({ contents, services, activeFilters }: Co
   const canPublish = selectedList.some(
     (id) => contents.find((c) => c.id === id)?.status === 'approved',
   );
-  const canDelete = selectedList.some(
-    (id) => contents.find((c) => c.id === id)?.status !== 'published',
-  );
+  const canDelete = selectedList.length > 0;
 
   return (
     <div>

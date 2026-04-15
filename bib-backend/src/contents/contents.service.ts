@@ -126,11 +126,6 @@ export class ContentsService {
   }
 
   async delete(id: string): Promise<void> {
-    const content = await this.findById(id);
-    if (content.status === 'published') {
-      throw new Error('Cannot delete a published page');
-    }
-
     // Remove queue items that reference this content so the city becomes
     // selectable again in the scale page (done items with no content are useless)
     await this.supabase
@@ -181,7 +176,6 @@ export class ContentsService {
         .in('id', chunk);
 
       const deletableIds = (rows ?? [])
-        .filter((r: { id: string; status: string }) => r.status !== 'published')
         .map((r: { id: string; status: string }) => r.id);
 
       skipped += chunk.length - deletableIds.length;
