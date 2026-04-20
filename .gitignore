@@ -53,3 +53,5 @@ wp-plugin/*.zip
 
 # ─── Claude Code internal ───────────────────────────────────
 .claude/
+CLAUDE.md
+REWORK_BULK_PUBLISH.md
