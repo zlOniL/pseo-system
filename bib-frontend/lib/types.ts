@@ -59,9 +59,24 @@ export interface Service {
   min_words: number;
   status: 'active' | 'archived';
   wordpress_category: string | null;
+  template_html: string | null;
+  template_base_city: string | null;
 }
 
-export type CreateServiceInput = Omit<Service, 'id' | 'created_at' | 'slug' | 'status'>;
+export type CreateServiceInput = Omit<Service, 'id' | 'created_at' | 'slug' | 'status' | 'template_html' | 'template_base_city'>;
+
+export interface GenerateTemplateInput {
+  base_city?: string;
+  images?: string[];
+  video_url?: string;
+  service_notes?: string;
+  feedback?: string;
+}
+
+export interface TemplateResult {
+  content: Content;
+  service: Service;
+}
 
 // ── Queue ─────────────────────────────────────────────────────────────────────
 

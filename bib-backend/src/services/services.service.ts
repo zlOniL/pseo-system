@@ -17,6 +17,8 @@ export interface Service {
   min_words: number;
   status: 'active' | 'archived';
   wordpress_category: string | null;
+  template_html: string | null;
+  template_base_city: string | null;
 }
 
 @Injectable()
@@ -109,6 +111,43 @@ export class ServicesService {
 
     if (error || !data) throw new NotFoundException(`Service ${id} not found`);
     return data as Service;
+  }
+
+  async saveTemplate(
+    serviceId: string,
+    html: string,
+    baseCity: string,
+    images?: string[],
+    videoUrl?: string | null,
+  ): Promise<Service> {
+    const patch: Record<string, unknown> = { template_html: html, template_base_city: baseCity };
+    if (images !== undefined) patch.images = images;
+    if (videoUrl !== undefined) patch.video_url = videoUrl;
+
+    const { data, error } = await this.supabase
+      .getClient()
+      .from('services')
+      .update(patch)
+      .eq('id', serviceId)
+      .select()
+      .single();
+
+    if (error) throw new Error(`Falha ao guardar template: ${error.message}. Execute a migração supabase-migration-templates.sql no Supabase.`);
+    if (!data) throw new NotFoundException(`Service ${serviceId} not found`);
+    return data as Service;
+  }
+
+  async getTemplate(serviceId: string): Promise<{ template_html: string | null; template_base_city: string | null }> {
+    const { data, error } = await this.supabase
+      .getClient()
+      .from('services')
+      .select('template_html, template_base_city')
+      .eq('id', serviceId)
+      .single();
+
+    if (error) throw new Error(error.message);
+    if (!data) throw new NotFoundException(`Service ${serviceId} not found`);
+    return data as { template_html: string | null; template_base_city: string | null };
   }
 
   async countContents(serviceId: string): Promise<number> {

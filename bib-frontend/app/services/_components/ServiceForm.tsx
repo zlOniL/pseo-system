@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Service, CreateServiceInput, RelatedService, WpCategory } from '@/lib/types';
 import MediaPickerModal from '@/app/_components/MediaPickerModal';
@@ -333,6 +334,26 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
           </>
         )}
       </div>
+
+      {/* Template */}
+      {isEdit && initialData && (
+        <>
+          <div className="bib-divider" />
+          <div>
+            <label className="bib-label">Template HTML do Serviço</label>
+            <p className="text-xs text-gray-400 mb-2">
+              {initialData.template_html
+                ? 'Template criado. Pode regenerá-lo a qualquer momento.'
+                : 'Sem template. Crie um para usar na geração em lote.'}
+            </p>
+            <Link href={`/services/${initialData.id}/template`}>
+              <button type="button" className="bib-btn bib-btn-secondary w-full py-2">
+                {initialData.template_html ? 'Editar Template' : 'Criar Template'}
+              </button>
+            </Link>
+          </div>
+        </>
+      )}
 
       {/* Submit */}
       <button

@@ -28,11 +28,19 @@ export class TemplateEngineService {
     const { service, city } = input;
     const serviceSlug = slugify(service.name);
 
-    // 1. Load template file
-    const rawHtml = this.loadTemplate(serviceSlug);
+    // 1. Load template — DB first, fallback to file
+    let rawHtml: string;
+    let baseCity: string;
 
-    // 2. Derive the base city encoded in the template filename
-    const baseCity = this.getBaseCityFromFilename(serviceSlug);
+    if (service.template_html) {
+      rawHtml = service.template_html;
+      baseCity = service.template_base_city ?? 'Lisboa';
+      this.logger.log(`Using DB template for "${service.name}" (base city: "${baseCity}")`);
+    } else {
+      rawHtml = this.loadTemplate(serviceSlug);
+      baseCity = this.getBaseCityFromFilename(serviceSlug);
+    }
+
     this.logger.log(`Template base city: "${baseCity}" → target: "${city}"`);
 
     // 3. Replace all occurrences of the base city with the target city

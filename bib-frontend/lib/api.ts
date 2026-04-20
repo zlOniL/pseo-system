@@ -5,6 +5,8 @@ import {
   RegenerateInput,
   Service,
   CreateServiceInput,
+  GenerateTemplateInput,
+  TemplateResult,
   QueueItem,
   QueueStats,
   RegionWithCities,
@@ -87,6 +89,17 @@ export const api = {
 
   archiveService: (id: string) =>
     request<Service>(`/services/${id}`, { method: 'DELETE' }),
+
+  generateTemplate: (serviceId: string, input: GenerateTemplateInput) =>
+    request<TemplateResult>(`/services/${serviceId}/generate-template`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  getServiceTemplate: (serviceId: string) =>
+    request<{ template_html: string | null; template_base_city: string | null }>(
+      `/services/${serviceId}/template`,
+    ),
 
   // ── Cities ───────────────────────────────────────────────────────────────────
 
