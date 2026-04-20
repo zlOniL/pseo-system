@@ -100,6 +100,17 @@ export class ContentsService {
     return data as Omit<Content, 'html'>[];
   }
 
+  async findByIds(ids: string[]): Promise<Content[]> {
+    const { data, error } = await this.supabase
+      .getClient()
+      .from('contents')
+      .select('*')
+      .in('id', ids);
+
+    if (error) throw new Error(error.message);
+    return (data ?? []) as Content[];
+  }
+
   async findById(id: string): Promise<Content> {
     const { data, error } = await this.supabase
       .getClient()

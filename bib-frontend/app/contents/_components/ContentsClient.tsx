@@ -20,6 +20,7 @@ export default function ContentsClient({ contents, services, activeFilters }: Co
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkProgress, setBulkProgress] = useState(0);
+  const [bulkTotal, setBulkTotal] = useState(0);
 
   function updateFilter(key: string, value: string) {
     const params = new URLSearchParams({
@@ -94,14 +95,22 @@ export default function ContentsClient({ contents, services, activeFilters }: Co
     if (ids.length === 0) return;
     setBulkLoading(true);
     setBulkProgress(0);
-    for (const id of ids) {
+    setBulkTotal(ids.length);
+
+    const CHUNK_SIZE = 50;
+    let processed = 0;
+
+    for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+      const chunk = ids.slice(i, i + CHUNK_SIZE);
       try {
-        await api.publishContent(id);
+        await api.bulkPublish(chunk);
       } catch {
-        // continue on individual failure
+        // continua nos chunks seguintes
       }
-      setBulkProgress((p) => p + 1);
+      processed += chunk.length;
+      setBulkProgress(processed);
     }
+
     setBulkLoading(false);
     setSelectedIds(new Set());
     router.refresh();
@@ -172,7 +181,7 @@ export default function ContentsClient({ contents, services, activeFilters }: Co
 
           {bulkLoading ? (
             <span className="text-sm text-gray-300">
-              A processar... {bulkProgress}/{selectedIds.size}
+              A publicar... {bulkProgress}/{bulkTotal}
             </span>
           ) : (
             <>

@@ -21,6 +21,12 @@ add_action('rest_api_init', function () {
         'permission_callback' => 'bib_authenticate',
     ]);
 
+    register_rest_route('custom/v1', '/posts/bulk', [
+        'methods'             => 'POST',
+        'callback'            => 'bib_bulk_create_posts',
+        'permission_callback' => 'bib_authenticate',
+    ]);
+
     register_rest_route('custom/v1', '/media', [
         'methods'             => 'GET',
         'callback'            => 'bib_list_media',
@@ -71,23 +77,21 @@ function bib_authenticate(WP_REST_Request $request): bool {
     return false;
 }
 
-function bib_create_or_update_post(WP_REST_Request $request): WP_REST_Response {
-    $params  = $request->get_json_params();
-    $title          = sanitize_text_field($params['title']          ?? '');
-    $seo_title      = sanitize_text_field($params['seo_title']      ?? $title);
-    $excerpt        = sanitize_text_field($params['excerpt']        ?? '');
-    $meta_desc      = sanitize_text_field($params['meta_description'] ?? $excerpt);
-    $raw     = $params['content'] ?? '';
-    $status  = sanitize_text_field($params['status']  ?? 'publish');
-    $slug    = sanitize_title($params['slug']          ?? $title);
-    $categories = isset($params['categories']) && is_array($params['categories'])
+function bib_process_post_data(array $params): array {
+    $title               = sanitize_text_field($params['title']            ?? '');
+    $seo_title           = sanitize_text_field($params['seo_title']        ?? $title);
+    $excerpt             = sanitize_text_field($params['excerpt']           ?? '');
+    $meta_desc           = sanitize_text_field($params['meta_description'] ?? $excerpt);
+    $raw                 = $params['content'] ?? '';
+    $status              = sanitize_text_field($params['status']            ?? 'publish');
+    $slug                = sanitize_title($params['slug']                   ?? $title);
+    $categories          = isset($params['categories']) && is_array($params['categories'])
         ? array_map('intval', $params['categories'])
         : [];
     $primary_category_id = isset($params['primary_category_id'])
         ? intval($params['primary_category_id'])
         : 0;
 
-    // Sanitizar HTML mantendo atributos necessários para vídeo
     $allowed = wp_kses_allowed_html('post');
     $allowed['video'] = [
         'src'         => true,
@@ -102,44 +106,41 @@ function bib_create_or_update_post(WP_REST_Request $request): WP_REST_Response {
         'playsinline' => true,
         'preload'     => true,
     ];
-    $allowed['source'] = ['src' => true, 'type' => true];
+    $allowed['source']           = ['src' => true, 'type' => true];
     $allowed['article']['style'] = true;
     $allowed['section']['style'] = true;
-    $allowed['div']  = ['style' => true, 'class' => true, 'id' => true];
-    $allowed['span'] = ['style' => true, 'class' => true];
+    $allowed['div']              = ['style' => true, 'class' => true, 'id' => true];
+    $allowed['span']             = ['style' => true, 'class' => true];
 
     $content = wp_kses($raw, $allowed);
 
     if (empty($title) || empty($content)) {
-        return new WP_REST_Response(['error' => 'title e content são obrigatórios'], 400);
+        return ['success' => false, 'error' => 'title e content são obrigatórios', 'slug' => $slug];
     }
 
-    // Desligar wpautop para este post — o conteúdo já vem formatado
     add_filter('the_content', 'bib_disable_wpautop_for_post', 0);
 
-    // Verificar se já existe um post/página com este slug
     $existing = get_page_by_path($slug, OBJECT, ['post', 'page']);
 
     if ($existing) {
         $post_id = wp_update_post([
-            'ID'             => $existing->ID,
-            'post_title'     => $title,
-            'post_content'   => $content,
-            'post_excerpt'   => $excerpt,
-            'post_status'    => $status,
+            'ID'           => $existing->ID,
+            'post_title'   => $title,
+            'post_content' => $content,
+            'post_excerpt' => $excerpt,
+            'post_status'  => $status,
         ], true);
     } else {
         $post_id = wp_insert_post([
-            'post_title'     => $title,
-            'post_name'      => $slug,
-            'post_content'   => $content,
-            'post_excerpt'   => $excerpt,
-            'post_status'    => $status,
-            'post_type'      => 'post',
+            'post_title'   => $title,
+            'post_name'    => $slug,
+            'post_content' => $content,
+            'post_excerpt' => $excerpt,
+            'post_status'  => $status,
+            'post_type'    => 'post',
         ], true);
     }
 
-    // Assign categories (if provided)
     if (!is_wp_error($post_id) && !empty($categories)) {
         wp_set_post_categories($post_id, $categories, false);
     }
@@ -147,37 +148,71 @@ function bib_create_or_update_post(WP_REST_Request $request): WP_REST_Response {
     remove_filter('the_content', 'bib_disable_wpautop_for_post', 0);
 
     if (is_wp_error($post_id)) {
-        return new WP_REST_Response(['error' => $post_id->get_error_message()], 500);
+        return ['success' => false, 'error' => $post_id->get_error_message(), 'slug' => $slug];
     }
 
-    // Meta interna BIB
     update_post_meta($post_id, '_bib_raw_html', '1');
 
-    // Meta description — Yoast SEO
     if (!empty($meta_desc)) {
         update_post_meta($post_id, '_yoast_wpseo_metadesc', $meta_desc);
         update_post_meta($post_id, '_yoast_wpseo_title', $seo_title . ' %%page%% %%sep%% %%sitename%%');
-    }
-
-    // Meta description — RankMath SEO (sempre, sem verificar function_exists)
-    if (!empty($meta_desc)) {
         update_post_meta($post_id, 'rank_math_description', $meta_desc);
         update_post_meta($post_id, 'rank_math_title', $seo_title);
     }
 
     update_post_meta($post_id, 'rank_math_focus_keyword', $title);
 
-    // Primary category — RankMath (meta key confirmado via pt24_postmeta)
     if ($primary_category_id > 0) {
         update_post_meta($post_id, 'rank_math_primary_category', $primary_category_id);
     }
 
     clean_post_cache($post_id);
-    
+
+    return [
+        'success' => true,
+        'id'      => $post_id,
+        'link'    => get_permalink($post_id),
+        'slug'    => $slug,
+    ];
+}
+
+function bib_create_or_update_post(WP_REST_Request $request): WP_REST_Response {
+    $result = bib_process_post_data($request->get_json_params());
+    if (!$result['success']) {
+        $http_status = ($result['error'] === 'title e content são obrigatórios') ? 400 : 500;
+        return new WP_REST_Response(['error' => $result['error']], $http_status);
+    }
     return new WP_REST_Response([
-        'id'   => $post_id,
-        'link' => get_permalink($post_id),
+        'id'   => $result['id'],
+        'link' => $result['link'],
     ], 200);
+}
+
+function bib_bulk_create_posts(WP_REST_Request $request): WP_REST_Response {
+    $posts = $request->get_param('posts');
+
+    if (empty($posts) || !is_array($posts)) {
+        return new WP_REST_Response(['success' => false, 'message' => 'No posts provided'], 400);
+    }
+
+    // Reduzir custo de plugins pesados durante importação em lote
+    add_filter('rank_math/updates/auto_update', '__return_false');
+    wp_suspend_cache_invalidation(true);
+    wp_defer_term_counting(true);
+    wp_defer_comment_counting(true);
+
+    $results = [];
+    foreach ($posts as $post_data) {
+        $results[] = bib_process_post_data((array) $post_data);
+    }
+
+    // Restaurar comportamento normal
+    remove_filter('rank_math/updates/auto_update', '__return_false');
+    wp_suspend_cache_invalidation(false);
+    wp_defer_term_counting(false);
+    wp_defer_comment_counting(false);
+
+    return new WP_REST_Response($results, 200);
 }
 
 // Desactivar wpautop em posts gerados pelo BIB (têm o meta _bib_raw_html)

@@ -28,6 +28,13 @@ export interface WpCategory {
   parent: number;
 }
 
+export interface BulkPublishResult {
+  id: string;
+  success: boolean;
+  data?: Content;
+  error?: string;
+}
+
 @Injectable()
 export class WordPressService {
   private readonly logger = new Logger(WordPressService.name);
@@ -35,7 +42,7 @@ export class WordPressService {
   constructor(
     private readonly contents: ContentsService,
     private readonly services: ServicesService,
-  ) {}
+  ) { }
 
   /**
    * Returns the base URL for WordPress API calls.
@@ -142,6 +149,211 @@ export class WordPressService {
 
     const result = (await response.json()) as { id: number; link: string };
     return this.contents.setPublished(contentId, result.id, result.link);
+  }
+
+  private preparePayload(
+    content: Content,
+    categories: { ids: number[]; primaryId: number | null },
+  ): object {
+    const fullHtml =
+      content.generation_mode === 'template'
+        ? assembleTemplateHtml(content.html, content.video_url)
+        : assemblePageHtml(content.html, content.video_url);
+
+    const slug = slugify(content.main_keyword);
+    const title = content.main_keyword;
+    let seoTitle = `${content.main_keyword} — Atendimento 24h`;
+    let metaDescription = content.meta_description ?? '';
+
+    if (content.generation_mode === 'template') {
+      const serviceSlug = slugify(content.service);
+      const seo = getSeoForTemplate(serviceSlug, content.city);
+      if (seo) {
+        seoTitle = seo.title;
+        metaDescription = seo.description;
+      }
+    }
+
+    return {
+      title,
+      seo_title: seoTitle,
+      content: fullHtml,
+      excerpt: metaDescription,
+      meta_description: metaDescription,
+      status: 'publish',
+      slug,
+      categories: categories.ids,
+      primary_category_id: categories.primaryId,
+    };
+  }
+
+  private async resolveCategoriesForBulk(
+    contents: Content[],
+  ): Promise<Map<string, { ids: number[]; primaryId: number | null }>> {
+    // Fetch all existing WP categories once
+    let allCategories = await this.getCategories();
+
+    // Ensure "Blog" exists
+    let blogCategoryId: number | null = null;
+    const blogCat = allCategories.find((c) => c.name.toLowerCase() === 'blog');
+    if (blogCat) {
+      blogCategoryId = blogCat.id;
+    } else {
+      const created = await this.createCategory('Blog', '');
+      blogCategoryId = created.id;
+      allCategories = [...allCategories, created];
+    }
+
+    // Collect unique service IDs and fetch their WP category names
+    const serviceIds = [
+      ...new Set(contents.filter((c) => c.service_id).map((c) => c.service_id!)),
+    ];
+    const serviceWpCatMap = new Map<string, string | null>();
+
+    for (const serviceId of serviceIds) {
+      try {
+        const service = await this.services.findById(serviceId);
+        serviceWpCatMap.set(serviceId, service.wordpress_category ?? null);
+      } catch {
+        serviceWpCatMap.set(serviceId, null);
+      }
+    }
+
+    // Ensure all unique service category names exist in WP (create if missing)
+    const uniqueCatNames = [
+      ...new Set([...serviceWpCatMap.values()].filter((n): n is string => !!n)),
+    ];
+    const categoryIdCache = new Map<string, number>();
+
+    for (const catName of uniqueCatNames) {
+      const existing = allCategories.find(
+        (c) => c.name.toLowerCase() === catName.toLowerCase(),
+      );
+      if (existing) {
+        categoryIdCache.set(catName, existing.id);
+      } else {
+        const created = await this.createCategory(catName, 'Blog');
+        categoryIdCache.set(catName, created.id);
+      }
+    }
+
+    // Build result map: contentId → { ids, primaryId }
+    const result = new Map<string, { ids: number[]; primaryId: number | null }>();
+
+    for (const content of contents) {
+      const ids: number[] = blogCategoryId ? [blogCategoryId] : [];
+
+      if (content.service_id) {
+        const wpCatName = serviceWpCatMap.get(content.service_id);
+        if (wpCatName) {
+          const catId = categoryIdCache.get(wpCatName);
+          if (catId && !ids.includes(catId)) ids.push(catId);
+        }
+      }
+
+      result.set(content.id, { ids, primaryId: blogCategoryId });
+    }
+
+    return result;
+  }
+
+  private async callWpBulk(
+    payloads: object[],
+  ): Promise<Array<{ id: number; link: string; slug: string; success: boolean; error?: string }>> {
+    const url = `${this.wpApiBase()}/posts/bulk`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.WP_SECRET}`,
+      },
+      body: JSON.stringify({ posts: payloads }),
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      this.logger.error(`WordPress bulk publish error ${response.status}: ${err}`);
+      throw new InternalServerErrorException('WordPress bulk publish failed');
+    }
+
+    return response.json();
+  }
+
+  async bulkPublish(ids: string[]): Promise<BulkPublishResult[]> {
+    const contents = await this.contents.findByIds(ids);
+    const categoryMap = await this.resolveCategoriesForBulk(contents);
+    const payloads = contents.map((c) => this.preparePayload(c, categoryMap.get(c.id)!));
+
+    const CHUNK_SIZE = 100;
+    const MAX_RETRIES = 3;
+    const totalChunks = Math.ceil(payloads.length / CHUNK_SIZE);
+    const results: BulkPublishResult[] = [];
+
+    this.logger.log(
+      `Bulk publish: ${payloads.length} posts → ${totalChunks} chunk(s) de ${CHUNK_SIZE}`,
+    );
+
+    for (let i = 0; i < payloads.length; i += CHUNK_SIZE) {
+      const chunkPayloads = payloads.slice(i, i + CHUNK_SIZE);
+      const chunkContents = contents.slice(i, i + CHUNK_SIZE);
+      const chunkNum = Math.floor(i / CHUNK_SIZE) + 1;
+      const posStart = i + 1;
+      const posEnd = Math.min(i + CHUNK_SIZE, payloads.length);
+
+      this.logger.log(
+        `Bulk publish chunk ${chunkNum}/${totalChunks}: posts ${posStart}–${posEnd} de ${payloads.length}`,
+      );
+
+      let wpResults: Awaited<ReturnType<typeof this.callWpBulk>> | undefined;
+      let attempt = 0;
+
+      while (attempt < MAX_RETRIES) {
+        try {
+          wpResults = await this.callWpBulk(chunkPayloads);
+          break;
+        } catch (err) {
+          attempt++;
+          this.logger.warn(
+            `Chunk ${chunkNum}/${totalChunks} — tentativa ${attempt}/${MAX_RETRIES} falhou: ${(err as Error).message}`,
+          );
+          if (attempt >= MAX_RETRIES) {
+            this.logger.error(
+              `Bulk publish abortado: chunk ${chunkNum}/${totalChunks} falhou ${MAX_RETRIES} vezes consecutivas`,
+            );
+            throw err;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+        }
+      }
+
+      for (let j = 0; j < wpResults!.length; j++) {
+        const wpResult = wpResults![j];
+        const content = chunkContents[j];
+
+        if (wpResult.success) {
+          try {
+            const updated = await this.contents.setPublished(
+              content.id,
+              wpResult.id,
+              wpResult.link,
+            );
+            results.push({ id: content.id, success: true, data: updated });
+          } catch (err) {
+            results.push({ id: content.id, success: false, error: (err as Error).message });
+          }
+        } else {
+          this.logger.warn(
+            `Bulk publish: slug "${wpResult.slug}" falhou — ${wpResult.error}`,
+          );
+          results.push({ id: content.id, success: false, error: wpResult.error });
+        }
+      }
+    }
+
+    const succeeded = results.filter((r) => r.success).length;
+    this.logger.log(`Bulk publish concluído: ${succeeded}/${results.length} publicados`);
+
+    return results;
   }
 
   async getCategories(): Promise<WpCategory[]> {
