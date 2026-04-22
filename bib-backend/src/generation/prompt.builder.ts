@@ -55,16 +55,7 @@ NÃO altere estrutura. NÃO remova seções. NÃO invente novos blocos.
 
 ## INSTRUÇÕES DETALHADAS POR SECÇÃO
 
-### ENRIQUECIMENTO LOCAL E DE SERVIÇO — DISTRIBUIÇÃO OBRIGATÓRIA
-Este bloco define ONDE inserir os enriquecimentos ao longo da página. Não concentrar tudo num sítio — distribuir naturalmente:
 
-**Enriquecimento local** (mínimo 4 ocorrências em secções diferentes):
-- INTRO P2/P3: mencionar características urbanísticas da cidade relevantes para o serviço (edifícios antigos no centro histórico, construções novas nas zonas de expansão, etc.)
-- PROCURA EM BUSCADORES: em 1-2 H3s, contextualizar a procura com referência a zonas ou bairros reais da cidade
-- PRINCIPAIS PROBLEMAS: em 1-2 problemas, contextualizar com o tipo de construção típico da cidade ou bairro
-- PREVENÇÃO: mencionar condições locais (clima, qualidade da água, tipo de construção) que tornam a manutenção especialmente importante naquela cidade
-- CONTEXTO LOCAL (secção dedicada): mínimo 5 referências locais reais (ruas, praças, bairros, monumentos, zonas)
-- SISTEMAS E INTERVENÇÕES: referir o tipo de construção/infraestrutura típica da cidade
 
 **Enriquecimento de serviço** (mínimo 3 ocorrências em secções diferentes):
 - INTRO P6: mencionar 2-3 ferramentas/equipamentos específicos com nomes técnicos reais
