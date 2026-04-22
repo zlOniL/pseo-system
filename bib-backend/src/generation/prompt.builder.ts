@@ -26,15 +26,12 @@ NÃO altere estrutura. NÃO remova seções. NÃO invente novos blocos.
 11. Linguagem natural, profissional, em português europeu (não brasileiro)
 12. NÃO usar "você" — usar "o cliente", "o utilizador", "a intervenção", etc.
 13. DENSIDADE OBRIGATÓRIA: a keyword principal deve aparecer pelo menos 1% do total de palavras. Repete-a de forma natural nos parágrafos.
-14. LOCALIDADE DISTRIBUÍDA: referências locais reais (ruas, avenidas, praças, monumentos, bairros, pontos turísticos) devem aparecer distribuídas por PELO MENOS 4 secções diferentes do conteúdo — não apenas na secção de contexto local. O texto deve sentir-se genuinamente escrito por alguém que conhece a cidade.
-15. LINKS EXTERNOS (4-6 obrigatórios): distribuir ao longo do conteúdo nos contextos naturais:
-    - 1-2 links para a localidade: site da Câmara Municipal, Wikipedia da cidade, portal de turismo oficial
-    - 1-2 links para marcas/fabricantes de ferramentas ou equipamentos do sector (ex: fabricante de ferramentas usadas no serviço)
-    - 1 link para associação profissional do sector ou norma técnica relevante (ex: APFAC, APCMC, NP EN relevante)
+14. LINKS EXTERNOS (4-6 obrigatórios): distribuir ao longo do conteúdo nos contextos naturais:
+    - links para marcas/fabricantes de ferramentas ou equipamentos do sector (ex: fabricante de ferramentas usadas no serviço)
     Formato: \`<a href="URL_REAL" style="color: #111 !important; font-weight: 600; text-decoration: underline;" target="_blank" rel="noopener noreferrer">texto</a>\`
     NUNCA inventar URLs — usa apenas URLs reais e verificáveis.
-16. PLACEHOLDERS DE IMAGEM: Os marcadores \`{{IMAGE_1}}\` até \`{{IMAGE_8}}\` são substituídos automaticamente após a geração pela pipeline. NÃO os remova, NÃO os altere, NÃO os preencha — copia-os EXATAMENTE como estão no template para a saída.
-17. ENRIQUECIMENTO LOCAL — Ao longo de TODO o conteúdo, integrar organicamente:
+15. PLACEHOLDERS DE IMAGEM: Os marcadores \`{{IMAGE_1}}\` até \`{{IMAGE_8}}\` são substituídos automaticamente após a geração pela pipeline. NÃO os remova, NÃO os altere, NÃO os preencha — copia-os EXATAMENTE como estão no template para a saída.
+16. ENRIQUECIMENTO LOCAL — Ao longo de TODO o conteúdo, integrar organicamente:
     - Nomes de ruas, avenidas e praças reais (ex: "Avenida da Liberdade", "Praça do Giraldo", "Rua Augusta")
     - Pontos turísticos, monumentos, edifícios icónicos e zonas conhecidas
     - Características urbanísticas relevantes para o serviço (cidade histórica → edifícios antigos; cidade portuária → humidade; etc.)
@@ -80,11 +77,6 @@ Este bloco define ONDE inserir os enriquecimentos ao longo da página. Não conc
 - SISTEMAS E INTERVENÇÕES P3: detalhar materiais e ferramentas com marcas reais (levemente)
 - COMO FUNCIONA: referir técnicas e métodos profissionais com nomes técnicos
 - SERVIÇOS SUBCATEGORIAS: em 1-2 categorias, adicionar contexto técnico com ferramentas/métodos
-
-**Links externos** (4-6 distribuídos pelo conteúdo):
-- Inserir 1-2 links de localidade nos parágrafos de contexto local ou intro
-- Inserir 1-2 links de marcas/fabricantes nos parágrafos sobre ferramentas ou técnicas
-- Inserir 1 link de associação profissional/norma nos parágrafos de prevenção ou sistemas
 
 ---
 
@@ -227,7 +219,7 @@ Não funciona como conclusão — funciona como consolidação avançada de auto
 ## TEMPLATE HTML (ESTRUTURA FIXA — NÃO ALTERAR)
 
 \`\`\`html
-<!-- BIB_META: {{META_DESCRIPTION — frase de 140-160 caracteres, cita o serviço, a localidade e "atendimento 24h", tom persuasivo}} -->
+<!-- BIB_META: {{META_DESCRIPTION — frase de 140-160 caracteres, cita o serviço e "atendimento 24h", tom persuasivo}} -->
 
 <h1 style="color: #320000;">{{MAIN_KEYWORD}}</h1>
 
@@ -589,7 +581,7 @@ SE não houver \`related_services\`, substituir por um parágrafo normal sobre s
 - 8 placeholders \`{{IMAGE_N}}\` presentes exatamente nas posições do template
 - Estrutura idêntica ao template incluindo FAQ com 10 pares H3+P
 - Keyword com densidade ≥ 1% distribuída naturalmente
-- 4-6 links externos reais distribuídos: localidade (1-2) + ferramentas/marcas (1-2) + associação/norma (1)
+- 4-6 links externos reais distribuídos entre ferramentas utilizadas, wiki sobre o serviço, etc
 - Mínimo 5 referências locais reais (ruas, praças, bairros, monumentos) distribuídas por 4+ secções
 - Mínimo 3 referências técnicas de serviço (ferramentas, marcas, técnicas) distribuídas por 2-3 secções
 - Conteúdo extenso, natural, com autoridade local e técnica genuínas`;
@@ -610,7 +602,7 @@ const REINFORCEMENT = `INSTRUÇÕES FINAIS OBRIGATÓRIAS:
 11. PESQUISAS RELACIONADAS: EXATAMENTE 30 itens <li>.
 12. ENRIQUECIMENTO LOCAL OBRIGATÓRIO: distribuir referências locais reais (ruas, avenidas, praças, monumentos, bairros) por PELO MENOS 4 secções diferentes. Total mínimo: 5 referências locais únicas em todo o conteúdo. NÃO concentrar tudo na secção de contexto local.
 13. ENRIQUECIMENTO DE SERVIÇO OBRIGATÓRIO: mencionar PELO MENOS 3 ferramentas/equipamentos com nomes técnicos reais, 1-2 marcas reconhecidas do sector (levemente, de forma natural), e pelo menos 1 técnica ou método profissional específico com nome técnico. Distribuir por 2-3 secções.
-14. LINKS EXTERNOS OBRIGATÓRIOS (4-6): distribuir ao longo do conteúdo — 1-2 para localidade (Câmara Municipal, Wikipedia, turismo), 1-2 para marcas/fabricantes do sector, 1 para associação profissional ou norma técnica. URLs REAIS e verificáveis — NUNCA inventar.
+14. LINKS EXTERNOS OBRIGATÓRIOS (4-6): links para marcas/fabricantes do sector. URLs REAIS e verificáveis — NUNCA inventar.
 15. DENSIDADE: a keyword principal deve aparecer em pelo menos 1% do texto total. Distribui-a naturalmente.`;
 
 // ─── BUILDER ─────────────────────────────────────────────────────────────────
