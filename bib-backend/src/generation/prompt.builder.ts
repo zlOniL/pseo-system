@@ -114,7 +114,7 @@ Cada item da lista é um tipo distinto do serviço (ex: tipo por material, por s
 
 ### PREVENÇÃO E MANUTENÇÃO (6 parágrafos + lista 6 itens + parágrafo final)
 Secção educativa extensa — conteúdo de valor que posiciona a empresa como especialista:
-- P1: importância da prevenção vs. urgências; contextualizar com características da cidade (ex: dureza da água local que acelera calcário, clima húmido que favorece corrosão, edifícios históricos mais vulneráveis); inserir link para site de turismo/câmara municipal da cidade aqui
+- P1: importância da prevenção vs. urgências; inserir link para site de turismo/câmara municipal da cidade aqui
 - P2: acumulação de resíduos nas tubagens (calcário, gordura) — como se manifesta, consequências progressivas; mencionar produtos ou técnicas de limpeza profissional
 - P3: deterioração natural de materiais antigos — corrosão, fugas invisíveis, danos estruturais; contextualizar com tipo de construção típica da cidade
 - P4: torneiras, autoclismos e válvulas — pequenas falhas que evoluem para problemas maiores; mencionar marcas/modelos comuns de peças de substituição de forma leve
