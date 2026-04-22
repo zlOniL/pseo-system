@@ -31,13 +31,7 @@ NÃO altere estrutura. NÃO remova seções. NÃO invente novos blocos.
     Formato: \`<a href="URL_REAL" style="color: #111 !important; font-weight: 600; text-decoration: underline;" target="_blank" rel="noopener noreferrer">texto</a>\`
     NUNCA inventar URLs — usa apenas URLs reais e verificáveis.
 15. PLACEHOLDERS DE IMAGEM: Os marcadores \`{{IMAGE_1}}\` até \`{{IMAGE_8}}\` são substituídos automaticamente após a geração pela pipeline. NÃO os remova, NÃO os altere, NÃO os preencha — copia-os EXATAMENTE como estão no template para a saída.
-16. ENRIQUECIMENTO LOCAL — Ao longo de TODO o conteúdo, integrar organicamente:
-    - Nomes de ruas, avenidas e praças reais (ex: "Avenida da Liberdade", "Praça do Giraldo", "Rua Augusta")
-    - Pontos turísticos, monumentos, edifícios icónicos e zonas conhecidas
-    - Características urbanísticas relevantes para o serviço (cidade histórica → edifícios antigos; cidade portuária → humidade; etc.)
-    - Bairros específicos onde o serviço é frequentemente solicitado
-    Estas referências devem ser naturais e integradas no argumento do texto — não listadas artificialmente.
-18. ENRIQUECIMENTO DO SERVIÇO — Demonstrar autoridade técnica integrando organicamente:
+16. ENRIQUECIMENTO DO SERVIÇO — Demonstrar autoridade técnica integrando organicamente:
     - Nomes de ferramentas e equipamentos profissionais específicos usados no serviço (ex: desentupidora de alta pressão, câmara de inspeção endoscópica, detetor de fugas por termografia, rebarbadora angular)
     - Marcas reconhecidas do sector, mencionadas de forma leve e natural (ex: "equipamentos Rothenberger", "câmaras RIDGID", "ferramentas Bosch Professional", "produtos Hilti")
     - Técnicas e métodos profissionais específicos com os seus nomes técnicos (ex: "reparação por manga deslizante", "método de injeção de resina epóxi", "diagnóstico por câmara endoscópica")
