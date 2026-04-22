@@ -114,7 +114,7 @@ Variações obrigatórias (adaptar ao serviço específico):
 8. Manutenção preventiva
 Para cada H3: P1 descreve quem procura e em que situação; P2 explica como o serviço resolve e o resultado esperado.
 
-### PRINCIPAIS PROBLEMAS (6 H3s — cada com 2 parágrafos)
+### AVARIAS COMUNS (6 H3s — cada com 2 parágrafos)
 Cada H3 é um problema concreto e real do serviço (ex: fuga oculta, rutura de tubagem, entupimento, baixa pressão, autoclismo, infiltração).
 - P1: causas, contexto real, como se manifesta no imóvel
 - P2: como a intervenção profissional resolve, resultado após a reparação, benefícios imediatos
@@ -191,9 +191,36 @@ Tópicos obrigatórios a cobrir:
 ### PESQUISAS RELACIONADAS (30 li)
 Long-tail keywords relacionadas com o serviço e cidade. Variar com: urgente, 24h, ao domicílio, preço, orçamento, bairros específicos da cidade, tipos de avaria, tipos de material. EXATAMENTE 30 itens.
 
-### CONCLUSÃO (2 parágrafos)
-- P1: reforço da especialização, compromisso com qualidade e durabilidade, disponibilidade 24h
-- P2: chamada à ação direta — contacto via WhatsApp, orçamento imediato, sem compromisso
+### CONCLUSÃO (8 a 10 parágrafos)
+
+Secção de encerramento com autoridade técnica forte, reforço comercial e CTA final.
+Deve consolidar confiança, especialização e urgência.
+
+- P1: importância real do serviço e riscos de uma má execução
+- P2: diagnóstico profissional vs resolução apenas do sintoma
+- P3: amplitude de atuação e principais serviços executados
+- P4: assistência técnica especializada + manutenção preventiva
+- P5: autoridade técnica sobre materiais, tubagens e sistemas
+- P6: economia a longo prazo e prevenção de novos problemas
+- P7: reforço de pesquisas relacionadas e intenções de busca
+- P8: cobertura geográfica e atendimento 24h em várias regiões
+- P9: manutenção preventiva e avaliação técnica completa
+- P10: chamada à ação forte com WhatsApp, urgência e orçamento imediato
+
+### MAIS SOBRE {{SERVICE}} (8 parágrafos)
+
+Secção de reforço semântico, autoridade técnica e expansão de intenção de busca.
+Não funciona como conclusão — funciona como consolidação avançada de autoridade.
+
+- P1: introdução comercial com correspondência direta de busca
+- P2: atuação em diferentes tipos de imóveis e instalações
+- P3: cobertura geográfica e atendimento nacional 24h
+- P4: pesquisas reais feitas pelos utilizadores no Google e ChatGPT
+- P5: diagnóstico técnico e resolução rápida de problemas
+- P6: manutenção preventiva e avaliação técnica completa
+- P7: garantia de qualidade, materiais e metodologia profissional
+- P8: CTA final forte com WhatsApp e assistência imediata
+
 
 ---
 
@@ -255,7 +282,7 @@ Long-tail keywords relacionadas com o serviço e cidade. Variar com: urgente, 24
 
 <section>
   <article>
-    <h2 style="color: #320000;">Principais Problemas em {{SERVICE}}</h2>
+    <h2 style="color: #320000;">Avarias Comuns em {{SERVICE}}</h2>
 
     <h3 style="color: #320000;">{{PROBLEM_1}}</h3>
     <p style="color: #320000;">{{DESC_PROBLEM_1_P1}}</p>
@@ -509,6 +536,24 @@ Long-tail keywords relacionadas com o serviço e cidade. Variar com: urgente, 24
     <h2 style="color: #320000;">Conclusão</h2>
     <p style="color: #320000;">{{CONCLUSAO_P1}}</p>
     <p style="color: #320000;">{{CONCLUSAO_P2}}</p>
+    <p style="color: #320000;">{{CONCLUSAO_P3}}</p>
+    <p style="color: #320000;">{{CONCLUSAO_P4}}</p>
+    <p style="color: #320000;">{{CONCLUSAO_P5}}</p>
+    <p style="color: #320000;">{{CONCLUSAO_P6}}</p>
+    <p style="color: #320000;">{{CONCLUSAO_P7}}</p>
+    <p style="color: #320000;">{{CONCLUSAO_P8}}</p>
+    <p style="color: #320000;">{{CONCLUSAO_P9}}</p>
+    <p style="color: #320000;">{{CONCLUSAO_P10}}</p>
+
+    <h2 style="color: #320000;">Mais sobre {{SERVICE}} em {{CITY}}</h2>
+    <p style="color: #320000;">{{MORE_ABOUT_P1}}</p>
+    <p style="color: #320000;">{{MORE_ABOUT_P2}}</p>
+    <p style="color: #320000;">{{MORE_ABOUT_P3}}</p>
+    <p style="color: #320000;">{{MORE_ABOUT_P4}}</p>
+    <p style="color: #320000;">{{MORE_ABOUT_P5}}</p>
+    <p style="color: #320000;">{{MORE_ABOUT_P6}}</p>
+    <p style="color: #320000;">{{MORE_ABOUT_P7}}</p>
+    <p style="color: #320000;">{{MORE_ABOUT_P8}}</p>
   </article>
 </section>
 \`\`\`
@@ -598,17 +643,17 @@ export function buildPrompt(
 
 \`\`\`json
 ${JSON.stringify(
-  {
-    main_keyword: input.main_keyword,
-    service: input.service,
-    city: input.city,
-    neighborhood: input.neighborhood ?? '',
-    tone,
-    min_words: minWords,
-  },
-  null,
-  2,
-)}
+    {
+      main_keyword: input.main_keyword,
+      service: input.service,
+      city: input.city,
+      neighborhood: input.neighborhood ?? '',
+      tone,
+      min_words: minWords,
+    },
+    null,
+    2,
+  )}
 \`\`\`${relatedServicesNote}${enrichmentNotes.join('')}`;
 
   if (feedback) {
