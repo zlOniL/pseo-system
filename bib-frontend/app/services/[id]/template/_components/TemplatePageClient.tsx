@@ -128,6 +128,7 @@ interface Props {
 }
 
 export default function TemplatePageClient({ service }: Props) {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [templates, setTemplates] = useState<ServiceTemplate[]>([]);
   const [summary, setSummary] = useState<SectionLibrarySummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -185,6 +186,7 @@ export default function TemplatePageClient({ service }: Props) {
     <div className="flex h-screen overflow-hidden bg-gray-50">
 
       {/* ── Painel esquerdo ── */}
+      {sidebarOpen && (
       <aside className="w-[380px] shrink-0 border-r border-gray-200 bg-white overflow-y-auto">
 
         <div className="sticky top-0 z-10 bg-white px-5 py-4 border-b border-gray-100">
@@ -201,11 +203,22 @@ export default function TemplatePageClient({ service }: Props) {
                 </span>
               </p>
             </div>
-            {!showForm && !editingTemplate && (
-              <button onClick={() => setShowForm(true)} className="bib-btn bib-btn-primary text-xs px-3 py-1.5 shrink-0">
-                + Novo
+            <div className="flex items-center gap-2 shrink-0">
+              {!showForm && !editingTemplate && (
+                <button onClick={() => setShowForm(true)} className="bib-btn bib-btn-primary text-xs px-3 py-1.5">
+                  + Novo
+                </button>
+              )}
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-md hover:bg-gray-100"
+                title="Ocultar painel"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
               </button>
-            )}
+            </div>
           </div>
         </div>
 
@@ -283,12 +296,24 @@ export default function TemplatePageClient({ service }: Props) {
           )}
         </div>
       </aside>
+      )}
 
       {/* ── Painel direito: preview ── */}
       <main className="flex-1 overflow-y-auto">
         {previewTemplate ? (
           <>
             <div className="sticky top-0 z-10 px-4 py-2.5 border-b border-gray-200 bg-white flex items-center gap-3 text-xs text-gray-500">
+              {!sidebarOpen && (
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 transition-colors border border-gray-200 rounded-md px-2.5 py-1.5 hover:bg-gray-50 shrink-0"
+                >
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Mostrar painel
+                </button>
+              )}
               <span className="font-medium text-gray-700">Preview</span>
               <span className="bg-gray-100 rounded px-2 py-0.5">Template #{previewTemplate.version} · {previewTemplate.base_city}</span>
               <button onClick={() => setPreviewTemplate(null)} className="ml-auto text-gray-400 hover:text-gray-700">✕</button>
@@ -298,7 +323,18 @@ export default function TemplatePageClient({ service }: Props) {
             </div>
           </>
         ) : (
-          <div className="flex items-center justify-center h-full text-sm text-gray-400">
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-sm text-gray-400">
+            {!sidebarOpen && (
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 transition-colors border border-gray-200 rounded-md px-2.5 py-1.5 hover:bg-gray-50"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Mostrar painel
+              </button>
+            )}
             Clica em &quot;Pré-visualizar&quot; num template para ver o conteúdo aqui.
           </div>
         )}

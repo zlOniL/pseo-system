@@ -5,10 +5,11 @@
  */
 export function assembleTemplateHtml(templateHtml: string, videoUrl?: string | null): string {
   const video = videoUrl?.trim() ?? '';
-  if (!video) return templateHtml;
+  const videoSection = video
+    ? `<section style="margin: 0; padding: 0;"><video src="${video}" style="width: 100%; height: auto; display: block;" autoplay="autoplay" loop="loop" muted="" controls="controls"></video></section>\n`
+    : '';
 
-  const videoSection = `<section style="margin: 0; padding: 0;"><video src="${video}" style="width: 100%; height: auto; display: block;" autoplay="autoplay" loop="loop" muted="" controls="controls"></video></section>\n`;
-  return videoSection + templateHtml;
+  return `${videoSection}<div style="max-width: 1200px; margin: 0 auto; text-align: left; color: #320000;">\n${templateHtml}\n</div>`;
 }
 
 /**
