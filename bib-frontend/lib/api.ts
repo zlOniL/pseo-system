@@ -7,6 +7,9 @@ import {
   CreateServiceInput,
   GenerateTemplateInput,
   TemplateResult,
+  ServiceTemplate,
+  GenerateTemplateResult,
+  SectionLibrarySummary,
   QueueItem,
   QueueStats,
   RegionWithCities,
@@ -90,6 +93,7 @@ export const api = {
   archiveService: (id: string) =>
     request<Service>(`/services/${id}`, { method: 'DELETE' }),
 
+  // Legacy single-template endpoint (kept for backwards compat)
   generateTemplate: (serviceId: string, input: GenerateTemplateInput) =>
     request<TemplateResult>(`/services/${serviceId}/generate-template`, {
       method: 'POST',
@@ -101,13 +105,47 @@ export const api = {
       `/services/${serviceId}/template`,
     ),
 
+  // ── Service Templates (multi-template) ──────────────────────────────────────
+
+  listTemplates: (serviceId: string) =>
+    request<ServiceTemplate[]>(`/services/${serviceId}/templates`),
+
+  createTemplate: (serviceId: string, input: GenerateTemplateInput) =>
+    request<GenerateTemplateResult>(`/services/${serviceId}/templates`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  regenerateTemplate: (serviceId: string, templateId: string, input: GenerateTemplateInput) =>
+    request<GenerateTemplateResult>(`/services/${serviceId}/templates/${templateId}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+
+  deleteTemplate: async (serviceId: string, templateId: string): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/services/${serviceId}/templates/${templateId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`API error ${res.status}: ${body}`);
+    }
+  },
+
+  reextractAllSections: (serviceId: string) =>
+    request<{ templates_processed: number; results: Array<{ templateId: string; version: number; sections_saved: number }> }>(
+      `/services/${serviceId}/templates/reextract-all`,
+      { method: 'POST' },
+    ),
+
+  getLibrarySummary: (serviceId: string) =>
+    request<SectionLibrarySummary[]>(`/services/${serviceId}/templates/library-summary`),
+
   // ── Cities ───────────────────────────────────────────────────────────────────
 
   getCities: () => request<RegionWithCities[]>('/cities'),
 
   // ── Queue ─────────────────────────────────────────────────────────────────────
 
-  enqueue: (input: { service_id: string; cities: string[]; mode?: 'ai' | 'template' }) =>
+  enqueue: (input: { service_id: string; cities: string[]; mode?: 'ai' | 'template' | 'library'; template_id?: string }) =>
     request<QueueItem[]>('/queue/enqueue', { method: 'POST', body: JSON.stringify(input) }),
 
   getQueueForService: (serviceId: string) =>

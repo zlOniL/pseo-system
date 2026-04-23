@@ -6,9 +6,10 @@ import { ServicesModule } from '../services/services.module';
 import { GenerationModule } from '../generation/generation.module';
 import { ContentsModule } from '../contents/contents.module';
 import { TemplateEngineModule } from '../template-engine/template-engine.module';
+import { ServiceTemplatesModule } from '../service-templates/service-templates.module';
 
 @Module({
-  imports: [ServicesModule, GenerationModule, ContentsModule, TemplateEngineModule],
+  imports: [ServicesModule, GenerationModule, ContentsModule, TemplateEngineModule, ServiceTemplatesModule],
   providers: [QueueService, QueueWorker],
   controllers: [QueueController],
   exports: [QueueService],

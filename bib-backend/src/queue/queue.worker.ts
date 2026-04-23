@@ -3,6 +3,8 @@ import { QueueService } from './queue.service';
 import { ServicesService } from '../services/services.service';
 import { GenerationService } from '../generation/generation.service';
 import { TemplateEngineService } from '../template-engine/template-engine.service';
+import { SectionAssemblerService } from '../service-templates/section-assembler.service';
+import { ServiceTemplatesService } from '../service-templates/service-templates.service';
 import { ContentsService } from '../contents/contents.service';
 
 @Injectable()
@@ -15,6 +17,8 @@ export class QueueWorker implements OnModuleInit {
     private readonly services: ServicesService,
     private readonly generation: GenerationService,
     private readonly templateEngine: TemplateEngineService,
+    private readonly assembler: SectionAssemblerService,
+    private readonly serviceTemplates: ServiceTemplatesService,
     private readonly contents: ContentsService,
   ) {}
 
@@ -52,8 +56,13 @@ export class QueueWorker implements OnModuleInit {
 
           let content;
 
-          if (mode === 'template') {
-            content = await this.templateEngine.generate({ service, city: item.city });
+          if (mode === 'library') {
+            content = await this.assembler.assemble({ service, city: item.city, serviceId: service.id });
+          } else if (mode === 'template') {
+            const templateHtml = item.template_id
+              ? (await this.serviceTemplates.findById(item.template_id)).html
+              : undefined;
+            content = await this.templateEngine.generate({ service, city: item.city, templateHtml });
           } else {
             content = await this.generation.generate({
               main_keyword: mainKeyword,

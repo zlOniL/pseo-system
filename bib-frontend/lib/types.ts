@@ -67,8 +67,6 @@ export type CreateServiceInput = Omit<Service, 'id' | 'created_at' | 'slug' | 's
 
 export interface GenerateTemplateInput {
   base_city?: string;
-  images?: string[];
-  video_url?: string;
   service_notes?: string;
   feedback?: string;
 }
@@ -76,6 +74,30 @@ export interface GenerateTemplateInput {
 export interface TemplateResult {
   content: Content;
   service: Service;
+}
+
+// ── Service Templates ─────────────────────────────────────────────────────────
+
+export interface ServiceTemplate {
+  id: string;
+  created_at: string;
+  service_id: string;
+  version: number;
+  html: string;
+  base_city: string;
+  images: string[];
+  video_url: string | null;
+}
+
+export interface GenerateTemplateResult {
+  template: ServiceTemplate;
+  content: Content;
+  sections_saved: number;
+}
+
+export interface SectionLibrarySummary {
+  section_key: string;
+  version_count: number;
 }
 
 // ── Queue ─────────────────────────────────────────────────────────────────────
@@ -86,7 +108,8 @@ export interface QueueItem {
   service_id: string;
   city: string;
   status: 'pending' | 'processing' | 'done' | 'failed';
-  mode: 'ai' | 'template';
+  mode: 'ai' | 'template' | 'library';
+  template_id: string | null;
   content_id: string | null;
   error: string | null;
   started_at: string | null;

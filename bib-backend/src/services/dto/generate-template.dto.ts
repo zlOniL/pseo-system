@@ -1,18 +1,9 @@
-import { IsArray, IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 export class GenerateTemplateDto {
   @IsOptional()
   @IsString()
   base_city?: string;
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  images?: string[];
-
-  @IsOptional()
-  @IsString()
-  video_url?: string;
 
   @IsOptional()
   @IsString()

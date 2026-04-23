@@ -60,16 +60,15 @@ export class ServicesController {
     const service = await this.servicesService.findById(id);
     const baseCity = dto.base_city ?? 'Lisboa';
     const mainKeyword = `${service.name} em ${baseCity}`;
-
-    const effectiveImages = dto.images ?? service.images ?? [];
-    const effectiveVideoUrl = dto.video_url ?? service.video_url ?? null;
+    const images = service.images ?? [];
+    const videoUrl = service.video_url ?? null;
 
     const content = await this.generationService.generate({
       main_keyword: mainKeyword,
       service: service.name,
       city: baseCity,
-      images: effectiveImages,
-      video_url: effectiveVideoUrl ?? undefined,
+      images,
+      video_url: videoUrl ?? undefined,
       tone: service.tone,
       min_words: service.min_words,
       service_notes: dto.service_notes ?? service.service_notes ?? undefined,
@@ -81,8 +80,8 @@ export class ServicesController {
       id,
       content.html,
       baseCity,
-      effectiveImages,
-      effectiveVideoUrl,
+      images,
+      videoUrl,
     );
 
     return { content, service: updatedService };

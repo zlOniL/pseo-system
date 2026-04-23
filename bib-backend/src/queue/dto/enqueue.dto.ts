@@ -10,6 +10,10 @@ export class EnqueueDto {
   cities: string[];
 
   @IsOptional()
-  @IsIn(['ai', 'template'])
-  mode?: 'ai' | 'template';
+  @IsIn(['ai', 'template', 'library'])
+  mode?: 'ai' | 'template' | 'library';
+
+  @IsOptional()
+  @IsUUID()
+  template_id?: string;
 }

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { QueueItem, QueueStats, RegionWithCities, Service } from '@/lib/types';
+import { QueueItem, QueueStats, RegionWithCities, Service, ServiceTemplate, SectionLibrarySummary } from '@/lib/types';
 
 type CityStatus = 'done' | 'processing' | 'pending' | 'failed' | 'free';
 type StatusFilter = 'all' | 'free' | 'failed' | 'done';
@@ -53,7 +53,10 @@ export default function ScalePage() {
   const [selectedCities, setSelectedCities] = useState<Set<string>>(new Set());
   const [expandedRegions, setExpandedRegions] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [mode, setMode] = useState<'ai' | 'template'>('ai');
+  const [mode, setMode] = useState<'ai' | 'template' | 'library'>('ai');
+  const [templates, setTemplates] = useState<ServiceTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [librarySummary, setLibrarySummary] = useState<SectionLibrarySummary[]>([]);
   const [enqueueing, setEnqueueing] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -69,14 +72,18 @@ export default function ScalePage() {
       api.getCities(),
       api.getQueueForService(serviceId),
       api.getQueueStats(),
+      api.listTemplates(serviceId),
+      api.getLibrarySummary(serviceId),
     ])
-      .then(([svc, r, q, s]) => {
+      .then(([svc, r, q, s, tpls, libSum]) => {
         setService(svc);
         setRegions(r);
-        // Start with all regions collapsed
         setExpandedRegions(new Set());
         setQueueItems(q);
         setStats(s);
+        setTemplates(tpls);
+        setLibrarySummary(libSum);
+        if (tpls.length > 0) setSelectedTemplateId(tpls[0].id);
       })
       .catch(() => setError('Erro ao carregar dados.'))
       .finally(() => setLoading(false));
@@ -130,7 +137,12 @@ export default function ScalePage() {
     setEnqueueing(true);
     setError('');
     try {
-      await api.enqueue({ service_id: serviceId, cities: [...selectedCities], mode });
+      await api.enqueue({
+        service_id: serviceId,
+        cities: [...selectedCities],
+        mode,
+        template_id: mode === 'template' ? selectedTemplateId : undefined,
+      });
       setSelectedCities(new Set());
       poll();
     } catch (err) {
@@ -328,26 +340,70 @@ export default function ScalePage() {
               {/* Modo de geração */}
               <div className="mt-3 pt-3 bib-divider">
                 <p className="text-xs text-gray-500 mb-1.5">Modo de geração</p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setMode('ai')}
-                    className={`flex-1 text-xs py-1.5 rounded-lg border font-medium transition-colors ${mode === 'ai'
-                        ? 'bg-gray-900 text-white border-gray-900'
-                        : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
+                <div className="flex gap-1.5">
+                  {(['ai', 'template', 'library'] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setMode(m)}
+                      className={`flex-1 text-xs py-1.5 rounded-lg border font-medium transition-colors ${
+                        mode === m
+                          ? 'bg-gray-900 text-white border-gray-900'
+                          : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
                       }`}
-                  >
-                    Gerar com IA
-                  </button>
-                  <button
-                    onClick={() => setMode('template')}
-                    className={`flex-1 text-xs py-1.5 rounded-lg border font-medium transition-colors ${mode === 'template'
-                        ? 'bg-gray-900 text-white border-gray-900'
-                        : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
-                      }`}
-                  >
-                    Com Template
-                  </button>
+                    >
+                      {m === 'ai' ? 'IA' : m === 'template' ? 'Template' : 'Aleatório'}
+                    </button>
+                  ))}
                 </div>
+
+                {/* Template selector */}
+                {mode === 'template' && (
+                  <div className="mt-2">
+                    {templates.length === 0 ? (
+                      <p className="text-xs text-amber-600">
+                        Nenhum template disponível.{' '}
+                        <Link href={`/services/${serviceId}/template`} className="underline">Criar template</Link>
+                      </p>
+                    ) : (
+                      <select
+                        value={selectedTemplateId}
+                        onChange={(e) => setSelectedTemplateId(e.target.value)}
+                        className="bib-input text-xs"
+                      >
+                        {templates.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            Template #{t.version} — {t.base_city}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
+
+                {/* Library status */}
+                {mode === 'library' && (
+                  <div className="mt-2">
+                    {librarySummary.length === 0 ? (
+                      <p className="text-xs text-amber-600">
+                        Biblioteca vazia.{' '}
+                        <Link href={`/services/${serviceId}/template`} className="underline">Gerar templates primeiro</Link>
+                      </p>
+                    ) : (() => {
+                      const missing = librarySummary.filter((s) => s.version_count === 0).length;
+                      const minVersions = Math.min(...librarySummary.map((s) => s.version_count));
+                      if (missing > 0) {
+                        return <p className="text-xs text-red-600">⚠ Biblioteca incompleta: {missing} secções em falta. Gera mais templates.</p>;
+                      }
+                      return (
+                        <p className={`text-xs ${minVersions >= 2 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                          {minVersions >= 2
+                            ? `✓ Biblioteca pronta · mín. ${minVersions} versões por secção`
+                            : `⚠ Recomendado ≥2 versões por secção (actual: ${minVersions})`}
+                        </p>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
 
               {/* Botão enfileirar */}
@@ -431,9 +487,13 @@ export default function ScalePage() {
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0 ml-3">
-                        {item.mode === 'template' && (
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium">
-                            template
+                        {item.mode !== 'ai' && (
+                          <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                            item.mode === 'library'
+                              ? 'bg-purple-50 text-purple-600'
+                              : 'bg-blue-50 text-blue-600'
+                          }`}>
+                            {item.mode}
                           </span>
                         )}
                         <span

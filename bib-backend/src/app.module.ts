@@ -9,6 +9,7 @@ import { WordPressModule } from './wordpress/wordpress.module';
 import { CitiesModule } from './cities/cities.module';
 import { ServicesModule } from './services/services.module';
 import { QueueModule } from './queue/queue.module';
+import { ServiceTemplatesModule } from './service-templates/service-templates.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { QueueModule } from './queue/queue.module';
     WordPressModule,
     ServicesModule,
     QueueModule,
+    ServiceTemplatesModule,
   ],
 })
 export class AppModule {}

@@ -7,7 +7,8 @@ export interface QueueItem {
   service_id: string;
   city: string;
   status: 'pending' | 'processing' | 'done' | 'failed';
-  mode: 'ai' | 'template';
+  mode: 'ai' | 'template' | 'library';
+  template_id: string | null;
   content_id: string | null;
   error: string | null;
   started_at: string | null;
@@ -26,7 +27,7 @@ export interface QueueStats {
 export class QueueService {
   constructor(private readonly supabase: SupabaseService) {}
 
-  async enqueue(serviceId: string, cities: string[], mode: 'ai' | 'template' = 'ai'): Promise<QueueItem[]> {
+  async enqueue(serviceId: string, cities: string[], mode: 'ai' | 'template' | 'library' = 'ai', templateId?: string): Promise<QueueItem[]> {
     // Remove failed and done items so they can be re-queued fresh
     await this.supabase
       .getClient()
@@ -41,6 +42,7 @@ export class QueueService {
       city,
       status: 'pending',
       mode,
+      template_id: templateId ?? null,
     }));
 
     const { data, error } = await this.supabase

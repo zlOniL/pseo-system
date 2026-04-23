@@ -68,7 +68,7 @@ NÃO altere estrutura. NÃO remova seções. NÃO invente novos blocos.
 ### INTRO (INTRO_P1 a INTRO_P9 + INTRO_P10_LINKS)
 Cada parágrafo explora um ângulo diferente do serviço:
 - P1: o que é o serviço, por que é essencial, consequências de ignorar problemas
-- P2: contexto de imóveis antigos — mencionar características urbanísticas reais da cidade (edifícios históricos, materiais antigos); usar referência local natural
+- P2: contexto de imóveis antigos — Falar sobre como os maus cuidados podem causar graves problemas, e que ainda é possivel reparar antes que piore.
 - P3: contexto de imóveis modernos — tipos diferentes de problemas, má instalação, desgaste prematuro
 - P4: abordagem profissional da empresa — rapidez, rigor, sem improvisos, substituições apenas quando necessário
 - P5: âmbito de atuação — apartamentos, moradias, escritórios, hotéis, restaurantes, lojas, com tipos de intervenção em \`<strong>\`
@@ -114,31 +114,22 @@ Cada item da lista é um tipo distinto do serviço (ex: tipo por material, por s
 
 ### PREVENÇÃO E MANUTENÇÃO (6 parágrafos + lista 6 itens + parágrafo final)
 Secção educativa extensa — conteúdo de valor que posiciona a empresa como especialista:
-- P1: importância da prevenção vs. urgências; inserir link para site de turismo/câmara municipal da cidade aqui
+- P1: importância da prevenção vs. urgências;
 - P2: acumulação de resíduos nas tubagens (calcário, gordura) — como se manifesta, consequências progressivas; mencionar produtos ou técnicas de limpeza profissional
-- P3: deterioração natural de materiais antigos — corrosão, fugas invisíveis, danos estruturais; contextualizar com tipo de construção típica da cidade
+- P3: deterioração natural de materiais antigos — corrosão, fugas invisíveis, danos estruturais causados pelo desgaste progressivo dos sistemas ao longo dos anos
 - P4: torneiras, autoclismos e válvulas — pequenas falhas que evoluem para problemas maiores; mencionar marcas/modelos comuns de peças de substituição de forma leve
 - P5: sistemas de esgoto e uso consciente — o que evitar, como prevenir entupimentos; citar normas de boas práticas se relevante
 - P6: pressão da água e verificações após remodelação; mencionar equipamento de medição (ex: manómetro, pressostato)
 Lista: 6 ações de manutenção preventiva concreta e técnica (ex: "Verificação de estanquidade com manómetro de pressão", "Limpeza técnica de sifões e ralos com câmara endoscópica").
-PREVENCAO_CLOSING: parágrafo final que encoraja contacto preventivo — mencionar disponibilidade 24h na cidade específica.
-
-### CONTEXTO LOCAL — SERVICE em CITY (3 parágrafos)
-Secção dedicada ao enriquecimento local máximo — deve ser a mais geolocalizada de toda a página:
-- P1: contexto da cidade — descrever o parque habitacional real com referência a zonas, bairros e ruas REAIS; mencionar pontos turísticos, monumentos e edifícios icónicos que contextualizam o tipo de construção (ex: "nos edifícios históricos junto à Sé Catedral", "nas moradias da zona industrial de Miraflores"); MÍNIMO 5 referências locais reais; inserir link para Wikipedia da cidade ou site de turismo oficial
-- P2: presença e atuação — zonas e bairros específicos cobertos (citar nomes reais), tempo de resposta, piquetes estrategicamente posicionados nas principais artérias da cidade
-- P3: compromisso local — conhecimento do parque habitacional, características únicas da cidade relevantes para o serviço, disponibilidade urgente 24h
-
-### ATENDEMOS TAMBÉM
-Gerar H2 + ul com 3 li como no template. Esta secção é substituída automaticamente por links determinísticos para outras cidades após a geração — o conteúdo gerado pela IA é descartado. Incluir apenas para manter a estrutura.
+PREVENCAO_CLOSING: parágrafo final que encoraja contacto preventivo — mencionar disponibilidade 24h.
 
 ### SISTEMAS E INTERVENÇÕES (6 parágrafos — secção técnica aprofundada)
 Secção que demonstra profundidade técnica e abrangência de intervenções. Coloca {{IMAGE_7}} imediatamente após o H2 (o placeholder já está no template — não alterar).
-Esta secção é ideal para inserir enriquecimento de serviço (ferramentas, marcas, técnicas) E enriquecimento local (tipo de construção típica da cidade).
-- P1: introdução ao âmbito — tipos de instalações residenciais, comerciais e industriais; adaptação ao tipo de sistema e nível de desgaste; mencionar zonas/bairros típicos da cidade onde estes sistemas existem
+Esta secção é ideal para inserir enriquecimento de serviço (ferramentas, marcas, técnicas).
+- P1: introdução ao âmbito — tipos de instalações residenciais, comerciais e industriais; adaptação ao tipo de sistema e nível de desgaste
 - P2: sistemas cobertos — redes de água fria e quente, canalizações embutidas e aparentes, esgotos, colunas prediais, instalações sanitárias; variedade de contextos; inserir link de associação profissional ou norma técnica neste parágrafo
 - P3: materiais e tecnologias — ferro galvanizado, cobre, PPR, multicamada, PVC, PEX; diferenças de abordagem por material; CITAR 1-2 marcas de fabricantes de materiais ou ferramentas de forma natural (ex: "tubagens em PPR Wavin", "equipamentos de diagnóstico RIDGID"); inserir link para site de fabricante
-- P4: problemas recorrentes — fugas ocultas, baixa pressão, cano rebentado, infiltrações, entupimentos; contextualizar com o tipo de construção típica da cidade (ex: "nos edifícios pombalinos de Lisboa", "nas habitações dos anos 70 em Braga")
+- P4: problemas recorrentes — fugas ocultas, baixa pressão, cano rebentado, infiltrações, entupimentos em instalações residenciais, comerciais e industriais de diferentes épocas
 - P5: processo de diagnóstico técnico — citar ferramentas de diagnóstico com nomes técnicos reais (ex: câmara endoscópica de inspeção, detetor ultrassónico de fugas, manómetro de pressão diferencial); sem soluções temporárias
 - P6: testes finais e garantia de qualidade — teste de pressão, verificação de fugas, controlo de escoamento, validação de estanquidade conforme normas (citar norma relevante se aplicável)
 
@@ -166,7 +157,7 @@ Tópicos obrigatórios a cobrir:
 10. Como solicitar o serviço (WhatsApp / telefone)
 
 ### PESQUISAS RELACIONADAS (30 li)
-Long-tail keywords relacionadas com o serviço e cidade. Variar com: urgente, 24h, ao domicílio, preço, orçamento, bairros específicos da cidade, tipos de avaria, tipos de material. EXATAMENTE 30 itens.
+Long-tail keywords relacionadas com o serviço e cidade. Variar com: urgente, 24h, ao domicílio, preço, orçamento, tipos de avaria, tipos de material. EXATAMENTE 30 itens.
 
 ### CONCLUSÃO (8 a 10 parágrafos)
 
@@ -197,7 +188,6 @@ Não funciona como conclusão — funciona como consolidação avançada de auto
 - P6: manutenção preventiva e avaliação técnica completa
 - P7: garantia de qualidade, materiais e metodologia profissional
 - P8: CTA final forte com WhatsApp e assistência imediata
-
 
 ---
 
@@ -380,20 +370,7 @@ Não funciona como conclusão — funciona como consolidação avançada de auto
 
     {{IMAGE_6}}
 
-    <h2 style="color: #320000;">{{SERVICE}} em {{CITY}}</h2>
-    <p style="color: #320000;">{{CONTEXTO_LOCAL_P1}}</p>
-    <p style="color: #320000;">{{CONTEXTO_LOCAL_P2}}</p>
-    <p style="color: #320000;">{{CONTEXTO_LOCAL_P3}}</p>
-
-    <h2 style="color: #320000;">Atendemos Também</h2>
-    <ul>
-      <li style="color: #320000;">{{LOCAL_1}}</li>
-      <li style="color: #320000;">{{LOCAL_2}}</li>
-      <li style="color: #320000;">{{LOCAL_3}}</li>
-    </ul>
-
     <h2 style="color: #320000;">Sistemas e Intervenções que Fazemos como {{SERVICE}} em {{CITY}}</h2>
-    {{IMAGE_7}}
     <p style="color: #320000;">{{SISTEMAS_P1}}</p>
     <p style="color: #320000;">{{SISTEMAS_P2}}</p>
     <p style="color: #320000;">{{SISTEMAS_P3}}</p>
@@ -442,7 +419,7 @@ Não funciona como conclusão — funciona como consolidação avançada de auto
       </div>
     </div>
 
-    {{IMAGE_8}}
+    {{IMAGE_7}}
 
     <h2 style="color: #320000;">Perguntas Frequentes sobre {{MAIN_KEYWORD}}</h2>
 
@@ -475,6 +452,8 @@ Não funciona como conclusão — funciona como consolidação avançada de auto
 
     <h3 style="color: #320000;">{{FAQ_Q_10}}</h3>
     <p style="color: #320000;">{{FAQ_A_10}}</p>
+
+    {{IMAGE_8}}
 
     <h2 style="color: #320000;">Pesquisas Relacionadas</h2>
     <ul>
@@ -549,7 +528,7 @@ SE não houver \`related_services\`, substituir por um parágrafo normal sobre s
 
 - Falar que é IA
 - Gerar conteúdo genérico ou vago
-- Ignorar cidade/bairro/contexto local (sem citar ruas/locais reais)
+- Mencionar ruas, avenidas, praças, bairros ou monumentos específicos de qualquer cidade nos parágrafos — o conteúdo dos parágrafos deve ser agnóstico de localidade
 - Alterar estrutura HTML ou ordem das secções
 - Retornar JSON ou texto fora do HTML
 - Usar markdown
@@ -567,9 +546,8 @@ SE não houver \`related_services\`, substituir por um parágrafo normal sobre s
 - Estrutura idêntica ao template incluindo FAQ com 10 pares H3+P
 - Keyword com densidade ≥ 1% distribuída naturalmente
 - 4-6 links externos reais distribuídos entre ferramentas utilizadas, wiki sobre o serviço, etc
-- Mínimo 5 referências locais reais (ruas, praças, bairros, monumentos) distribuídas por 4+ secções
 - Mínimo 3 referências técnicas de serviço (ferramentas, marcas, técnicas) distribuídas por 2-3 secções
-- Conteúdo extenso, natural, com autoridade local e técnica genuínas`;
+- Conteúdo extenso, natural, com autoridade técnica genuína`;
 
 // ─── REINFORCEMENT ────────────────────────────────────────────────────────────
 
@@ -585,10 +563,9 @@ const REINFORCEMENT = `INSTRUÇÕES FINAIS OBRIGATÓRIAS:
 9. SISTEMAS E INTERVENÇÕES: {{IMAGE_7}} aparece logo após o H2 desta secção, antes do primeiro <p>. Copia o placeholder na posição correta.
 10. FAQ: EXATAMENTE 10 pares H3+P. Cada resposta começa com <strong>SIM.</strong> ou confirmação equivalente, texto explicativo FORA do <strong>.
 11. PESQUISAS RELACIONADAS: EXATAMENTE 30 itens <li>.
-12. ENRIQUECIMENTO LOCAL OBRIGATÓRIO: distribuir referências locais reais (ruas, avenidas, praças, monumentos, bairros) por PELO MENOS 4 secções diferentes. Total mínimo: 5 referências locais únicas em todo o conteúdo. NÃO concentrar tudo na secção de contexto local.
-13. ENRIQUECIMENTO DE SERVIÇO OBRIGATÓRIO: mencionar PELO MENOS 3 ferramentas/equipamentos com nomes técnicos reais, 1-2 marcas reconhecidas do sector (levemente, de forma natural), e pelo menos 1 técnica ou método profissional específico com nome técnico. Distribuir por 2-3 secções.
-14. LINKS EXTERNOS OBRIGATÓRIOS (4-6): links para marcas/fabricantes do sector. URLs REAIS e verificáveis — NUNCA inventar.
-15. DENSIDADE: a keyword principal deve aparecer em pelo menos 1% do texto total. Distribui-a naturalmente.`;
+12. ENRIQUECIMENTO DE SERVIÇO OBRIGATÓRIO: mencionar PELO MENOS 3 ferramentas/equipamentos com nomes técnicos reais, 1-2 marcas reconhecidas do sector (levemente, de forma natural), e pelo menos 1 técnica ou método profissional específico com nome técnico. Distribuir por 2-3 secções.
+13. LINKS EXTERNOS OBRIGATÓRIOS (4-6): links para marcas/fabricantes do sector. URLs REAIS e verificáveis — NUNCA inventar.
+14. DENSIDADE: a keyword principal deve aparecer em pelo menos 1% do texto total. Distribui-a naturalmente.`;
 
 // ─── BUILDER ─────────────────────────────────────────────────────────────────
 

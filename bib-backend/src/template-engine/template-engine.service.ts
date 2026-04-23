@@ -12,6 +12,7 @@ import { buildBacklinksHtml } from './utils/backlinks-builder';
 export interface TemplateGenerateInput {
   service: Service;
   city: string;
+  templateHtml?: string; // pre-loaded HTML from service_templates; overrides DB/file lookup
 }
 
 @Injectable()
@@ -28,11 +29,15 @@ export class TemplateEngineService {
     const { service, city } = input;
     const serviceSlug = slugify(service.name);
 
-    // 1. Load template — DB first, fallback to file
+    // 1. Load template — explicit override → DB → file fallback
     let rawHtml: string;
     let baseCity: string;
 
-    if (service.template_html) {
+    if (input.templateHtml) {
+      rawHtml = input.templateHtml;
+      baseCity = service.template_base_city ?? 'Lisboa';
+      this.logger.log(`Using provided template for "${service.name}" (base city: "${baseCity}")`);
+    } else if (service.template_html) {
       rawHtml = service.template_html;
       baseCity = service.template_base_city ?? 'Lisboa';
       this.logger.log(`Using DB template for "${service.name}" (base city: "${baseCity}")`);
