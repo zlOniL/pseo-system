@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { ContentSummary, Service } from '@/lib/types';
 import { ContentRow } from './ContentRow';
@@ -61,31 +62,37 @@ export default function ContentsClient({ contents, services, activeFilters }: Co
     try {
       await api.bulkApprove(ids);
       setSelectedIds(new Set());
+      toast.success(`${ids.length} página${ids.length !== 1 ? 's' : ''} aprovada${ids.length !== 1 ? 's' : ''}.`);
       router.refresh();
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     } finally {
       setBulkLoading(false);
     }
   }
 
-  async function handleBulkDelete() {
-    const ids = [...selectedIds];
-    if (ids.length === 0) return;
-    const confirmed = window.confirm(
-      `Apagar ${ids.length} conteúdo${ids.length !== 1 ? 's' : ''}? Esta acção não pode ser desfeita.`,
-    );
-    if (!confirmed) return;
+  async function performBulkDelete(ids: string[]) {
     setBulkLoading(true);
     try {
-      const result = await api.bulkDelete(ids);
+      await api.bulkDelete(ids);
       setSelectedIds(new Set());
+      toast.success(`${ids.length} conteúdo${ids.length !== 1 ? 's' : ''} apagado${ids.length !== 1 ? 's' : ''}.`);
       router.refresh();
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     } finally {
       setBulkLoading(false);
     }
+  }
+
+  function handleBulkDelete() {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    toast(`Apagar ${ids.length} conteúdo${ids.length !== 1 ? 's' : ''}? Esta acção não pode ser desfeita.`, {
+      action: { label: 'Confirmar', onClick: () => performBulkDelete(ids) },
+      cancel: { label: 'Cancelar', onClick: () => {} },
+      duration: 10000,
+    });
   }
 
   async function handleBulkPublish() {
@@ -113,6 +120,7 @@ export default function ContentsClient({ contents, services, activeFilters }: Co
 
     setBulkLoading(false);
     setSelectedIds(new Set());
+    toast.success(`${ids.length} página${ids.length !== 1 ? 's' : ''} publicada${ids.length !== 1 ? 's' : ''}.`);
     router.refresh();
   }
 

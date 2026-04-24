@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { Content } from "@/lib/types";
 import { RegenerateForm } from "./RegenerateForm";
@@ -10,18 +11,17 @@ import { ScoreCard } from "@/app/generate/_components/ScoreCard";
 export function ActionBar({ content }: { content: Content }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [showRegenerate, setShowRegenerate] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   async function handleApprove() {
     setLoading(true);
-    setError(null);
     try {
       await api.approveContent(content.id);
+      toast.success("Página aprovada!");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao aprovar");
+      toast.error(err instanceof Error ? err.message : "Erro ao aprovar");
     } finally {
       setLoading(false);
     }
@@ -29,12 +29,12 @@ export function ActionBar({ content }: { content: Content }) {
 
   async function handlePublish() {
     setLoading(true);
-    setError(null);
     try {
       await api.publishContent(content.id);
+      toast.success("Publicado no WordPress!");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao publicar");
+      toast.error(err instanceof Error ? err.message : "Erro ao publicar");
     } finally {
       setLoading(false);
     }
@@ -48,9 +48,10 @@ export function ActionBar({ content }: { content: Content }) {
     setLoading(true);
     try {
       await api.deleteContent(content.id);
+      toast.success("Página apagada.");
       router.push("/contents");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao apagar");
+      toast.error(err instanceof Error ? err.message : "Erro ao apagar");
       setLoading(false);
       setConfirmDelete(false);
     }
@@ -132,8 +133,6 @@ export function ActionBar({ content }: { content: Content }) {
           </button>
         )}
       </div>
-
-      {error && <p className="text-red-600 text-sm">{error}</p>}
 
       {showRegenerate && <RegenerateForm content={content} />}
     </div>

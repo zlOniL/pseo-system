@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { Service, ServiceTemplate, GenerateTemplateInput, SectionLibrarySummary, RelatedService } from '@/lib/types';
 import { PreviewPane } from '@/app/generate/_components/PreviewPane';
@@ -173,7 +174,6 @@ export default function TemplatePageClient({ service }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ServiceTemplate | undefined>();
   const [previewTemplate, setPreviewTemplate] = useState<ServiceTemplate | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [reextracting, setReextracting] = useState(false);
 
   async function reload() {
@@ -194,14 +194,14 @@ export default function TemplatePageClient({ service }: Props) {
     setShowForm(false);
     setEditingTemplate(undefined);
     setPreviewTemplate(template);
-    setSuccessMsg(`Template #${template.version} guardado com ${sectionsSaved} secções extraídas.`);
+    toast.success(`Template #${template.version} guardado com ${sectionsSaved} secções extraídas.`);
     void reload();
-    setTimeout(() => setSuccessMsg(null), 5000);
   }
 
   async function handleDelete(templateId: string) {
     await api.deleteTemplate(service.id, templateId);
     if (previewTemplate?.id === templateId) setPreviewTemplate(null);
+    toast.success("Template apagado.");
     void reload();
   }
 
@@ -209,9 +209,8 @@ export default function TemplatePageClient({ service }: Props) {
     setReextracting(true);
     try {
       const res = await api.reextractAllSections(service.id);
-      setSuccessMsg(`Secções re-extraídas: ${res.templates_processed} templates processados.`);
+      toast.success(`Secções re-extraídas: ${res.templates_processed} template${res.templates_processed !== 1 ? 's' : ''} processado${res.templates_processed !== 1 ? 's' : ''}.`);
       void reload();
-      setTimeout(() => setSuccessMsg(null), 5000);
     } finally {
       setReextracting(false);
     }
@@ -261,12 +260,6 @@ export default function TemplatePageClient({ service }: Props) {
         </div>
 
         <div className="px-5 py-5 space-y-4 pb-10">
-          {successMsg && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-800">
-              {successMsg}
-            </div>
-          )}
-
           {(showForm || editingTemplate) ? (
             <GenerateForm
               service={service}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { Content } from "@/lib/types";
 
@@ -9,11 +10,9 @@ export function RegenerateForm({ content }: { content: Content }) {
   const router = useRouter();
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleRegenerate() {
     setLoading(true);
-    setError(null);
     try {
       await api.regenerate({
         content_id: content.id,
@@ -23,9 +22,10 @@ export function RegenerateForm({ content }: { content: Content }) {
         neighborhood: content.neighborhood ?? undefined,
         feedback: feedback || undefined,
       });
+      toast.success("Página regenerada com sucesso!");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao regenerar");
+      toast.error(err instanceof Error ? err.message : "Erro ao regenerar");
     } finally {
       setLoading(false);
     }
@@ -41,7 +41,6 @@ export function RegenerateForm({ content }: { content: Content }) {
         rows={3}
         className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 bg-white resize-none"
       />
-      {error && <p className="text-red-600 text-xs">{error}</p>}
       <button
         onClick={handleRegenerate}
         disabled={loading}

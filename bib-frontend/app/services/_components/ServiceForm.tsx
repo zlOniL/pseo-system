@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { Service, CreateServiceInput, RelatedService, WpCategory } from '@/lib/types';
 import MediaPickerModal from '@/app/_components/MediaPickerModal';
@@ -75,13 +76,17 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
     try {
       if (isEdit && initialData) {
         await api.updateService(initialData.id, input);
+        toast.success("Serviço guardado com sucesso!");
         router.refresh();
       } else {
         const service = await api.createService(input);
+        toast.success("Serviço criado com sucesso!");
         router.push(`/services/${service.id}`);
       }
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message;
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

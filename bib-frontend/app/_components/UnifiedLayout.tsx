@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { Content, RelatedService, WpCategory } from "@/lib/types";
 import { ScoreCard } from "@/app/generate/_components/ScoreCard";
@@ -154,9 +155,12 @@ export function UnifiedLayout({ initialContent }: Props) {
     try {
       const result = await api.generate(buildGeneratePayload());
       setContent(result);
+      toast.success("Página gerada com sucesso!");
       router.replace(`/contents/${result.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao gerar");
+      const msg = err instanceof Error ? err.message : "Erro ao gerar";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -176,8 +180,11 @@ export function UnifiedLayout({ initialContent }: Props) {
       setContent(result);
       setShowRegenerate(false);
       setFeedback("");
+      toast.success("Página regenerada com sucesso!");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao regenerar");
+      const msg = err instanceof Error ? err.message : "Erro ao regenerar";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -190,8 +197,11 @@ export function UnifiedLayout({ initialContent }: Props) {
     try {
       const result = await api.approveContent(content.id);
       setContent(result);
+      toast.success("Página aprovada!");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao aprovar");
+      const msg = err instanceof Error ? err.message : "Erro ao aprovar";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setActionLoading(false);
     }
@@ -204,8 +214,11 @@ export function UnifiedLayout({ initialContent }: Props) {
     try {
       const result = await api.publishContent(content.id);
       setContent(result);
+      toast.success("Publicado no WordPress!");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao publicar");
+      const msg = err instanceof Error ? err.message : "Erro ao publicar";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setActionLoading(false);
     }
@@ -217,9 +230,12 @@ export function UnifiedLayout({ initialContent }: Props) {
     setActionLoading(true);
     try {
       await api.deleteContent(content.id);
+      toast.success("Página apagada.");
       router.push("/contents");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao apagar");
+      const msg = err instanceof Error ? err.message : "Erro ao apagar";
+      setError(msg);
+      toast.error(msg);
       setActionLoading(false);
       setConfirmDelete(false);
     }

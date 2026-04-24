@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import Link from "next/link";
+import { Toaster } from "sonner";
 import LogoutButton from "./_components/LogoutButton";
 import "./globals.css";
 
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <LogoutButton />
         </nav>
         <main className="flex-1 min-h-0 overflow-hidden">{children}</main>
+        <Toaster richColors position="bottom-right" />
       </body>
     </html>
   );

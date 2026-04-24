@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { Content, RelatedService, WpCategory } from "@/lib/types";
 import { ScoreCard } from "./ScoreCard";
@@ -82,8 +83,11 @@ export function GenerateLayout() {
         wordpress_category: wpCategory || undefined,
       });
       setResult(content);
+      toast.success("Página gerada com sucesso!");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro desconhecido");
+      const msg = err instanceof Error ? err.message : "Erro desconhecido";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

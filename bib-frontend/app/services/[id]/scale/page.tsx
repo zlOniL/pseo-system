@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { QueueItem, QueueStats, RegionWithCities, Service, ServiceTemplate, SectionLibrarySummary } from '@/lib/types';
 
@@ -61,9 +62,34 @@ export default function ScalePage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // Refs para detecção de transições de estado da fila sem disparar no carregamento inicial
+  const prevStatsRef = useRef<QueueStats | null>(null);
+  const initializedRef = useRef(false);
+
   const poll = useCallback(() => {
-    void api.getQueueForService(serviceId).then(setQueueItems).catch(() => { });
-    void api.getQueueStats().then(setStats).catch(() => { });
+    void Promise.all([
+      api.getQueueForService(serviceId),
+      api.getQueueStats(),
+    ]).then(([items, newStats]) => {
+      setQueueItems(items);
+      setStats(newStats);
+
+      if (initializedRef.current && prevStatsRef.current) {
+        const prev = prevStatsRef.current;
+        const wasActive = (prev.pending + prev.processing) > 0;
+        const nowActive = (newStats.pending + newStats.processing) > 0;
+
+        if (wasActive && !nowActive && newStats.done > 0) {
+          toast.success(`Geração concluída! ${newStats.done} página${newStats.done !== 1 ? 's' : ''} gerada${newStats.done !== 1 ? 's' : ''}.`);
+        }
+        if (newStats.failed > prev.failed) {
+          const n = newStats.failed - prev.failed;
+          toast.error(`${n} página${n !== 1 ? 's' : ''} falharam na geração.`);
+        }
+      }
+
+      prevStatsRef.current = newStats;
+    }).catch(() => { });
   }, [serviceId]);
 
   useEffect(() => {
@@ -84,6 +110,9 @@ export default function ScalePage() {
         setTemplates(tpls);
         setLibrarySummary(libSum);
         if (tpls.length > 0) setSelectedTemplateId(tpls[0].id);
+        // Inicializar ref com estado atual — toasts só disparam a partir do 1º poll
+        prevStatsRef.current = s;
+        initializedRef.current = true;
       })
       .catch(() => setError('Erro ao carregar dados.'))
       .finally(() => setLoading(false));
@@ -134,6 +163,7 @@ export default function ScalePage() {
 
   async function handleEnqueue() {
     if (selectedCities.size === 0) return;
+    const count = selectedCities.size;
     setEnqueueing(true);
     setError('');
     try {
@@ -144,9 +174,12 @@ export default function ScalePage() {
         template_id: mode === 'template' ? selectedTemplateId : undefined,
       });
       setSelectedCities(new Set());
+      toast.success(`${count} cidade${count !== 1 ? 's' : ''} adicionada${count !== 1 ? 's' : ''} à fila.`);
       poll();
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message;
+      setError(msg);
+      toast.error(msg);
     } finally {
       setEnqueueing(false);
     }

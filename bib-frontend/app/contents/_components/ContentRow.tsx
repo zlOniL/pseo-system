@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { ContentSummary } from "@/lib/types";
 
@@ -49,8 +50,10 @@ export function ContentRow({ content, isSelected, onToggle }: ContentRowProps) {
     setDeleting(true);
     try {
       await api.deleteContent(content.id);
+      toast.success("Conteúdo apagado.");
       router.refresh();
-    } catch {
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao apagar");
       setDeleting(false);
       setConfirmDelete(false);
     }
