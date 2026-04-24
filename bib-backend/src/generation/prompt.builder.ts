@@ -32,9 +32,9 @@ NÃO altere estrutura. NÃO remova seções. NÃO invente novos blocos.
     NUNCA inventar URLs — usa apenas URLs reais e verificáveis.
 15. PLACEHOLDERS DE IMAGEM: Os marcadores \`{{IMAGE_1}}\` até \`{{IMAGE_8}}\` são substituídos automaticamente após a geração pela pipeline. NÃO os remova, NÃO os altere, NÃO os preencha — copia-os EXATAMENTE como estão no template para a saída.
 16. ENRIQUECIMENTO DO SERVIÇO — Demonstrar autoridade técnica integrando organicamente:
-    - Nomes de ferramentas e equipamentos profissionais específicos usados no serviço (ex: desentupidora de alta pressão, câmara de inspeção endoscópica, detetor de fugas por termografia, rebarbadora angular)
+    - Nomes de ferramentas e equipamentos profissionais específicos usados no serviço
     - Marcas reconhecidas do sector, mencionadas de forma leve e natural (ex: "equipamentos Rothenberger", "câmaras RIDGID", "ferramentas Bosch Professional", "produtos Hilti")
-    - Técnicas e métodos profissionais específicos com os seus nomes técnicos (ex: "reparação por manga deslizante", "método de injeção de resina epóxi", "diagnóstico por câmara endoscópica")
+    - Técnicas e métodos profissionais específicos com os seus nomes técnicos
     - Normas técnicas ou regulamentações relevantes, quando aplicável (ex: "conforme a NP EN 12056", "de acordo com o RGEU")
     Estas referências devem aparecer em 2-3 secções diferentes, de forma natural — nunca forçada ou em lista.
 
@@ -72,7 +72,7 @@ Cada parágrafo explora um ângulo diferente do serviço:
 - P3: contexto de imóveis modernos — tipos diferentes de problemas, má instalação, desgaste prematuro
 - P4: abordagem profissional da empresa — rapidez, rigor, sem improvisos, substituições apenas quando necessário
 - P5: âmbito de atuação — apartamentos, moradias, escritórios, hotéis, restaurantes, lojas, com tipos de intervenção em \`<strong>\`
-- P6: qualificação da equipa — técnicos especializados, equipamentos profissionais (citar 2-3 ferramentas/equipamentos com nomes técnicos reais, ex: câmara endoscópica, desentupidora de alta pressão, detetor de fugas por termografia), diagnóstico preciso
+- P6: qualificação da equipa — técnicos especializados, equipamentos profissionais (citar 2-3 ferramentas/equipamentos com nomes técnicos reais relacionados ao serviço em questão), diagnóstico preciso
 - P7: diagnóstico técnico avançado — quando é necessário, o que inclui, benefícios para o cliente
 - P8: urgência — consequências de adiar a intervenção, danos estruturais, custos crescentes
 - P9: serviço completo e transparente — do primeiro contacto à conclusão, orçamento claro, cliente sempre informado
@@ -120,7 +120,7 @@ Secção educativa extensa — conteúdo de valor que posiciona a empresa como e
 - P4: torneiras, autoclismos e válvulas — pequenas falhas que evoluem para problemas maiores; mencionar marcas/modelos comuns de peças de substituição de forma leve
 - P5: sistemas de esgoto e uso consciente — o que evitar, como prevenir entupimentos; citar normas de boas práticas se relevante
 - P6: pressão da água e verificações após remodelação; mencionar equipamento de medição (ex: manómetro, pressostato)
-Lista: 6 ações de manutenção preventiva concreta e técnica (ex: "Verificação de estanquidade com manómetro de pressão", "Limpeza técnica de sifões e ralos com câmara endoscópica").
+Lista: 6 ações de manutenção preventiva concreta e técnica
 PREVENCAO_CLOSING: parágrafo final que encoraja contacto preventivo — mencionar disponibilidade 24h.
 
 ### SISTEMAS E INTERVENÇÕES (6 parágrafos — secção técnica aprofundada)
@@ -130,7 +130,7 @@ Esta secção é ideal para inserir enriquecimento de serviço (ferramentas, mar
 - P2: sistemas cobertos — redes de água fria e quente, canalizações embutidas e aparentes, esgotos, colunas prediais, instalações sanitárias; variedade de contextos; inserir link de associação profissional ou norma técnica neste parágrafo
 - P3: materiais e tecnologias — ferro galvanizado, cobre, PPR, multicamada, PVC, PEX; diferenças de abordagem por material; CITAR 1-2 marcas de fabricantes de materiais ou ferramentas de forma natural (ex: "tubagens em PPR Wavin", "equipamentos de diagnóstico RIDGID"); inserir link para site de fabricante
 - P4: problemas recorrentes — fugas ocultas, baixa pressão, cano rebentado, infiltrações, entupimentos em instalações residenciais, comerciais e industriais de diferentes épocas
-- P5: processo de diagnóstico técnico — citar ferramentas de diagnóstico com nomes técnicos reais (ex: câmara endoscópica de inspeção, detetor ultrassónico de fugas, manómetro de pressão diferencial); sem soluções temporárias
+- P5: processo de diagnóstico técnico — citar ferramentas de diagnóstico com nomes técnicos reais; sem soluções temporárias
 - P6: testes finais e garantia de qualidade — teste de pressão, verificação de fugas, controlo de escoamento, validação de estanquidade conforme normas (citar norma relevante se aplicável)
 
 ### SERVIÇOS ESPECIALIZADOS (intro + 2 colunas de 14 itens cada)
