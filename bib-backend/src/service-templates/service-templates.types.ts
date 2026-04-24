@@ -4,9 +4,11 @@ export interface ServiceTemplate {
   service_id: string;
   version: number;
   html: string;
-  base_city: string;
+  base_city: string | null;
   images: string[];
   video_url: string | null;
+  is_main_page: boolean;
+  label: string | null;
 }
 
 export const SECTION_KEYS = [

@@ -3,6 +3,8 @@ import { Geist } from "next/font/google";
 import Link from "next/link";
 import { Toaster } from "sonner";
 import LogoutButton from "./_components/LogoutButton";
+import { GenerationProvider } from "./_components/GenerationProvider";
+import { FloatingGenerationStatus } from "./_components/FloatingGenerationStatus";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -39,7 +41,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </Link>
           <LogoutButton />
         </nav>
-        <main className="flex-1 min-h-0 overflow-hidden">{children}</main>
+        <GenerationProvider>
+          <main className="flex-1 min-h-0 overflow-hidden">{children}</main>
+          <FloatingGenerationStatus />
+        </GenerationProvider>
         <Toaster richColors position="bottom-right" />
       </body>
     </html>

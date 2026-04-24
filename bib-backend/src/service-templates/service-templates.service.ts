@@ -12,6 +12,7 @@ export class ServiceTemplatesService {
       .from('service_templates')
       .select('*')
       .eq('service_id', serviceId)
+      .order('is_main_page', { ascending: false })
       .order('version', { ascending: true });
 
     if (error) throw new Error(error.message);
@@ -33,16 +34,18 @@ export class ServiceTemplatesService {
   async create(
     serviceId: string,
     html: string,
-    baseCity: string,
+    baseCity: string | null,
     images: string[],
     videoUrl: string | null,
+    isMainPage = false,
+    label?: string,
   ): Promise<ServiceTemplate> {
     const nextVersion = await this.nextVersion(serviceId);
 
     const { data, error } = await this.supabase
       .getClient()
       .from('service_templates')
-      .insert({ service_id: serviceId, version: nextVersion, html, base_city: baseCity, images, video_url: videoUrl })
+      .insert({ service_id: serviceId, version: nextVersion, html, base_city: baseCity, images, video_url: videoUrl, is_main_page: isMainPage, label: label ?? null })
       .select()
       .single();
 
@@ -53,14 +56,29 @@ export class ServiceTemplatesService {
   async update(
     id: string,
     html: string,
-    baseCity: string,
+    baseCity: string | null,
     images: string[],
     videoUrl: string | null,
+    isMainPage = false,
+    label?: string,
   ): Promise<ServiceTemplate> {
     const { data, error } = await this.supabase
       .getClient()
       .from('service_templates')
-      .update({ html, base_city: baseCity, images, video_url: videoUrl })
+      .update({ html, base_city: baseCity, images, video_url: videoUrl, is_main_page: isMainPage, label: label ?? null })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error || !data) throw new NotFoundException(`Template ${id} not found`);
+    return data as ServiceTemplate;
+  }
+
+  async rename(id: string, label: string): Promise<ServiceTemplate> {
+    const { data, error } = await this.supabase
+      .getClient()
+      .from('service_templates')
+      .update({ label: label.trim() || null })
       .eq('id', id)
       .select()
       .single();

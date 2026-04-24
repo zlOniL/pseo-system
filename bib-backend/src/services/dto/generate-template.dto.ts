@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsArray, ValidateNested } from 'class-validator';
+import { IsOptional, IsString, IsArray, IsBoolean, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class RelatedServiceDto {
@@ -27,4 +27,12 @@ export class GenerateTemplateDto {
   @ValidateNested({ each: true })
   @Type(() => RelatedServiceDto)
   related_services?: RelatedServiceDto[];
+
+  @IsOptional()
+  @IsBoolean()
+  is_main_page?: boolean;
+
+  @IsOptional()
+  @IsString()
+  label?: string;
 }

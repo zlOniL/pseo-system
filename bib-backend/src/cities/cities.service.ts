@@ -58,6 +58,14 @@ export class CitiesService implements OnModuleInit {
   }
 
   /**
+   * Returns only the top-level city names (region keys), without neighbourhoods.
+   * Used when generating main-page templates that list all served cities.
+   */
+  getCityNames(): string[] {
+    return Array.from(this.regions.keys());
+  }
+
+  /**
    * Returns the region name for a given locality (case-insensitive search).
    * Returns null if not found.
    */

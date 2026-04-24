@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { Content, RelatedService, WpCategory } from "@/lib/types";
 import { ScoreCard } from "@/app/generate/_components/ScoreCard";
-import { PreviewPane } from "@/app/generate/_components/PreviewPane";
+import { PreviewPane, buildPreviewHtml } from "@/app/generate/_components/PreviewPane";
 import MediaPickerModal from "@/app/_components/MediaPickerModal";
+import { useGeneration } from "@/app/_components/GenerationProvider";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -72,11 +74,11 @@ interface Props {
 
 export function UnifiedLayout({ initialContent }: Props) {
   const router = useRouter();
+  const { addJob, isQueueActive } = useGeneration();
   const isEditing = !!initialContent;
 
   // UI state
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [content, setContent] = useState<Content | null>(initialContent ?? null);
@@ -148,46 +150,25 @@ export function UnifiedLayout({ initialContent }: Props) {
 
   // ── actions ─────────────────────────────────────────────────────────────────
 
-  async function handleGenerate(e: React.FormEvent) {
+  function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await api.generate(buildGeneratePayload());
-      setContent(result);
-      toast.success("Página gerada com sucesso!");
-      router.replace(`/contents/${result.id}`);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao gerar";
-      setError(msg);
-      toast.error(msg);
-    } finally {
-      setLoading(false);
-    }
+    const label = effectiveKeyword || service;
+    addJob("generate", buildGeneratePayload(), label);
+    toast.info(`"${label}" adicionada à fila de geração.`);
   }
 
-  async function handleRegenerate(e: React.FormEvent) {
+  function handleRegenerate(e: React.FormEvent) {
     e.preventDefault();
     if (!content) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await api.regenerate({
-        content_id: content.id,
-        ...buildGeneratePayload(),
-        feedback: feedback || undefined,
-      });
-      setContent(result);
-      setShowRegenerate(false);
-      setFeedback("");
-      toast.success("Página regenerada com sucesso!");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao regenerar";
-      setError(msg);
-      toast.error(msg);
-    } finally {
-      setLoading(false);
-    }
+    const label = content.main_keyword;
+    addJob(
+      "regenerate",
+      { content_id: content.id, ...buildGeneratePayload(), feedback: feedback || undefined },
+      label
+    );
+    setShowRegenerate(false);
+    setFeedback("");
+    toast.info(`Regeneração de "${label}" adicionada à fila.`);
   }
 
   async function handleApprove() {
@@ -255,16 +236,23 @@ export function UnifiedLayout({ initialContent }: Props) {
           {/* Header */}
           <div className="shrink-0 px-5 h-12 border-b border-gray-200 flex items-center justify-between">
             <div className="flex items-center gap-2">
+              <Link
+                href="/contents"
+                className="text-xs text-gray-400 hover:text-gray-700 transition-colors flex items-center gap-0.5"
+              >
+                ← Conteúdos
+              </Link>
+              <span className="text-gray-200">|</span>
               {content && (
                 <span className={`w-2 h-2 rounded-full ${STATUS_DOT[content.status]}`} />
               )}
-              <span className="text-sm font-semibold text-gray-900">
+              <span className="text-sm font-semibold text-gray-900 truncate">
                 {content ? content.main_keyword : "Nova página SEO"}
               </span>
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-md hover:bg-gray-100"
+              className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-md hover:bg-gray-100 shrink-0"
               title="Ocultar painel"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -328,10 +316,9 @@ export function UnifiedLayout({ initialContent }: Props) {
                   />
                   <button
                     type="submit"
-                    disabled={loading}
-                    className="w-full bg-gray-900 text-white rounded-lg px-4 py-2 text-xs font-medium hover:bg-gray-800 disabled:opacity-40 transition-colors"
+                    className="w-full bg-gray-900 text-white rounded-lg px-4 py-2 text-xs font-medium hover:bg-gray-800 transition-colors"
                   >
-                    {loading ? "A regenerar..." : "Regenerar com alterações do formulário"}
+                    {isQueueActive ? "Adicionar à fila" : "Regenerar com alterações do formulário"}
                   </button>
                 </form>
               )}
@@ -513,19 +500,13 @@ export function UnifiedLayout({ initialContent }: Props) {
                 </button>
               </div>
 
-              {/* Error (nova geração) */}
-              {!content && error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-xs">{error}</div>
-              )}
-
               {/* Botão Gerar (só quando ainda não existe conteúdo) */}
               {!content && (
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="w-full bg-gray-900 text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="w-full bg-gray-900 text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-gray-800 transition-colors"
                 >
-                  {loading ? "A gerar... (30–60s)" : "Gerar Página"}
+                  {isQueueActive ? "Adicionar à fila" : "Gerar Página"}
                 </button>
               )}
             </form>
@@ -548,18 +529,28 @@ export function UnifiedLayout({ initialContent }: Props) {
               Painel
             </button>
           )}
-          <span className="text-xs text-gray-400 truncate">
-            {loading
-              ? "A gerar conteúdo..."
-              : content
+          <span className="text-xs text-gray-400 truncate flex-1">
+            {content
               ? content.main_keyword
               : "Preenche o formulário e clica em Gerar Página"}
           </span>
+          {content?.html && (
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(buildPreviewHtml(content.html, videoUrl || undefined, content.generation_mode))
+                  .then(() => toast.success('HTML copiado para a área de transferência.'))
+                  .catch(() => toast.error('Não foi possível copiar o HTML.'));
+              }}
+              className="shrink-0 text-xs text-gray-500 hover:text-gray-900 border border-gray-200 rounded-md px-2.5 py-1.5 hover:bg-gray-50 transition-colors"
+            >
+              Copiar HTML
+            </button>
+          )}
         </div>
 
         {/* Preview */}
         <div className="flex-1 overflow-auto p-6">
-          <PreviewPane html={content?.html ?? null} videoUrl={videoUrl} loading={loading} generationMode={content?.generation_mode} />
+          <PreviewPane html={content?.html ?? null} videoUrl={videoUrl} loading={false} generationMode={content?.generation_mode} />
         </div>
       </div>
 

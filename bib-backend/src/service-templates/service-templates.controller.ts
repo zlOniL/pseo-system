@@ -1,12 +1,15 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put } from '@nestjs/common';
 import { ServiceTemplatesService } from './service-templates.service';
 import { SectionLibraryService } from './section-library.service';
 import { GenerationService } from '../generation/generation.service';
 import { ServicesService } from '../services/services.service';
 import { ContentsService } from '../contents/contents.service';
 import { ValidationService } from '../validation/validation.service';
+import { CitiesService } from '../cities/cities.service';
 import { parseHtmlSections } from './html-section-parser';
 import { injectImages } from '../common/image-injector';
+import { slugify } from '../common/slug';
+import { buildMainPageCityLinksHtml } from '../template-engine/utils/main-page-city-links-builder';
 import { GenerateTemplateDto } from '../services/dto/generate-template.dto';
 
 @Controller('services/:serviceId/templates')
@@ -18,6 +21,7 @@ export class ServiceTemplatesController {
     private readonly services: ServicesService,
     private readonly contents: ContentsService,
     private readonly validation: ValidationService,
+    private readonly cities: CitiesService,
   ) {}
 
   @Get()
@@ -52,9 +56,10 @@ export class ServiceTemplatesController {
     @Param('templateId') templateId: string,
   ) {
     const template = await this.templates.findById(templateId);
+    if (template.is_main_page) return { sections_saved: 0, keys: [] };
     await this.library.deleteByTemplate(templateId);
     const { sections } = parseHtmlSections(template.html);
-    await this.library.saveAll(serviceId, templateId, sections, template.base_city);
+    await this.library.saveAll(serviceId, templateId, sections, template.base_city!);
     return { sections_saved: sections.size, keys: [...sections.keys()] };
   }
 
@@ -65,13 +70,22 @@ export class ServiceTemplatesController {
     const results: Array<{ templateId: string; version: number; sections_saved: number }> = [];
 
     for (const template of allTemplates) {
+      if (template.is_main_page) continue;
       await this.library.deleteByTemplate(template.id);
       const { sections } = parseHtmlSections(template.html);
-      await this.library.saveAll(serviceId, template.id, sections, template.base_city);
+      await this.library.saveAll(serviceId, template.id, sections, template.base_city!);
       results.push({ templateId: template.id, version: template.version, sections_saved: sections.size });
     }
 
     return { templates_processed: results.length, results };
+  }
+
+  @Patch(':templateId/label')
+  async rename(
+    @Param('templateId') templateId: string,
+    @Body('label') label: string,
+  ) {
+    return this.templates.rename(templateId, label ?? '');
   }
 
   @Delete(':templateId')
@@ -92,8 +106,9 @@ export class ServiceTemplatesController {
     existingTemplateId?: string,
   ) {
     const service = await this.services.findById(serviceId);
-    const baseCity = dto.base_city ?? 'Lisboa';
-    const mainKeyword = `${service.name} em ${baseCity}`;
+    const isMainPage = dto.is_main_page ?? false;
+    const baseCity = isMainPage ? null : (dto.base_city ?? 'Lisboa');
+    const mainKeyword = isMainPage ? service.name : `${service.name} em ${baseCity}`;
     const images = service.images ?? [];
     const videoUrl = service.video_url ?? null;
 
@@ -101,11 +116,13 @@ export class ServiceTemplatesController {
       dto.related_services?.length ? dto.related_services : (service.related_services ?? []);
 
     // 1. Generate raw HTML (before image injection)
+    // For main page: skip_backlinks removes the AI's placeholder "Atendemos" block;
+    // we'll replace it with a city-list section instead.
     const { html: rawHtml, metaDescription } = await this.generation.buildHtmlRaw(
       {
         main_keyword: mainKeyword,
         service: service.name,
-        city: baseCity,
+        city: baseCity ?? undefined,
         images,
         video_url: videoUrl ?? undefined,
         tone: service.tone,
@@ -113,31 +130,44 @@ export class ServiceTemplatesController {
         service_notes: dto.service_notes ?? service.service_notes ?? undefined,
         related_services: relatedServices,
         service_id: serviceId,
+        skip_backlinks: isMainPage || undefined,
       },
       dto.feedback,
     );
 
-    // 2. Store template with real images injected
-    const htmlWithImages = injectImages(rawHtml, images, mainKeyword, service.name, baseCity);
+    // 2. Inject images; then, for main page, append the city-list backlinks section
+    const htmlWithImages = injectImages(rawHtml, images, mainKeyword, service.name, baseCity ?? '');
+    const finalHtml = isMainPage
+      ? htmlWithImages + '\n\n' + buildMainPageCityLinksHtml(
+          this.cities.getCityNames(),
+          slugify(service.name),
+          service.name,
+          (process.env.WP_BASE_URL ?? '').replace(/\/$/, ''),
+        )
+      : htmlWithImages;
 
     let template;
     if (existingTemplateId) {
-      template = await this.templates.update(existingTemplateId, htmlWithImages, baseCity, images, videoUrl);
+      template = await this.templates.update(existingTemplateId, finalHtml, baseCity, images, videoUrl, isMainPage, dto.label);
     } else {
-      template = await this.templates.create(serviceId, htmlWithImages, baseCity, images, videoUrl);
+      template = await this.templates.create(serviceId, finalHtml, baseCity, images, videoUrl, isMainPage, dto.label);
     }
 
-    // 3. Extract sections from raw HTML ({{IMAGE_N}} still present)
-    const { sections } = parseHtmlSections(rawHtml);
-    await this.library.saveAll(serviceId, template.id, sections, baseCity);
+    // 3. Extract sections only for regular templates (not main page)
+    let sectionsSaved = 0;
+    if (!isMainPage) {
+      const { sections } = parseHtmlSections(rawHtml);
+      await this.library.saveAll(serviceId, template.id, sections, baseCity!);
+      sectionsSaved = sections.size;
+    }
 
     // 4. Save content record for preview
-    const validationResult = this.validation.validate(htmlWithImages, mainKeyword, service.min_words ?? 5000);
+    const validationResult = this.validation.validate(finalHtml, mainKeyword, service.min_words ?? 5000);
     const content = await this.contents.save(
       {
         main_keyword: mainKeyword,
         service: service.name,
-        city: baseCity,
+        city: baseCity ?? undefined,
         images,
         video_url: videoUrl ?? undefined,
         tone: service.tone,
@@ -146,15 +176,17 @@ export class ServiceTemplatesController {
         related_services: relatedServices,
         service_id: serviceId,
       },
-      htmlWithImages,
+      finalHtml,
       validationResult,
       metaDescription,
       'ai',
     );
 
-    // Keep service.template_html in sync for backwards compat
-    await this.services.saveTemplate(serviceId, htmlWithImages, baseCity, images, videoUrl);
+    // Keep service.template_html in sync for backwards compat (only regular templates)
+    if (!isMainPage) {
+      await this.services.saveTemplate(serviceId, finalHtml, baseCity!, images, videoUrl);
+    }
 
-    return { template, content, sections_saved: sections.size };
+    return { template, content, sections_saved: sectionsSaved };
   }
 }

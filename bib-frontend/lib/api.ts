@@ -130,6 +130,12 @@ export const api = {
     }
   },
 
+  renameTemplate: (serviceId: string, templateId: string, label: string) =>
+    request<import('./types').ServiceTemplate>(`/services/${serviceId}/templates/${templateId}/label`, {
+      method: 'PATCH',
+      body: JSON.stringify({ label }),
+    }),
+
   reextractAllSections: (serviceId: string) =>
     request<{ templates_processed: number; results: Array<{ templateId: string; version: number; sections_saved: number }> }>(
       `/services/${serviceId}/templates/reextract-all`,

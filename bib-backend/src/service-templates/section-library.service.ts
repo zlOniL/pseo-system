@@ -22,7 +22,12 @@ export class SectionLibraryService {
   }
 
   async deleteByTemplate(templateId: string): Promise<void> {
-    await this.supabase.getClient().from('section_library').delete().eq('template_id', templateId);
+    const { error } = await this.supabase
+      .getClient()
+      .from('section_library')
+      .delete()
+      .eq('template_id', templateId);
+    if (error) throw new Error(`deleteByTemplate failed: ${error.message}`);
   }
 
   async getSummary(serviceId: string): Promise<SectionLibrarySummary[]> {

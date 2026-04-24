@@ -73,6 +73,8 @@ export interface GenerateTemplateInput {
   service_notes?: string;
   feedback?: string;
   related_services?: RelatedService[];
+  is_main_page?: boolean;
+  label?: string;
 }
 
 export interface TemplateResult {
@@ -88,9 +90,11 @@ export interface ServiceTemplate {
   service_id: string;
   version: number;
   html: string;
-  base_city: string;
+  base_city: string | null;
   images: string[];
   video_url: string | null;
+  is_main_page: boolean;
+  label: string | null;
 }
 
 export interface GenerateTemplateResult {
