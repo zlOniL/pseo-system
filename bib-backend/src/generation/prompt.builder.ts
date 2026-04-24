@@ -383,38 +383,38 @@ Não funciona como conclusão — funciona como consolidação avançada de auto
     <div style="display: flex; flex-wrap: wrap; gap: 30px;">
       <div style="flex: 1; min-width: 260px;">
         <ul style="list-style: none; padding-left: 0;">
-          <li style="color: #320000;"><strong>- {{ESPEC_COL1_ITEM_1}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL1_ITEM_2}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL1_ITEM_3}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL1_ITEM_4}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL1_ITEM_5}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL1_ITEM_6}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL1_ITEM_7}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL1_ITEM_8}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL1_ITEM_9}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL1_ITEM_10}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL1_ITEM_11}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL1_ITEM_12}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL1_ITEM_13}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL1_ITEM_14}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL1_ITEM_1}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL1_ITEM_2}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL1_ITEM_3}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL1_ITEM_4}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL1_ITEM_5}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL1_ITEM_6}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL1_ITEM_7}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL1_ITEM_8}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL1_ITEM_9}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL1_ITEM_10}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL1_ITEM_11}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL1_ITEM_12}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL1_ITEM_13}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL1_ITEM_14}}</strong></li>
         </ul>
       </div>
       <div style="flex: 1; min-width: 260px;">
         <ul style="list-style: none; padding-left: 0;">
-          <li style="color: #320000;"><strong>- {{ESPEC_COL2_ITEM_1}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL2_ITEM_2}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL2_ITEM_3}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL2_ITEM_4}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL2_ITEM_5}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL2_ITEM_6}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL2_ITEM_7}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL2_ITEM_8}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL2_ITEM_9}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL2_ITEM_10}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL2_ITEM_11}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL2_ITEM_12}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL2_ITEM_13}}</strong></li>
-          <li style="color: #320000;"><strong>- {{ESPEC_COL2_ITEM_14}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL2_ITEM_1}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL2_ITEM_2}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL2_ITEM_3}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL2_ITEM_4}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL2_ITEM_5}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL2_ITEM_6}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL2_ITEM_7}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL2_ITEM_8}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL2_ITEM_9}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL2_ITEM_10}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL2_ITEM_11}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL2_ITEM_12}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL2_ITEM_13}}</strong></li>
+          <li style="color: #320000;"><strong> {{ESPEC_COL2_ITEM_14}}</strong></li>
         </ul>
       </div>
     </div>
