@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, Min, Max, IsArray, ValidateNested, IsUUID } from 'class-validator';
+import { IsString, IsOptional, IsNumber, Min, Max, IsArray, ValidateNested, IsUUID, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class RelatedService {
@@ -16,8 +16,9 @@ export class GenerateDto {
   @IsString()
   service: string;
 
+  @IsOptional()
   @IsString()
-  city: string;
+  city?: string;
 
   @IsOptional()
   @IsString()
@@ -59,4 +60,12 @@ export class GenerateDto {
   @IsOptional()
   @IsUUID()
   service_id?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  skip_backlinks?: boolean;
+
+  @IsOptional()
+  @IsString()
+  wordpress_category?: string;
 }

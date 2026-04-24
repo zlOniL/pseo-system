@@ -50,15 +50,26 @@ export class GenerationService {
     const metaDescription = metaMatch ? metaMatch[1].trim() : '';
     let html = raw.replace(/<!--\s*BIB_META:[\s\S]*?-->\s*/g, '');
 
-    const serviceSlug = slugify(dto.service);
-    const wpBase = (process.env.WP_BASE_URL ?? '').replace(/\/$/, '');
-    const atendemosTambemHtml = this.cities.buildAtendemosTambem(
-      dto.city,
-      dto.service,
-      serviceSlug,
-      wpBase,
-    );
-    html = this.replaceAtendemosTambem(html, atendemosTambemHtml);
+    // When no city, strip any leftover {{CITY}} placeholders the AI may have missed
+    if (!dto.city) {
+      html = html
+        .replace(/\s+em\s+\{\{CITY\}\}/gi, '')
+        .replace(/\{\{CITY\}\}/gi, '');
+    }
+
+    if (dto.skip_backlinks) {
+      html = html.replace(/<h2[^>]*>[^<]*Atendemos[^<]*<\/h2>[\s\S]*$/i, '').trimEnd();
+    } else {
+      const serviceSlug = slugify(dto.service);
+      const wpBase = (process.env.WP_BASE_URL ?? '').replace(/\/$/, '');
+      const atendemosTambemHtml = this.cities.buildAtendemosTambem(
+        dto.city ?? '',
+        dto.service,
+        serviceSlug,
+        wpBase,
+      );
+      html = this.replaceAtendemosTambem(html, atendemosTambemHtml);
+    }
 
     return { html, metaDescription };
   }
@@ -70,7 +81,7 @@ export class GenerationService {
     feedback?: string,
   ): Promise<{ html: string; metaDescription: string }> {
     const { html: rawHtml, metaDescription } = await this.buildHtmlRaw(dto, feedback);
-    const html = injectImages(rawHtml, dto.images ?? [], dto.main_keyword, dto.service, dto.city);
+    const html = injectImages(rawHtml, dto.images ?? [], dto.main_keyword, dto.service, dto.city ?? '');
     return { html, metaDescription };
   }
 

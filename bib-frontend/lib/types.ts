@@ -16,6 +16,7 @@ export interface Content {
   related_services: RelatedService[] | null;
   meta_description: string | null;
   generation_mode: 'ai' | 'template';
+  wordpress_category: string | null;
 }
 
 export type ContentSummary = Omit<Content, 'html'>;
@@ -28,7 +29,7 @@ export interface RelatedService {
 export interface GenerateInput {
   main_keyword: string;
   service: string;
-  city: string;
+  city?: string;
   neighborhood?: string;
   tone?: string;
   min_words?: number;
@@ -37,6 +38,8 @@ export interface GenerateInput {
   video_url?: string;
   locality_notes?: string;
   service_notes?: string;
+  skip_backlinks?: boolean;
+  wordpress_category?: string;
 }
 
 export interface RegenerateInput extends GenerateInput {
@@ -69,6 +72,7 @@ export interface GenerateTemplateInput {
   base_city?: string;
   service_notes?: string;
   feedback?: string;
+  related_services?: RelatedService[];
 }
 
 export interface TemplateResult {

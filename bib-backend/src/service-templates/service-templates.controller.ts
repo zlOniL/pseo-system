@@ -97,6 +97,9 @@ export class ServiceTemplatesController {
     const images = service.images ?? [];
     const videoUrl = service.video_url ?? null;
 
+    const relatedServices =
+      dto.related_services?.length ? dto.related_services : (service.related_services ?? []);
+
     // 1. Generate raw HTML (before image injection)
     const { html: rawHtml, metaDescription } = await this.generation.buildHtmlRaw(
       {
@@ -108,7 +111,7 @@ export class ServiceTemplatesController {
         tone: service.tone,
         min_words: service.min_words,
         service_notes: dto.service_notes ?? service.service_notes ?? undefined,
-        related_services: service.related_services ?? [],
+        related_services: relatedServices,
         service_id: serviceId,
       },
       dto.feedback,
@@ -140,7 +143,7 @@ export class ServiceTemplatesController {
         tone: service.tone,
         min_words: service.min_words,
         service_notes: dto.service_notes ?? service.service_notes ?? undefined,
-        related_services: service.related_services ?? [],
+        related_services: relatedServices,
         service_id: serviceId,
       },
       htmlWithImages,

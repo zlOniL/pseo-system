@@ -522,7 +522,7 @@ SE o input contiver \`related_services\` (array com name e url), substituir o pl
 <p style="color: #320000;">Como o serviço de <strong>{{SERVICE}}</strong> faz parte de um conjunto integrado de serviços do imóvel, também prestamos apoio em serviços complementares quando necessário, como <a style="color: #111 !important; font-weight: 600; text-decoration: underline;" href="{{URL_1}}" target="_blank" rel="noopener noreferrer">{{NAME_1}}</a>[, e <a ...>{{NAME_2}}</a>...]. Intervir rapidamente garante conforto, segurança e tranquilidade no dia a dia.</p>
 \`\`\`
 
-SE não houver \`related_services\`, substituir por um parágrafo normal sobre serviços complementares do imóvel sem links.
+SE não houver \`related_services\`, substituir por um parágrafo normal sobre serviços complementares do imóvel sem links inventados, apenas o nome do serviço sem link pois pode não existir a página criada no site.
 
 ## PROIBIDO
 
@@ -583,7 +583,17 @@ export function buildPrompt(
       .map((s) => `{ "name": "${s.name}", "url": "${s.url}" }`)
       .join(', ');
     relatedServicesNote = `\nServiços relacionados para links internos no INTRO_P10_LINKS: [${links}]`;
+  } else {
+    relatedServicesNote = `\nINTRO_P10_LINKS: NÃO há serviços relacionados. Escreve um parágrafo em texto simples SEM NENHUM elemento <a href="...">. PROIBIDO usar tags <a>. Menciona apenas nomes de serviços complementares como texto corrido sem links.`;
   }
+
+  const cityNote = !input.city
+    ? `\nCIDADE: não fornecida — esta página é sobre o serviço em geral, SEM localidade. REGRAS OBRIGATÓRIAS:
+1. Em todos os H2/H3/H1, substituir " em {{CITY}}" por string vazia (ex: "Serviços de Reparação de Janelas em {{CITY}}" → "Serviços de Reparação de Janelas").
+2. Em todos os itens de lista, omitir a cidade (ex: "- Reparação de vidros em {{CITY}}" → "- Reparação de vidros").
+3. {{CITY}} NÃO deve aparecer em NENHUM ponto da saída — nem como texto, nem como placeholder.
+4. Secções que normalmente seriam locais (como "Sistemas e Intervenções", "Mais sobre...") devem ser escritas de forma genérica, sem mencionar qualquer cidade.`
+    : '';
 
   const enrichmentNotes: string[] = [];
   if (input.locality_notes?.trim()) {
@@ -608,7 +618,7 @@ ${JSON.stringify(
     null,
     2,
   )}
-\`\`\`${relatedServicesNote}${enrichmentNotes.join('')}`;
+\`\`\`${cityNote}${relatedServicesNote}${enrichmentNotes.join('')}`;
 
   if (feedback) {
     user += `\n\nFeedback sobre a versão anterior (aplica estas melhorias):\n${feedback}`;

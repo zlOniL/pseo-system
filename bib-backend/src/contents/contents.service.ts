@@ -22,6 +22,7 @@ export interface Content {
   meta_description: string | null;
   service_id: string | null;
   generation_mode: 'ai' | 'template';
+  wordpress_category: string | null;
 }
 
 @Injectable()
@@ -53,6 +54,7 @@ export class ContentsService {
         meta_description: metaDescription ?? null,
         service_id: input.service_id ?? null,
         generation_mode: generationMode,
+        wordpress_category: input.wordpress_category ?? null,
       })
       .select()
       .single();

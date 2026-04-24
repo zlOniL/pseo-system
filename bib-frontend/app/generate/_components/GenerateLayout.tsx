@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { Content, RelatedService } from "@/lib/types";
+import { Content, RelatedService, WpCategory } from "@/lib/types";
 import { ScoreCard } from "./ScoreCard";
 import { PreviewPane } from "./PreviewPane";
 
@@ -13,7 +13,7 @@ const IMAGE_HINTS = [
   "Antes de Serviços (subcategorias)",
   "Antes de Como Funciona / Tipos",
   "Antes de Prevenção e Manutenção",
-  "Antes de contexto local / cidade",
+  "Antes de Sistemas e Intervenções",
   "Dentro de Sistemas e Intervenções",
   "Antes de Perguntas Frequentes",
 ];
@@ -28,17 +28,24 @@ export function GenerateLayout() {
   const [service, setService] = useState("");
   const [city, setCity] = useState("");
   const [keyword, setKeyword] = useState("");
-  const [neighborhood, setNeighborhood] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [images, setImages] = useState(["", "", "", "", "", "", "", ""]);
   const [relatedServices, setRelatedServices] = useState<RelatedService[]>([{ name: "", url: "" }]);
+  const [wpCategory, setWpCategory] = useState("");
+  const [wpCategories, setWpCategories] = useState<WpCategory[]>([]);
 
   // State
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Content | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const autoKeyword = service && city ? `${service} em ${city}` : "";
+  const autoKeyword = service
+    ? city ? `${service} em ${city}` : service
+    : "";
+
+  useEffect(() => {
+    api.getWpCategories().then(setWpCategories).catch(() => {});
+  }, []);
 
   function addRelatedService() {
     setRelatedServices((p) => [...p, { name: "", url: "" }]);
@@ -60,20 +67,19 @@ export function GenerateLayout() {
     setResult(null);
 
     const validRelated = relatedServices.filter((s) => s.name.trim() && s.url.trim());
-    // Send full array to preserve positional mapping IMAGE_1..IMAGE_8.
-    // Backend removes placeholders for empty slots automatically.
     const hasAnyImage = images.some((u) => u.trim());
 
     try {
       const content = await api.generate({
         main_keyword: keyword || autoKeyword,
         service,
-        city,
-        neighborhood: neighborhood || undefined,
+        city: city || undefined,
         min_words: 5000,
         related_services: validRelated.length > 0 ? validRelated : undefined,
         images: hasAnyImage ? images : undefined,
         video_url: videoUrl.trim() || undefined,
+        skip_backlinks: true,
+        wordpress_category: wpCategory || undefined,
       });
       setResult(content);
     } catch (err) {
@@ -119,12 +125,13 @@ export function GenerateLayout() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Cidade *</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Cidade <span className="text-gray-400 font-normal">(opcional)</span>
+                  </label>
                   <input
-                    required
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    placeholder="ex: Lisboa | Cascais | Ajuda"
+                    placeholder="ex: Lisboa"
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 bg-white"
                   />
                 </div>
@@ -132,7 +139,7 @@ export function GenerateLayout() {
                   <label className="block text-xs font-medium text-gray-700 mb-1.5">
                     Palavra-chave{" "}
                     <span className="text-gray-400 font-normal">
-                      (auto: &quot;{autoKeyword || "Serviço em Cidade"}&quot;)
+                      (auto: &quot;{autoKeyword || "Serviço"}&quot;)
                     </span>
                   </label>
                   <input
@@ -142,18 +149,23 @@ export function GenerateLayout() {
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 bg-white"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    Bairro específico{" "}
-                    <span className="text-gray-400 font-normal">(opcional)</span>
-                  </label>
-                  <input
-                    value={neighborhood}
-                    onChange={(e) => setNeighborhood(e.target.value)}
-                    placeholder="ex: Belém"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 bg-white"
-                  />
-                </div>
+              </div>
+
+              {/* Categoria WordPress */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Categoria WordPress <span className="text-gray-400 font-normal">(opcional)</span>
+                </label>
+                <select
+                  value={wpCategory}
+                  onChange={(e) => setWpCategory(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 bg-white"
+                >
+                  <option value="">Apenas Blog (padrão)</option>
+                  {wpCategories.map((cat) => (
+                    <option key={cat.id} value={cat.name}>{cat.name}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Divisor */}

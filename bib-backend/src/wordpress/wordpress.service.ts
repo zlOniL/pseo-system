@@ -96,26 +96,20 @@ export class WordPressService {
     }
 
     // 2. Ensure service subcategory (under Blog)
-    if (!content.service_id) {
-      this.logger.warn(`Content ${contentId} has no service_id — skipping service category`);
-    } else {
+    const wpCatName = content.wordpress_category
+      ?? (content.service_id ? await this.services.findById(content.service_id).then((s) => s.wordpress_category).catch(() => null) : null);
+
+    if (wpCatName) {
       try {
-        const service = await this.services.findById(content.service_id);
-        if (!service.wordpress_category) {
-          this.logger.warn(
-            `Service "${service.name}" has no wordpress_category set — skipping`,
-          );
-        } else {
-          this.logger.log(`Resolving WP subcategory "${service.wordpress_category}"`);
-          const catId = await this.ensureCategoryExists(service.wordpress_category);
-          if (!categories.includes(catId)) categories.push(catId);
-          this.logger.log(`Resolved subcategory ID: ${catId}`);
-        }
+        this.logger.log(`Resolving WP subcategory "${wpCatName}"`);
+        const catId = await this.ensureCategoryExists(wpCatName);
+        if (!categories.includes(catId)) categories.push(catId);
+        this.logger.log(`Resolved subcategory ID: ${catId}`);
       } catch (err) {
-        this.logger.warn(
-          `Could not resolve service category for ${content.service_id}: ${(err as Error).message}`,
-        );
+        this.logger.warn(`Could not resolve category "${wpCatName}": ${(err as Error).message}`);
       }
+    } else {
+      this.logger.warn(`Content ${contentId} has no wordpress_category or service_id — skipping subcategory`);
     }
 
     this.logger.log(
@@ -220,8 +214,12 @@ export class WordPressService {
     }
 
     // Ensure all unique service category names exist in WP (create if missing)
+    const directCatNames = contents
+      .map((c) => c.wordpress_category)
+      .filter((n): n is string => !!n);
+
     const uniqueCatNames = [
-      ...new Set([...serviceWpCatMap.values()].filter((n): n is string => !!n)),
+      ...new Set([...serviceWpCatMap.values(), ...directCatNames].filter((n): n is string => !!n)),
     ];
     const categoryIdCache = new Map<string, number>();
 
@@ -243,12 +241,12 @@ export class WordPressService {
     for (const content of contents) {
       const ids: number[] = blogCategoryId ? [blogCategoryId] : [];
 
-      if (content.service_id) {
-        const wpCatName = serviceWpCatMap.get(content.service_id);
-        if (wpCatName) {
-          const catId = categoryIdCache.get(wpCatName);
-          if (catId && !ids.includes(catId)) ids.push(catId);
-        }
+      const wpCatName = content.wordpress_category
+        ?? (content.service_id ? serviceWpCatMap.get(content.service_id) ?? null : null);
+
+      if (wpCatName) {
+        const catId = categoryIdCache.get(wpCatName);
+        if (catId && !ids.includes(catId)) ids.push(catId);
       }
 
       result.set(content.id, { ids, primaryId: blogCategoryId });

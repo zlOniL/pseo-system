@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Service, ServiceTemplate, GenerateTemplateInput, SectionLibrarySummary } from '@/lib/types';
+import { Service, ServiceTemplate, GenerateTemplateInput, SectionLibrarySummary, RelatedService } from '@/lib/types';
 import { PreviewPane } from '@/app/generate/_components/PreviewPane';
 
 interface GenerateFormProps {
@@ -21,14 +21,25 @@ function GenerateForm({ service, template, onSuccess, onCancel }: GenerateFormPr
   const [showFeedback, setShowFeedback] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [relatedServices, setRelatedServices] = useState<RelatedService[]>(
+    service.related_services?.length ? service.related_services : [{ name: '', url: '' }]
+  );
+
+  function addRelated() { setRelatedServices((p) => [...p, { name: '', url: '' }]); }
+  function removeRelated(i: number) { setRelatedServices((p) => p.filter((_, idx) => idx !== i)); }
+  function updateRelated(i: number, field: keyof RelatedService, value: string) {
+    setRelatedServices((p) => p.map((s, idx) => (idx === i ? { ...s, [field]: value } : s)));
+  }
 
   async function handleSubmit() {
     setLoading(true);
     setError(null);
+    const validRelated = relatedServices.filter((s) => s.name.trim() && s.url.trim());
     const input: GenerateTemplateInput = {
       base_city: baseCity || 'Lisboa',
       service_notes: serviceNotes.trim() || undefined,
       feedback: feedback.trim() || undefined,
+      related_services: validRelated.length > 0 ? validRelated : undefined,
     };
     try {
       const res = isRegen
@@ -52,6 +63,33 @@ function GenerateForm({ service, template, onSuccess, onCancel }: GenerateFormPr
       <div>
         <label className="bib-label">Contexto do Serviço <span className="bib-label-hint">(opcional — complementa o que está no cadastro)</span></label>
         <textarea className="bib-textarea" rows={3} value={serviceNotes} onChange={(e) => setServiceNotes(e.target.value)} placeholder="Tipos de trabalho, materiais, técnicas, marcas..." />
+      </div>
+
+      {/* Serviços complementares */}
+      <div>
+        <label className="bib-label">Serviços complementares <span className="bib-label-hint">(links no P10 — opcional)</span></label>
+        <div className="space-y-2">
+          {relatedServices.map((s, i) => (
+            <div key={i} className="flex gap-1.5 items-center">
+              <input
+                className="bib-input flex-1"
+                value={s.name}
+                onChange={(e) => updateRelated(i, 'name', e.target.value)}
+                placeholder="Nome"
+              />
+              <input
+                className="bib-input flex-1"
+                value={s.url}
+                onChange={(e) => updateRelated(i, 'url', e.target.value)}
+                placeholder="URL"
+              />
+              <button type="button" onClick={() => removeRelated(i)} className="text-gray-300 hover:text-red-400 transition-colors px-1 shrink-0">✕</button>
+            </div>
+          ))}
+        </div>
+        <button type="button" onClick={addRelated} className="mt-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors">
+          + Adicionar serviço
+        </button>
       </div>
 
       <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-xs text-gray-500">

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { Content, RelatedService } from "@/lib/types";
+import { Content, RelatedService, WpCategory } from "@/lib/types";
 import { ScoreCard } from "@/app/generate/_components/ScoreCard";
 import { PreviewPane } from "@/app/generate/_components/PreviewPane";
 import MediaPickerModal from "@/app/_components/MediaPickerModal";
@@ -93,18 +93,23 @@ export function UnifiedLayout({ initialContent }: Props) {
         : ""
       : ""
   );
-  const [neighborhood, setNeighborhood] = useState(initialContent?.neighborhood ?? "");
   const [videoUrl, setVideoUrl] = useState(initialContent?.video_url ?? "");
   const [images, setImages] = useState(() => initImages(initialContent?.images ?? null));
   const [relatedServices, setRelatedServices] = useState<RelatedService[]>(() =>
     initRelated(initialContent?.related_services ?? null)
   );
+  const [wpCategory, setWpCategory] = useState(initialContent?.wordpress_category ?? "");
+  const [wpCategories, setWpCategories] = useState<WpCategory[]>([]);
   const [localityNotes, setLocalityNotes] = useState("");
   const [serviceNotes, setServiceNotes] = useState("");
   const [feedback, setFeedback] = useState("");
   const [mediaModal, setMediaModal] = useState<{ open: boolean; mode: "video" | "images" } | null>(null);
 
-  const autoKeyword = service && city ? `${service} em ${city}` : "";
+  const autoKeyword = service ? (city ? `${service} em ${city}` : service) : "";
+
+  useEffect(() => {
+    api.getWpCategories().then(setWpCategories).catch(() => {});
+  }, []);
   const effectiveKeyword = keyword || autoKeyword;
 
   // ── form helpers ────────────────────────────────────────────────────────────
@@ -124,20 +129,19 @@ export function UnifiedLayout({ initialContent }: Props) {
 
   function buildGeneratePayload() {
     const validRelated = relatedServices.filter((s) => s.name.trim() && s.url.trim());
-    // Send full array to preserve positional mapping IMAGE_1..IMAGE_8.
-    // Backend removes placeholders for empty slots automatically.
     const hasAnyImage = images.some((u) => u.trim());
     return {
       main_keyword: effectiveKeyword,
       service,
-      city,
-      neighborhood: neighborhood || undefined,
+      city: city || undefined,
       min_words: 5000 as const,
       related_services: validRelated.length > 0 ? validRelated : undefined,
       images: hasAnyImage ? images : undefined,
       video_url: videoUrl.trim() || undefined,
       locality_notes: localityNotes.trim() || undefined,
       service_notes: serviceNotes.trim() || undefined,
+      skip_backlinks: true as const,
+      wordpress_category: wpCategory || undefined,
     };
   }
 
@@ -360,27 +364,38 @@ export function UnifiedLayout({ initialContent }: Props) {
               onSubmit={isEditing || content ? (e) => e.preventDefault() : handleGenerate}
               className="space-y-4"
             >
-              {/* Serviço + Cidade + Keyword + Bairro */}
+              {/* Serviço + Cidade + Keyword */}
               <div className="space-y-3">
                 <div>
                   <Label>Serviço *</Label>
                   <Input required value={service} onChange={(e) => setService(e.target.value)} placeholder="ex: Reparação de Janelas" />
                 </div>
                 <div>
-                  <Label>Cidade *</Label>
-                  <Input required value={city} onChange={(e) => setCity(e.target.value)} placeholder="ex: Lisboa | Cascais | Ajuda" />
+                  <Label>Cidade <span className="text-gray-400 font-normal">(opcional)</span></Label>
+                  <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="ex: Lisboa" />
                 </div>
                 <div>
                   <Label>
                     Palavra-chave{" "}
-                    <span className="text-gray-400 font-normal">(auto: &quot;{autoKeyword || "Serviço em Cidade"}&quot;)</span>
+                    <span className="text-gray-400 font-normal">(auto: &quot;{autoKeyword || "Serviço"}&quot;)</span>
                   </Label>
                   <Input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder={autoKeyword || "Deixar em branco para auto"} />
                 </div>
-                <div>
-                  <Label>Bairro específico <span className="text-gray-400 font-normal">(opcional)</span></Label>
-                  <Input value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} placeholder="ex: Belém" />
-                </div>
+              </div>
+
+              {/* Categoria WordPress */}
+              <div>
+                <Label>Categoria WordPress <span className="text-gray-400 font-normal">(opcional)</span></Label>
+                <select
+                  value={wpCategory}
+                  onChange={(e) => setWpCategory(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400"
+                >
+                  <option value="">Apenas Blog (padrão)</option>
+                  {wpCategories.map((cat) => (
+                    <option key={cat.id} value={cat.name}>{cat.name}</option>
+                  ))}
+                </select>
               </div>
 
               <Divider />
