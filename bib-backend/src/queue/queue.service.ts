@@ -69,6 +69,54 @@ export class QueueService {
     return data as QueueItem | null;
   }
 
+  async pickAndClaim(mode: 'ai' | 'template' | 'library'): Promise<QueueItem | null> {
+    const modeFilter = mode === 'ai' ? 'mode.eq.ai,mode.is.null' : `mode.eq.${mode}`;
+
+    const { data: item } = await this.supabase
+      .getClient()
+      .from('queue')
+      .select()
+      .eq('status', 'pending')
+      .or(modeFilter)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (!item) return null;
+
+    const { data: claimed } = await this.supabase
+      .getClient()
+      .from('queue')
+      .update({
+        status: 'processing',
+        started_at: new Date().toISOString(),
+        attempts: (item as QueueItem).attempts + 1,
+      })
+      .eq('id', (item as QueueItem).id)
+      .eq('status', 'pending')
+      .select()
+      .maybeSingle();
+
+    return (claimed ?? null) as QueueItem | null;
+  }
+
+  async hasPending(mode?: 'ai' | 'template' | 'library'): Promise<boolean> {
+    let query = this.supabase
+      .getClient()
+      .from('queue')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending');
+
+    if (mode) {
+      query = mode === 'ai'
+        ? query.or('mode.eq.ai,mode.is.null')
+        : query.eq('mode', mode);
+    }
+
+    const { count } = await query;
+    return (count ?? 0) > 0;
+  }
+
   async markProcessing(id: string): Promise<void> {
     // First read current attempts
     const { data: row } = await this.supabase

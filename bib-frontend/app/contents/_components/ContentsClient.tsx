@@ -22,6 +22,7 @@ export default function ContentsClient({ contents, services, activeFilters }: Co
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkProgress, setBulkProgress] = useState(0);
   const [bulkTotal, setBulkTotal] = useState(0);
+  const [bulkStatus, setBulkStatus] = useState('A publicar...');
 
   function updateFilter(key: string, value: string) {
     const params = new URLSearchParams({
@@ -100,27 +101,61 @@ export default function ContentsClient({ contents, services, activeFilters }: Co
       (id) => contents.find((c) => c.id === id)?.status === 'approved',
     );
     if (ids.length === 0) return;
+
     setBulkLoading(true);
     setBulkProgress(0);
     setBulkTotal(ids.length);
+    setBulkStatus('A publicar...');
 
     const CHUNK_SIZE = 50;
-    let processed = 0;
+    let published = 0;
+    let failedIds: string[] = [];
 
-    for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
-      const chunk = ids.slice(i, i + CHUNK_SIZE);
-      try {
-        await api.bulkPublish(chunk);
-      } catch {
-        // continua nos chunks seguintes
+    async function runPass(passIds: string[]) {
+      for (let i = 0; i < passIds.length; i += CHUNK_SIZE) {
+        const chunk = passIds.slice(i, i + CHUNK_SIZE);
+        try {
+          const results = await api.bulkPublish(chunk);
+          const returned = new Set(results.map((r) => r.id));
+          for (const r of results) {
+            if (r.success) published++;
+            else failedIds.push(r.id);
+          }
+          // IDs não devolvidos pelo backend são tratados como falhados
+          for (const id of chunk) {
+            if (!returned.has(id)) failedIds.push(id);
+          }
+        } catch {
+          failedIds.push(...chunk);
+        }
+        setBulkProgress(Math.min(i + CHUNK_SIZE, passIds.length));
       }
-      processed += chunk.length;
-      setBulkProgress(processed);
+    }
+
+    // Primeira passagem
+    await runPass(ids);
+
+    // Segunda passagem — retry automático das páginas que falharam
+    if (failedIds.length > 0) {
+      const retryIds = [...failedIds];
+      failedIds = [];
+      setBulkStatus(`A re-tentar ${retryIds.length} página${retryIds.length !== 1 ? 's' : ''}...`);
+      setBulkProgress(0);
+      setBulkTotal(retryIds.length);
+      await runPass(retryIds);
     }
 
     setBulkLoading(false);
     setSelectedIds(new Set());
-    toast.success(`${ids.length} página${ids.length !== 1 ? 's' : ''} publicada${ids.length !== 1 ? 's' : ''}.`);
+
+    if (failedIds.length === 0) {
+      toast.success(`${published} página${published !== 1 ? 's' : ''} publicada${published !== 1 ? 's' : ''}.`);
+    } else {
+      toast.warning(
+        `${published} publicada${published !== 1 ? 's' : ''}, ${failedIds.length} falharam após retry.`,
+      );
+    }
+
     router.refresh();
   }
 
@@ -189,7 +224,7 @@ export default function ContentsClient({ contents, services, activeFilters }: Co
 
           {bulkLoading ? (
             <span className="text-sm text-gray-300">
-              A publicar... {bulkProgress}/{bulkTotal}
+              {bulkStatus} {bulkProgress}/{bulkTotal}
             </span>
           ) : (
             <>
