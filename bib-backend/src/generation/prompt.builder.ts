@@ -66,6 +66,7 @@ NÃO altere estrutura. NÃO remova seções. NÃO invente novos blocos.
 ---
 
 ### INTRO (INTRO_P1 a INTRO_P9 + INTRO_P10_LINKS)
+Antes dos parágrafos de serviço adicionar um trecho sobre atendimento 24h 7 dias por semana com o link para whatsapp.
 Cada parágrafo explora um ângulo diferente do serviço:
 - P1: o que é o serviço, por que é essencial, consequências de ignorar problemas
 - P2: contexto de imóveis antigos — Falar sobre como os maus cuidados podem causar graves problemas, e que ainda é possivel reparar antes que piore.
@@ -196,7 +197,10 @@ Não funciona como conclusão — funciona como consolidação avançada de auto
 \`\`\`html
 <!-- BIB_META: {{META_DESCRIPTION — frase de 140-160 caracteres, cita o serviço e "atendimento 24h", tom persuasivo}} -->
 
+
 <h1 style="color: #320000;">{{MAIN_KEYWORD}}</h1>
+
+<p style="color: #320000;">{{MAIN_KEYWORD}} 24h / 7 dias por semana, incluindo sábados, domingos e feriados — com atendimento imediato para {{SEO_KEYWORD_1}}, {{SEO_KEYWORD_2}} e {{SEO_KEYWORD_3}}. Pedido imediato via WhatsApp: <a style="color: #320000" href="https://api.whatsapp.com/message/TX2DUISECECKI1"><strong>Clique aqui para falar no WhatsApp!</strong></a></p>
 
 <p style="color: #320000;">{{INTRO_P1}}</p>
 <p style="color: #320000;">{{INTRO_P2}}</p>

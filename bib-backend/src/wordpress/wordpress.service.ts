@@ -35,6 +35,8 @@ export interface BulkPublishResult {
   error?: string;
 }
 
+class PayloadTooLargeError extends Error {}
+
 @Injectable()
 export class WordPressService {
   private readonly logger = new Logger(WordPressService.name);
@@ -271,6 +273,9 @@ export class WordPressService {
     if (!response.ok) {
       const err = await response.text();
       this.logger.error(`WordPress bulk publish error ${response.status}: ${err}`);
+      if (response.status === 413) {
+        throw new PayloadTooLargeError('WordPress bulk publish failed');
+      }
       throw new InternalServerErrorException('WordPress bulk publish failed');
     }
 
@@ -280,71 +285,93 @@ export class WordPressService {
   async bulkPublish(ids: string[]): Promise<BulkPublishResult[]> {
     const contents = await this.contents.findByIds(ids);
     const categoryMap = await this.resolveCategoriesForBulk(contents);
-    const payloads = contents.map((c) => this.preparePayload(c, categoryMap.get(c.id)!));
 
-    const CHUNK_SIZE = 100;
+    const items = contents.map((c) => ({
+      content: c,
+      payload: this.preparePayload(c, categoryMap.get(c.id)!),
+    }));
+
+    const CHUNK_SIZE = 5;
+    const MIN_CHUNK_SIZE = 1;
     const MAX_RETRIES = 3;
-    const totalChunks = Math.ceil(payloads.length / CHUNK_SIZE);
+    const CONCURRENCY = 3;
+
+    const chunks: typeof items[] = [];
+    for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+      chunks.push(items.slice(i, i + CHUNK_SIZE));
+    }
+
     const results: BulkPublishResult[] = [];
 
     this.logger.log(
-      `Bulk publish: ${payloads.length} posts → ${totalChunks} chunk(s) de ${CHUNK_SIZE}`,
+      `Bulk publish: ${items.length} posts → ${chunks.length} chunk(s) de ${CHUNK_SIZE} (concorrência: ${CONCURRENCY})`,
     );
 
-    for (let i = 0; i < payloads.length; i += CHUNK_SIZE) {
-      const chunkPayloads = payloads.slice(i, i + CHUNK_SIZE);
-      const chunkContents = contents.slice(i, i + CHUNK_SIZE);
-      const chunkNum = Math.floor(i / CHUNK_SIZE) + 1;
-      const posStart = i + 1;
-      const posEnd = Math.min(i + CHUNK_SIZE, payloads.length);
+    for (let i = 0; i < chunks.length; i += CONCURRENCY) {
+      const windowChunks = chunks.slice(i, i + CONCURRENCY);
 
-      this.logger.log(
-        `Bulk publish chunk ${chunkNum}/${totalChunks}: posts ${posStart}–${posEnd} de ${payloads.length}`,
+      const windowResults = await Promise.all(
+        windowChunks.map(async (chunk, windowIdx) => {
+          const chunkIndex = i + windowIdx + 1;
+          const chunkResults: BulkPublishResult[] = [];
+          let subStart = 0;
+          let chunkSize = chunk.length;
+
+          while (subStart < chunk.length) {
+            const subChunk = chunk.slice(subStart, subStart + chunkSize);
+
+            for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+              try {
+                const wpResults = await this.callWpBulk(subChunk.map((item) => item.payload));
+
+                for (let j = 0; j < wpResults.length; j++) {
+                  const wpResult = wpResults[j];
+                  const content = subChunk[j].content;
+
+                  if (wpResult.success) {
+                    try {
+                      const updated = await this.contents.setPublished(content.id, wpResult.id, wpResult.link);
+                      chunkResults.push({ id: content.id, success: true, data: updated });
+                    } catch (err) {
+                      chunkResults.push({ id: content.id, success: false, error: (err as Error).message });
+                    }
+                  } else {
+                    this.logger.warn(`Bulk publish: slug "${wpResult.slug}" falhou — ${wpResult.error}`);
+                    chunkResults.push({ id: content.id, success: false, error: wpResult.error });
+                  }
+                }
+
+                subStart += chunkSize;
+                break;
+              } catch (err) {
+                if (err instanceof PayloadTooLargeError && chunkSize > MIN_CHUNK_SIZE) {
+                  chunkSize = Math.max(MIN_CHUNK_SIZE, Math.floor(chunkSize / 2));
+                  this.logger.warn(
+                    `Chunk ${chunkIndex} — 413 detectado, reduzindo para ${chunkSize} post(s) por sub-chunk`,
+                  );
+                  break;
+                }
+                if (attempt < MAX_RETRIES) {
+                  await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+                } else {
+                  this.logger.error(
+                    `Chunk ${chunkIndex} — sub-chunk falhou após ${MAX_RETRIES} tentativas: ${(err as Error).message}`,
+                  );
+                  for (const item of subChunk) {
+                    chunkResults.push({ id: item.content.id, success: false, error: (err as Error).message });
+                  }
+                  subStart += chunkSize;
+                }
+              }
+            }
+          }
+
+          return chunkResults;
+        }),
       );
 
-      let wpResults: Awaited<ReturnType<typeof this.callWpBulk>> | undefined;
-      let attempt = 0;
-
-      while (attempt < MAX_RETRIES) {
-        try {
-          wpResults = await this.callWpBulk(chunkPayloads);
-          break;
-        } catch (err) {
-          attempt++;
-          this.logger.warn(
-            `Chunk ${chunkNum}/${totalChunks} — tentativa ${attempt}/${MAX_RETRIES} falhou: ${(err as Error).message}`,
-          );
-          if (attempt >= MAX_RETRIES) {
-            this.logger.error(
-              `Bulk publish abortado: chunk ${chunkNum}/${totalChunks} falhou ${MAX_RETRIES} vezes consecutivas`,
-            );
-            throw err;
-          }
-          await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
-        }
-      }
-
-      for (let j = 0; j < wpResults!.length; j++) {
-        const wpResult = wpResults![j];
-        const content = chunkContents[j];
-
-        if (wpResult.success) {
-          try {
-            const updated = await this.contents.setPublished(
-              content.id,
-              wpResult.id,
-              wpResult.link,
-            );
-            results.push({ id: content.id, success: true, data: updated });
-          } catch (err) {
-            results.push({ id: content.id, success: false, error: (err as Error).message });
-          }
-        } else {
-          this.logger.warn(
-            `Bulk publish: slug "${wpResult.slug}" falhou — ${wpResult.error}`,
-          );
-          results.push({ id: content.id, success: false, error: wpResult.error });
-        }
+      for (const partialResults of windowResults) {
+        results.push(...partialResults);
       }
     }
 
