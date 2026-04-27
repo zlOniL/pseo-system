@@ -142,6 +142,12 @@ Coluna direita (ESPEC_COL2): serviços específicos de instalação, substituiç
 Total: 28 itens distintos, NUNCA repetindo keywords já usadas na secção de subcategorias.
 Cada item é uma long-tail keyword única com a cidade (ex: "- Canalizador urgente em Lisboa", "- Substituição de tubagens em Lisboa").
 
+### INTEGRAÇÃO COM OUTROS SERVIÇOS (Intro, Link de Serviço complementar + Parágrafo de integração)
+Introdução falando sobre quais serviços são complementares ao serviço principal.
+Links dos serviços complementares devem estar em \`<strong>\` com um link externo real (não inventado). sempre com o dominio "reparacaonahora.pt" e o seu slug de serviço principal correspondente.
+Links e parágrafos devem estar dentro de uma lista "<ul><li><strong></strong></li></ul>". Nunca repetir o servico principal.
+O link do serviço sempre será no padrão do nome do serviço como: "reparacaonahora.pt/servicos/reparacao-de-autoclismos", "reparacaonahora.pt/servicos/canalizadores", "reparacaonahora.pt/servicos/desentupimentos", "reparacaonahora.pt/servicos/reparacao-de-maquinas-de-lavar-roupa", etc...
+
 ### PERGUNTAS FREQUENTES (10 pares H3 + P)
 Cada H3 é uma pergunta real de utilizador em linguagem natural.
 A resposta começa SEMPRE com \`<strong>SIM.</strong>\`, \`<strong>NA MAIORIA DOS CASOS, SIM.</strong>\` ou confirmação equivalente, seguida de texto explicativo FORA do \`<strong>\`.
@@ -288,52 +294,52 @@ Não funciona como conclusão — funciona como consolidação avançada de auto
     <p style="color: #320000;">{{SERVICOS_CAT_INTRO_P2}}</p>
 
     <h3 style="color: #320000;">{{SERVICE}} {{SERVICOS_CAT_1_NOME}} em {{CITY}}:</h3>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_1_ITEM_1}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_1_ITEM_2}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_1_ITEM_3}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_1_ITEM_4}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_1_ITEM_5}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_1_ITEM_6}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_1_ITEM_1}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_1_ITEM_2}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_1_ITEM_3}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_1_ITEM_4}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_1_ITEM_5}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_1_ITEM_6}}</strong>
 
     <h3 style="color: #320000;">{{SERVICE}} {{SERVICOS_CAT_2_NOME}} em {{CITY}}:</h3>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_2_ITEM_1}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_2_ITEM_2}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_2_ITEM_3}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_2_ITEM_4}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_2_ITEM_5}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_2_ITEM_6}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_2_ITEM_1}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_2_ITEM_2}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_2_ITEM_3}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_2_ITEM_4}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_2_ITEM_5}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_2_ITEM_6}}</strong>
 
     <h3 style="color: #320000;">{{SERVICE}} {{SERVICOS_CAT_3_NOME}} em {{CITY}}:</h3>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_3_ITEM_1}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_3_ITEM_2}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_3_ITEM_3}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_3_ITEM_4}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_3_ITEM_5}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_3_ITEM_6}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_3_ITEM_1}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_3_ITEM_2}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_3_ITEM_3}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_3_ITEM_4}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_3_ITEM_5}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_3_ITEM_6}}</strong>
 
     <h3 style="color: #320000;">{{SERVICE}} {{SERVICOS_CAT_4_NOME}} em {{CITY}}:</h3>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_4_ITEM_1}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_4_ITEM_2}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_4_ITEM_3}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_4_ITEM_4}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_4_ITEM_5}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_4_ITEM_6}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_4_ITEM_1}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_4_ITEM_2}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_4_ITEM_3}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_4_ITEM_4}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_4_ITEM_5}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_4_ITEM_6}}</strong>
 
     <h3 style="color: #320000;">{{SERVICE}} {{SERVICOS_CAT_5_NOME}} em {{CITY}}:</h3>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_5_ITEM_1}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_5_ITEM_2}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_5_ITEM_3}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_5_ITEM_4}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_5_ITEM_5}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_5_ITEM_6}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_5_ITEM_1}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_5_ITEM_2}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_5_ITEM_3}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_5_ITEM_4}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_5_ITEM_5}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_5_ITEM_6}}</strong>
 
     <h3 style="color: #320000;">{{SERVICE}} {{SERVICOS_CAT_6_NOME}} em {{CITY}}:</h3>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_6_ITEM_1}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_6_ITEM_2}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_6_ITEM_3}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_6_ITEM_4}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_6_ITEM_5}}</strong>
-    <strong style="color: #320000;">- {{SERVICOS_CAT_6_ITEM_6}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_6_ITEM_1}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_6_ITEM_2}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_6_ITEM_3}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_6_ITEM_4}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_6_ITEM_5}}</strong>
+    <strong style="color: #320000;">{{SERVICOS_CAT_6_ITEM_6}}</strong>
 
     <p style="color: #320000;">{{SERVICOS_CAT_CLOSING}}</p>
 
@@ -424,6 +430,16 @@ Não funciona como conclusão — funciona como consolidação avançada de auto
     </div>
 
     {{IMAGE_7}}
+
+    <h2 style="color: #320000;">Integração com outros serviços</h2>
+
+    <p style="color: #320000;">{{INTEGRACAO_INTRO}}</p>
+    <ul style="list-style: none; padding-left: 0;">
+      <li style="color: #320000;"><strong><a href="https://www.reparacaonahora.pt/servicos/{{INTEGRACAO_SLUG}}">{{INTEGRACAO_ITEM_1}}</a></strong></li>
+      <li style="color: #320000;"><strong><a href="https://www.reparacaonahora.pt/servicos/{{INTEGRACAO_SLUG}}">{{INTEGRACAO_ITEM_2}}</a></strong></li>...
+    </ul>
+
+    {{IMAGE_8}}
 
     <h2 style="color: #320000;">Perguntas Frequentes sobre {{MAIN_KEYWORD}}</h2>
 
@@ -561,8 +577,8 @@ const REINFORCEMENT = `INSTRUÇÕES FINAIS OBRIGATÓRIAS:
 3. Todos os elementos de texto (h1, h2, h3, p, li, strong) DEVEM ter style="color: #320000;".
 4. VOLUME MÍNIMO ABSOLUTO: cada parágrafo deve ter 3-6 frases completas. O total DEVE atingir min_words. NÃO truncar. NÃO resumir. Escreve todas as secções completas.
 5. PLACEHOLDERS DE IMAGEM: copia os 8 marcadores {{IMAGE_1}} a {{IMAGE_8}} EXATAMENTE nas posições definidas. NÃO os remove nem os altera.
-6. SERVIÇOS SUBCATEGORIAS: 6 categorias, cada uma com H3 + 6 itens <strong>. Cada item = "- [serviço específico] em [cidade]". Os itens devem ser long-tail keywords concretas e distintas.
-7. SERVIÇOS ESPECIALIZADOS: 2 colunas (div flex), 14 itens por coluna. Cada item = <li><strong>- [keyword long-tail com cidade]</strong></li>. NÃO repetir keywords já usadas nas subcategorias.
+6. SERVIÇOS SUBCATEGORIAS: 6 categorias, cada uma com H3 + 6 itens <strong> . Cada item = "[serviço específico] em [cidade]". Os itens devem ser long-tail keywords concretas e distintas.
+7. SERVIÇOS ESPECIALIZADOS: 2 colunas (div flex), 14 itens por coluna. Cada item = <li><strong>[keyword long-tail com cidade]</strong></li>. NÃO repetir keywords já usadas nas subcategorias.
 8. PREVENÇÃO: 6 parágrafos + lista de 6 itens + parágrafo final. Secção educativa extensa.
 9. SISTEMAS E INTERVENÇÕES: {{IMAGE_7}} aparece logo após o H2 desta secção, antes do primeiro <p>. Copia o placeholder na posição correta.
 10. FAQ: EXATAMENTE 10 pares H3+P. Cada resposta começa com <strong>SIM.</strong> ou confirmação equivalente, texto explicativo FORA do <strong>.
@@ -594,7 +610,7 @@ export function buildPrompt(
   const cityNote = !input.city
     ? `\nCIDADE: não fornecida — esta página é sobre o serviço em geral, SEM localidade. REGRAS OBRIGATÓRIAS:
 1. Em todos os H2/H3/H1, substituir " em {{CITY}}" por string vazia (ex: "Serviços de Reparação de Janelas em {{CITY}}" → "Serviços de Reparação de Janelas").
-2. Em todos os itens de lista, omitir a cidade (ex: "- Reparação de vidros em {{CITY}}" → "- Reparação de vidros").
+2. Em todos os itens de lista, omitir a cidade (ex: "Reparação de vidros em {{CITY}}" → "Reparação de vidros").
 3. {{CITY}} NÃO deve aparecer em NENHUM ponto da saída — nem como texto, nem como placeholder.
 4. Secções que normalmente seriam locais (como "Sistemas e Intervenções", "Mais sobre...") devem ser escritas de forma genérica, sem mencionar qualquer cidade.`
     : '';
