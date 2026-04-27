@@ -145,7 +145,7 @@ Cada item é uma long-tail keyword única com a cidade (ex: "- Canalizador urgen
 ### INTEGRAÇÃO COM OUTROS SERVIÇOS (Intro, Link de Serviço complementar + Parágrafo de integração)
 Introdução falando sobre quais serviços são complementares ao serviço principal.
 Links dos serviços complementares devem estar em \`<strong>\` com um link externo real (não inventado). sempre com o dominio "reparacaonahora.pt" e o seu slug de serviço principal correspondente.
-Links e parágrafos devem estar dentro de uma lista "<ul><li><strong></strong></li></ul>". Nunca repetir o servico principal.
+Links e parágrafos devem estar dentro de uma lista "<ul><li><a href=""><strong>Nome do Serviço</strong></a><p>Descrição do serviço.</p></li></ul>". Nunca repetir o servico principal.
 O link do serviço sempre será no padrão do nome do serviço como: "reparacaonahora.pt/servicos/reparacao-de-autoclismos", "reparacaonahora.pt/servicos/canalizadores", "reparacaonahora.pt/servicos/desentupimentos", "reparacaonahora.pt/servicos/reparacao-de-maquinas-de-lavar-roupa", etc...
 
 ### PERGUNTAS FREQUENTES (10 pares H3 + P)
@@ -435,8 +435,8 @@ Não funciona como conclusão — funciona como consolidação avançada de auto
 
     <p style="color: #320000;">{{INTEGRACAO_INTRO}}</p>
     <ul style="list-style: none; padding-left: 0;">
-      <li style="color: #320000;"><strong><a href="https://www.reparacaonahora.pt/servicos/{{INTEGRACAO_SLUG}}">{{INTEGRACAO_ITEM_1}}</a></strong></li>
-      <li style="color: #320000;"><strong><a href="https://www.reparacaonahora.pt/servicos/{{INTEGRACAO_SLUG}}">{{INTEGRACAO_ITEM_2}}</a></strong></li>...
+      <li style="color: #320000;"><strong><a href="https://www.reparacaonahora.pt/servicos/{{INTEGRACAO_SLUG}}">{{INTEGRACAO_ITEM_1}}</a><p>Descrição do serviço...</p></strong></li>
+      <li style="color: #320000;"><strong><a href="https://www.reparacaonahora.pt/servicos/{{INTEGRACAO_SLUG}}">{{INTEGRACAO_ITEM_2}}</a><p>Descrição do serviço...</p></strong></li>...
     </ul>
 
     {{IMAGE_8}}
