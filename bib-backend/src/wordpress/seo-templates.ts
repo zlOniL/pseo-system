@@ -62,6 +62,18 @@ const SEO_TEMPLATES: Record<string, SeoEntry> = {
     title: 'Reparação de Torneiras em Lisboa – Assistência SOS 24H/7',
     description: 'Serviços de Reparação de Torneiras em Lisboa - Assistência em Geral 24H/7 - Sáb, Dom e Feriados. Todas as Marcas.',
   },
+  'reparacao-de-termoacumuladores': {
+    title: 'Reparação de Termoacumuladores em Lisboa – Assistência 24H/7',
+    description: 'Serviço de Reparação de Termoacumuladores em Lisboa 24h/7 - Instalação, Manutênção e Reparação em Geral - Sáb, Dom e Feriados.',
+  },
+  'reparacao-de-persianas': {
+    title: 'Reparação de Persianas em Lisboa – Assistência 24H/7',
+    description: 'Serviço de Reparação de Persianas em Lisboa 24h/7 - Instalação, Manutênção e Reparação em Geral - Sáb, Dom e Feriados.',
+  },
+  'picheleiros': {
+    title: 'Picheleiros em Lisboa – Assistência 24H/7',
+    description: 'Serviço de Picheleiros em Lisboa 24h/7 - Instalação, Manutênção e Reparação em Geral - Sáb, Dom e Feriados.',
+  },
 };
 
 /**
