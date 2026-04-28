@@ -152,11 +152,10 @@ Esta secção explica como o serviço principal está frequentemente ligado a ou
 
 Lista de serviços complementares (5 itens em \`<ul>\`):
 Cada \`<li>\` contém:
-- \`<strong>Nome do serviço complementar —\`</strong> seguido de texto descritivo explicando a relação com o serviço principal.
+- \`<a href=\"#\"><strong>Nome do serviço complementar —\`</strong></a>, seguido de um texto descritivo explicando a relação com o serviço principal.
 - O texto descritivo deve ter pelo menos 2 linhas, explicando quando e como este serviço complementar se relaciona e qual a integração com o serviço principal.
-- NÃO usar links \`<a\`\` nos itens da lista. Apenas \`<strong>\` para o nome do serviço e texto corrido para a descrição.
-- Nunca repetir o serviço principal como item da lista.
-- Exemplos de serviços complementares: reparação de janelas, reparação de portas, serviços de estores, reparação de esquentadores, canalizadores, etc. (adaptar ao serviço principal).
+- Essa Lista só deve existir caso os serviços complementares estejam inseridos no payload para solicitação da criação da página, caso contrário apenas os paragrafos devem ser criados.
+- Exemplos de serviços complementares: reparação de janelas, reparação de portas, serviços de estores, reparação de esquentadores, canalizadores, etc. (Não criar do zero, sempre verificar os serviços complementares disponíveis no payload para solicitação da criação da página).
 
 
 ### PERGUNTAS FREQUENTES (10 pares H3 + P)
@@ -448,11 +447,11 @@ Não funciona como conclusão — funciona como consolidação avançada de auto
     <p style="color: #320000;">{{INTEGRACAO_P2}}</p>
     <p style="color: #320000;">{{INTEGRACAO_P3}}</p>
     <ul>
-      <li style="color: #320000;"><strong>{{INTEGRACAO_SERV_1_NOME}} —</strong> {{INTEGRACAO_SERV_1_DESC}}</li>
-      <li style="color: #320000;"><strong>{{INTEGRACAO_SERV_2_NOME}} —</strong> {{INTEGRACAO_SERV_2_DESC}}</li>
-      <li style="color: #320000;"><strong>{{INTEGRACAO_SERV_3_NOME}} —</strong> {{INTEGRACAO_SERV_3_DESC}}</li>
-      <li style="color: #320000;"><strong>{{INTEGRACAO_SERV_4_NOME}} —</strong> {{INTEGRACAO_SERV_4_DESC}}</li>
-      <li style="color: #320000;"><strong>{{INTEGRACAO_SERV_5_NOME}} —</strong> {{INTEGRACAO_SERV_5_DESC}}</li>
+      <li style="color: #320000;"><a href="#"><strong>{{INTEGRACAO_SERV_1_NOME}} —</strong></a> {{INTEGRACAO_SERV_1_DESC}}</li>
+      <li style="color: #320000;"><a href="#"><strong>{{INTEGRACAO_SERV_2_NOME}} —</strong></a> {{INTEGRACAO_SERV_2_DESC}}</li>
+      <li style="color: #320000;"><a href="#"><strong>{{INTEGRACAO_SERV_3_NOME}} —</strong></a> {{INTEGRACAO_SERV_3_DESC}}</li>
+      <li style="color: #320000;"><a href="#"><strong>{{INTEGRACAO_SERV_4_NOME}} —</strong></a> {{INTEGRACAO_SERV_4_DESC}}</li>
+      <li style="color: #320000;"><a href="#"><strong>{{INTEGRACAO_SERV_5_NOME}} —</strong></a> {{INTEGRACAO_SERV_5_DESC}}</li>
     </ul>
 
     {{IMAGE_8}}
