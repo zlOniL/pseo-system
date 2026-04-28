@@ -142,7 +142,7 @@ Coluna direita (ESPEC_COL2): serviços específicos de instalação, substituiç
 Total: 28 itens distintos, NUNCA repetindo keywords já usadas na secção de subcategorias.
 Cada item é uma long-tail keyword única com a cidade (ex: "- Canalizador urgente em Lisboa", "- Substituição de tubagens em Lisboa").
 
-### INTEGRAÇÃO COM OUTROS SERVIÇOS (Intro, Link de Serviço complementar + Parágrafo de integração)
+### INTEGRAÇÃO COM OUTROS SERVIÇOS (Intro de no minimo 5 linhas, Link de Serviço complementar + Parágrafo de integração pelo menos 2 linhas)
 Introdução falando sobre quais serviços são complementares ao serviço principal.
 Links dos serviços complementares devem estar em \`<strong>\` com um link externo real (não inventado). sempre com o dominio "reparacaonahora.pt" e o seu slug de serviço principal correspondente.
 Links e parágrafos devem estar dentro de uma lista "<ul><li><a href=""><strong>Nome do Serviço</strong></a><p>Descrição do serviço.</p></li></ul>". Nunca repetir o servico principal.
@@ -574,7 +574,7 @@ SE não houver \`related_services\`, substituir por um parágrafo normal sobre s
 const REINFORCEMENT = `INSTRUÇÕES FINAIS OBRIGATÓRIAS:
 1. Começa SEMPRE com <!-- BIB_META: [descrição 140-160 chars] --> na primeira linha, depois o <h1>.
 2. Retorna APENAS o HTML. Sem markdown. Sem explicações. Sem \`\`\`html.
-3. Todos os elementos de texto (h1, h2, h3, p, li, strong) DEVEM ter style="color: #320000;".
+3. Todos os elementos de texto (h1, h2, h3, p, li, strong, a) DEVEM ter style="color: #320000;".
 4. VOLUME MÍNIMO ABSOLUTO: cada parágrafo deve ter 3-6 frases completas. O total DEVE atingir min_words. NÃO truncar. NÃO resumir. Escreve todas as secções completas.
 5. PLACEHOLDERS DE IMAGEM: copia os 8 marcadores {{IMAGE_1}} a {{IMAGE_8}} EXATAMENTE nas posições definidas. NÃO os remove nem os altera.
 6. SERVIÇOS SUBCATEGORIAS: 6 categorias, cada uma com H3 + 6 itens <strong> . Cada item = "[serviço específico] em [cidade]". Os itens devem ser long-tail keywords concretas e distintas.
@@ -585,7 +585,7 @@ const REINFORCEMENT = `INSTRUÇÕES FINAIS OBRIGATÓRIAS:
 11. PESQUISAS RELACIONADAS: EXATAMENTE 30 itens <li>.
 12. ENRIQUECIMENTO DE SERVIÇO OBRIGATÓRIO: mencionar PELO MENOS 3 ferramentas/equipamentos com nomes técnicos reais, 1-2 marcas reconhecidas do sector (levemente, de forma natural), e pelo menos 1 técnica ou método profissional específico com nome técnico. Distribuir por 2-3 secções.
 13. LINKS EXTERNOS OBRIGATÓRIOS (4-6): links para marcas/fabricantes do sector. URLs REAIS e verificáveis — NUNCA inventar.
-14. DENSIDADE: a keyword principal deve aparecer em pelo menos 1% do texto total. Distribui-a naturalmente.`;
+14. DENSIDADE: a keyword principal deve aparecer em pelo menos 1% do texto total. Distribui-a naturalmente`;
 
 // ─── BUILDER ─────────────────────────────────────────────────────────────────
 
@@ -604,23 +604,23 @@ export function buildPrompt(
       .join(', ');
     relatedServicesNote = `\nServiços relacionados para links internos no INTRO_P10_LINKS: [${links}]`;
   } else {
-    relatedServicesNote = `\nINTRO_P10_LINKS: NÃO há serviços relacionados. Escreve um parágrafo em texto simples SEM NENHUM elemento <a href="...">. PROIBIDO usar tags <a>. Menciona apenas nomes de serviços complementares como texto corrido sem links.`;
+    relatedServicesNote = `\nINTRO_P10_LINKS: NÃO há serviços relacionados.Escreve um parágrafo em texto simples SEM NENHUM elemento < a href = "..." >.PROIBIDO usar tags <a>.Menciona apenas nomes de serviços complementares como texto corrido sem links.`;
   }
 
   const cityNote = !input.city
-    ? `\nCIDADE: não fornecida — esta página é sobre o serviço em geral, SEM localidade. REGRAS OBRIGATÓRIAS:
-1. Em todos os H2/H3/H1, substituir " em {{CITY}}" por string vazia (ex: "Serviços de Reparação de Janelas em {{CITY}}" → "Serviços de Reparação de Janelas").
-2. Em todos os itens de lista, omitir a cidade (ex: "Reparação de vidros em {{CITY}}" → "Reparação de vidros").
-3. {{CITY}} NÃO deve aparecer em NENHUM ponto da saída — nem como texto, nem como placeholder.
-4. Secções que normalmente seriam locais (como "Sistemas e Intervenções", "Mais sobre...") devem ser escritas de forma genérica, sem mencionar qualquer cidade.`
+    ? `\nCIDADE: não fornecida — esta página é sobre o serviço em geral, SEM localidade.REGRAS OBRIGATÓRIAS:
+1. Em todos os H2 / H3 / H1, substituir " em {{CITY}}" por string vazia(ex: "Serviços de Reparação de Janelas em {{CITY}}" → "Serviços de Reparação de Janelas").
+2. Em todos os itens de lista, omitir a cidade(ex: "Reparação de vidros em {{CITY}}" → "Reparação de vidros").
+3. { { CITY } } NÃO deve aparecer em NENHUM ponto da saída — nem como texto, nem como placeholder.
+4. Secções que normalmente seriam locais(como "Sistemas e Intervenções", "Mais sobre...") devem ser escritas de forma genérica, sem mencionar qualquer cidade.`
     : '';
 
   const enrichmentNotes: string[] = [];
   if (input.locality_notes?.trim()) {
-    enrichmentNotes.push(`\nContexto adicional sobre a localidade (usa estas informações para enriquecer o texto): ${input.locality_notes.trim()}`);
+    enrichmentNotes.push(`\nContexto adicional sobre a localidade(usa estas informações para enriquecer o texto): ${input.locality_notes.trim()} `);
   }
   if (input.service_notes?.trim()) {
-    enrichmentNotes.push(`\nContexto adicional sobre o serviço/ferramentas (usa estas informações para enriquecer o texto): ${input.service_notes.trim()}`);
+    enrichmentNotes.push(`\nContexto adicional sobre o serviço / ferramentas(usa estas informações para enriquecer o texto): ${input.service_notes.trim()} `);
   }
 
   let user = `Preenche o template HTML para o seguinte input:
