@@ -142,13 +142,21 @@ Coluna direita (ESPEC_COL2): serviços específicos de instalação, substituiç
 Total: 28 itens distintos, NUNCA repetindo keywords já usadas na secção de subcategorias.
 Cada item é uma long-tail keyword única com a cidade (ex: "- Canalizador urgente em Lisboa", "- Substituição de tubagens em Lisboa").
 
-### INTEGRAÇÃO COM OUTROS SERVIÇOS (Intro de no minimo 5 linhas, Link de Serviço complementar + Parágrafo de integração pelo menos 2 linhas)
-Introdução falando sobre quais serviços são complementares ao serviço principal.
-Links dos serviços complementares devem estar em \`<strong>\` com um link externo real (não inventado). sempre com o dominio "reparacaonahora.pt" e o seu slug de serviço principal correspondente.
-Links e parágrafos devem estar dentro de uma lista "<ul><li><a href=""><strong>Nome do Serviço</strong></a><p>Descrição do serviço.</p></li></ul>". Nunca repetir o servico principal.
-O link do serviço sempre será no padrão do nome do serviço como: "reparacaonahora.pt/servicos/reparacao-de-autoclismos", "reparacaonahora.pt/servicos/canalizadores", "reparacaonahora.pt/servicos/desentupimentos", "reparacaonahora.pt/servicos/reparacao-de-maquinas-de-lavar-roupa", etc...
-Se não Houver serviços complementares, não deve gerar a parte dos links nem o parágrafo sobre eles. Deve Gerar Apenas a Intro e se possível com mais conteúdo.
-Se tiver serviços complementares, gere o link e o parágrafo sobre ele conforme as regras acima. O link sempre tem que ser exatamente o link do serviço complementar, nunca invente um link pois a página pode não existir e acabar deixando um link quebrado.
+### INTEGRAÇÃO COM OUTROS SERVIÇOS (3 parágrafos intro + lista de 5 serviços complementares)
+O H2 deve incluir o serviço e a cidade: "Integração com Outros Serviços de {{SERVICE}} em {{CITY}}".
+Esta secção explica como o serviço principal está frequentemente ligado a outros elementos estruturais do imóvel (residenciais ou comerciais).
+
+- INTEGRACAO_P1: descrever como o serviço principal está ligado a outros elementos estruturais do imóvel. Problemas como peças presas, componentes que não funcionam, desgaste, ruídos, entrada de luz ou perda de isolamento raramente surgem isoladamente. Na maioria dos casos, a origem está relacionada com outros elementos do imóvel. Usar abundância de \`<strong>\` para destacar os problemas comuns.
+- INTEGRACAO_P2: explicar que, por esse motivo, o serviço é realizado com uma abordagem técnica integrada, avaliando todos os componentes relacionados. Esta metodologia permite que a assistência técnica seja realmente definitiva, corrigindo a causa do problema e não apenas o sintoma. Usar \`<strong>\` para destacar conceitos-chave.
+- INTEGRACAO_P3: parágrafo sobre como a integração de serviços evita múltiplas deslocações, reduz custos e garante que o serviço seja executado de forma completa, segura e duradoura em diferentes tipos de imóveis. Usar \`<strong>\` para destacar o serviço principal.
+
+Lista de serviços complementares (5 itens em \`<ul>\`):
+Cada \`<li>\` contém:
+- \`<strong>Nome do serviço complementar —\`</strong> seguido de texto descritivo explicando a relação com o serviço principal.
+- O texto descritivo deve ter pelo menos 2 linhas, explicando quando e como este serviço complementar se relaciona e qual a integração com o serviço principal.
+- NÃO usar links \`<a\`\` nos itens da lista. Apenas \`<strong>\` para o nome do serviço e texto corrido para a descrição.
+- Nunca repetir o serviço principal como item da lista.
+- Exemplos de serviços complementares: reparação de janelas, reparação de portas, serviços de estores, reparação de esquentadores, canalizadores, etc. (adaptar ao serviço principal).
 
 
 ### PERGUNTAS FREQUENTES (10 pares H3 + P)
@@ -434,12 +442,17 @@ Não funciona como conclusão — funciona como consolidação avançada de auto
 
     {{IMAGE_7}}
 
-    <h2 style="color: #320000;">Integração com outros serviços</h2>
+    <h2 style="color: #320000;">Integração com Outros Serviços de {{SERVICE}} em {{CITY}}</h2>
 
-    <p style="color: #320000;">{{INTEGRACAO_INTRO}}</p>
-    <ul style="list-style: none; padding-left: 0;">
-      <li style="color: #320000;"><strong><a style="color:#320000" href="https://www.reparacaonahora.pt/servicos/{{INTEGRACAO_SLUG}}">{{INTEGRACAO_ITEM_1}}</a><p style="color:#320000">Descrição do serviço...</p></strong></li>
-      <li style="color: #320000;"><strong><a style="color:#320000" href="https://www.reparacaonahora.pt/servicos/{{INTEGRACAO_SLUG}}">{{INTEGRACAO_ITEM_2}}</a><p style="color:#320000">Descrição do serviço...</p></strong></li>...
+    <p style="color: #320000;">{{INTEGRACAO_P1}}</p>
+    <p style="color: #320000;">{{INTEGRACAO_P2}}</p>
+    <p style="color: #320000;">{{INTEGRACAO_P3}}</p>
+    <ul>
+      <li style="color: #320000;"><strong>{{INTEGRACAO_SERV_1_NOME}} —</strong> {{INTEGRACAO_SERV_1_DESC}}</li>
+      <li style="color: #320000;"><strong>{{INTEGRACAO_SERV_2_NOME}} —</strong> {{INTEGRACAO_SERV_2_DESC}}</li>
+      <li style="color: #320000;"><strong>{{INTEGRACAO_SERV_3_NOME}} —</strong> {{INTEGRACAO_SERV_3_DESC}}</li>
+      <li style="color: #320000;"><strong>{{INTEGRACAO_SERV_4_NOME}} —</strong> {{INTEGRACAO_SERV_4_DESC}}</li>
+      <li style="color: #320000;"><strong>{{INTEGRACAO_SERV_5_NOME}} —</strong> {{INTEGRACAO_SERV_5_DESC}}</li>
     </ul>
 
     {{IMAGE_8}}
@@ -588,7 +601,8 @@ const REINFORCEMENT = `INSTRUÇÕES FINAIS OBRIGATÓRIAS:
 11. PESQUISAS RELACIONADAS: EXATAMENTE 30 itens <li>.
 12. ENRIQUECIMENTO DE SERVIÇO OBRIGATÓRIO: mencionar PELO MENOS 3 ferramentas/equipamentos com nomes técnicos reais, 1-2 marcas reconhecidas do sector (levemente, de forma natural), e pelo menos 1 técnica ou método profissional específico com nome técnico. Distribuir por 2-3 secções.
 13. LINKS EXTERNOS OBRIGATÓRIOS (4-6): links para marcas/fabricantes do sector. URLs REAIS e verificáveis — NUNCA inventar.
-14. DENSIDADE: a keyword principal deve aparecer em pelo menos 1% do texto total. Distribui-a naturalmente`;
+14. DENSIDADE: a keyword principal deve aparecer em pelo menos 1% do texto total. Distribui-a naturalmente
+15. INTEGRAÇÃO COM OUTROS SERVIÇOS: 3 parágrafos intro (INTEGRACAO_P1, P2, P3) + lista <ul> com 5 <li>. Cada <li> tem <strong>Nome do serviço —</strong> seguido de texto descritivo (pelo menos 2 linhas). NÃO usar <a> nem links nesta secção. O H2 inclui o serviço e a cidade.`;
 
 // ─── BUILDER ─────────────────────────────────────────────────────────────────
 
