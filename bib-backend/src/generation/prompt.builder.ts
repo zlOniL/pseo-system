@@ -602,7 +602,7 @@ const REINFORCEMENT = `INSTRUÇÕES FINAIS OBRIGATÓRIAS:
 12. ENRIQUECIMENTO DE SERVIÇO OBRIGATÓRIO: mencionar PELO MENOS 3 ferramentas/equipamentos com nomes técnicos reais, 1-2 marcas reconhecidas do sector (levemente, de forma natural), e pelo menos 1 técnica ou método profissional específico com nome técnico. Distribuir por 2-3 secções.
 13. LINKS EXTERNOS OBRIGATÓRIOS (4-6): links para marcas/fabricantes do sector. URLs REAIS e verificáveis — NUNCA inventar.
 14. DENSIDADE: a keyword principal deve aparecer em pelo menos 1% do texto total. Distribui-a naturalmente
-15. INTEGRAÇÃO COM OUTROS SERVIÇOS: 3 parágrafos intro (INTEGRACAO_P1, P2, P3) + lista <ul> com 5 <li>. Cada <li> tem <strong>Nome do serviço —</strong> seguido de texto descritivo (pelo menos 2 linhas). NÃO usar <a> nem links nesta secção. O H2 inclui o serviço e a cidade.`;
+15. INTEGRAÇÃO COM OUTROS SERVIÇOS: 3 parágrafos intro (INTEGRACAO_P1, P2, P3) + lista <ul> com 5 <li>. Cada <li> tem <a href="#" style="color: #320000 !important; font-weight: 600; text-decoration: underline;"><strong>Nome do serviço —</strong></a>, texto descritivo do serviço (pelo menos 2 linhas). O H2 inclui o serviço e a cidade.`;
 
 // ─── BUILDER ─────────────────────────────────────────────────────────────────
 
