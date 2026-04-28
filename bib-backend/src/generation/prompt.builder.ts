@@ -147,6 +147,9 @@ Introdução falando sobre quais serviços são complementares ao serviço princ
 Links dos serviços complementares devem estar em \`<strong>\` com um link externo real (não inventado). sempre com o dominio "reparacaonahora.pt" e o seu slug de serviço principal correspondente.
 Links e parágrafos devem estar dentro de uma lista "<ul><li><a href=""><strong>Nome do Serviço</strong></a><p>Descrição do serviço.</p></li></ul>". Nunca repetir o servico principal.
 O link do serviço sempre será no padrão do nome do serviço como: "reparacaonahora.pt/servicos/reparacao-de-autoclismos", "reparacaonahora.pt/servicos/canalizadores", "reparacaonahora.pt/servicos/desentupimentos", "reparacaonahora.pt/servicos/reparacao-de-maquinas-de-lavar-roupa", etc...
+Se não Houver serviços complementares, não deve gerar a parte dos links nem o parágrafo sobre eles. Deve Gerar Apenas a Intro e se possível com mais conteúdo.
+Se tiver serviços complementares, gere o link e o parágrafo sobre ele conforme as regras acima. O link sempre tem que ser exatamente o link do serviço complementar, nunca invente um link pois a página pode não existir e acabar deixando um link quebrado.
+
 
 ### PERGUNTAS FREQUENTES (10 pares H3 + P)
 Cada H3 é uma pergunta real de utilizador em linguagem natural.
