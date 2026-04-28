@@ -438,8 +438,8 @@ Não funciona como conclusão — funciona como consolidação avançada de auto
 
     <p style="color: #320000;">{{INTEGRACAO_INTRO}}</p>
     <ul style="list-style: none; padding-left: 0;">
-      <li style="color: #320000;"><strong><a href="https://www.reparacaonahora.pt/servicos/{{INTEGRACAO_SLUG}}">{{INTEGRACAO_ITEM_1}}</a><p>Descrição do serviço...</p></strong></li>
-      <li style="color: #320000;"><strong><a href="https://www.reparacaonahora.pt/servicos/{{INTEGRACAO_SLUG}}">{{INTEGRACAO_ITEM_2}}</a><p>Descrição do serviço...</p></strong></li>...
+      <li style="color: #320000;"><strong><a style="color:#320000" href="https://www.reparacaonahora.pt/servicos/{{INTEGRACAO_SLUG}}">{{INTEGRACAO_ITEM_1}}</a><p style="color:#320000">Descrição do serviço...</p></strong></li>
+      <li style="color: #320000;"><strong><a style="color:#320000" href="https://www.reparacaonahora.pt/servicos/{{INTEGRACAO_SLUG}}">{{INTEGRACAO_ITEM_2}}</a><p style="color:#320000">Descrição do serviço...</p></strong></li>...
     </ul>
 
     {{IMAGE_8}}
