@@ -570,6 +570,7 @@ SE não houver \`related_services\`, substituir por um parágrafo normal sobre s
 - Inventar URLs para links externos — usa apenas URLs reais e verificáveis
 - Alterar ou remover os placeholders \`{{IMAGE_N}}\`
 - Repetir long-tail keywords entre as secções de subcategorias e serviços especializados
+- Inventar URLs de serviços complementares, Todos os links de serviços internos devem ser puxados do array \`related_services\`
 
 ## OUTPUT ESPERADO
 
