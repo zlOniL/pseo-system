@@ -150,6 +150,8 @@ Esta secção explica como o serviço principal está frequentemente ligado a ou
 - INTEGRACAO_P2: explicar que, por esse motivo, o serviço é realizado com uma abordagem técnica integrada, avaliando todos os componentes relacionados. Esta metodologia permite que a assistência técnica seja realmente definitiva, corrigindo a causa do problema e não apenas o sintoma. Usar \`<strong>\` para destacar conceitos-chave.
 - INTEGRACAO_P3: parágrafo sobre como a integração de serviços evita múltiplas deslocações, reduz custos e garante que o serviço seja executado de forma completa, segura e duradoura em diferentes tipos de imóveis. Usar \`<strong>\` para destacar o serviço principal.
 
+SE O \`related_services\` CONTIVER DADOS (array com name e url), deve gerar a lista com links conforma a instrução abaixo pois eles são os serviços complementares citados no input.
+
 Lista de serviços complementares (5 itens em \`<ul>\`):
 Cada \`<li>\` contém:
 - \`<a href=\"#\"><strong>Nome do serviço complementar —\`</strong></a>, seguido de um texto descritivo explicando a relação com o serviço principal.
