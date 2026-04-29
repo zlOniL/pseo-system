@@ -449,11 +449,7 @@ Não funciona como conclusão — funciona como consolidação avançada de auto
     <p style="color: #320000;">{{INTEGRACAO_P2}}</p>
     <p style="color: #320000;">{{INTEGRACAO_P3}}</p>
     <ul>
-      <li style="color: #320000;"><a href="#"><strong>{{INTEGRACAO_SERV_1_NOME}} —</strong></a> {{INTEGRACAO_SERV_1_DESC}}</li>
-      <li style="color: #320000;"><a href="#"><strong>{{INTEGRACAO_SERV_2_NOME}} —</strong></a> {{INTEGRACAO_SERV_2_DESC}}</li>
-      <li style="color: #320000;"><a href="#"><strong>{{INTEGRACAO_SERV_3_NOME}} —</strong></a> {{INTEGRACAO_SERV_3_DESC}}</li>
-      <li style="color: #320000;"><a href="#"><strong>{{INTEGRACAO_SERV_4_NOME}} —</strong></a> {{INTEGRACAO_SERV_4_DESC}}</li>
-      <li style="color: #320000;"><a href="#"><strong>{{INTEGRACAO_SERV_5_NOME}} —</strong></a> {{INTEGRACAO_SERV_5_DESC}}</li>
+      <li style="color: #320000;"><a href="#"><strong>{{INTEGRACAO_SERV_1_NOME}} —</strong></a> {{INTEGRACAO_SERV_1_DESC}}</li>...</li>
     </ul>
 
     {{IMAGE_8}}
