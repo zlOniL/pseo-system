@@ -72,17 +72,15 @@ export class WordPressService {
     let seoTitle = `${content.main_keyword} — Atendimento 24h`;
     let metaDescription = content.meta_description ?? '';
 
-    // For template pages, pull SEO from the templates map (SEO.md data)
-    if (content.generation_mode === 'template') {
-      const serviceSlug = slugify(content.service);
-      const seo = getSeoForTemplate(serviceSlug, content.city);
-      if (seo) {
-        seoTitle = seo.title;
-        metaDescription = seo.description;
-        this.logger.log(`Template SEO resolved for "${serviceSlug}": "${seoTitle}"`);
-      } else {
-        this.logger.warn(`No SEO template found for service slug "${serviceSlug}" — using default`);
-      }
+    // Always try the SEO templates map regardless of generation mode (ai / template / library)
+    const serviceSlug = slugify(content.service);
+    const seo = getSeoForTemplate(serviceSlug, content.city ?? '');
+    if (seo) {
+      seoTitle = seo.title;
+      metaDescription = seo.description;
+      this.logger.log(`SEO template resolved for "${serviceSlug}": "${seoTitle}"`);
+    } else {
+      this.logger.warn(`No SEO template found for service slug "${serviceSlug}" — using default`);
     }
 
     // Resolve categories: always Blog (primary) + service subcategory
@@ -161,13 +159,12 @@ export class WordPressService {
     let seoTitle = `${content.main_keyword} — Atendimento 24h`;
     let metaDescription = content.meta_description ?? '';
 
-    if (content.generation_mode === 'template') {
-      const serviceSlug = slugify(content.service);
-      const seo = getSeoForTemplate(serviceSlug, content.city);
-      if (seo) {
-        seoTitle = seo.title;
-        metaDescription = seo.description;
-      }
+    // Always try the SEO templates map regardless of generation mode (ai / template / library)
+    const serviceSlug = slugify(content.service);
+    const seo = getSeoForTemplate(serviceSlug, content.city ?? '');
+    if (seo) {
+      seoTitle = seo.title;
+      metaDescription = seo.description;
     }
 
     return {
