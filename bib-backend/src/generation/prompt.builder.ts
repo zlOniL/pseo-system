@@ -142,7 +142,7 @@ Coluna direita (ESPEC_COL2): serviços específicos de instalação, substituiç
 Total: 28 itens distintos, NUNCA repetindo keywords já usadas na secção de subcategorias.
 Cada item é uma long-tail keyword única com a cidade (ex: "- Canalizador urgente em Lisboa", "- Substituição de tubagens em Lisboa").
 
-### INTEGRAÇÃO COM OUTROS SERVIÇOS (3 parágrafos intro + lista de 5 serviços complementares)
+### INTEGRAÇÃO COM OUTROS SERVIÇOS (3 parágrafos intro + lista de serviços complementares — apenas se fornecidos no input)
 O H2 deve incluir o serviço e a cidade: "Integração com Outros Serviços de {{SERVICE}} em {{CITY}}".
 Esta secção explica como o serviço principal está frequentemente ligado a outros elementos estruturais do imóvel (residenciais ou comerciais).
 
@@ -150,14 +150,12 @@ Esta secção explica como o serviço principal está frequentemente ligado a ou
 - INTEGRACAO_P2: explicar que, por esse motivo, o serviço é realizado com uma abordagem técnica integrada, avaliando todos os componentes relacionados. Esta metodologia permite que a assistência técnica seja realmente definitiva, corrigindo a causa do problema e não apenas o sintoma. Usar \`<strong>\` para destacar conceitos-chave.
 - INTEGRACAO_P3: parágrafo sobre como a integração de serviços evita múltiplas deslocações, reduz custos e garante que o serviço seja executado de forma completa, segura e duradoura em diferentes tipos de imóveis. Usar \`<strong>\` para destacar o serviço principal.
 
-SE O \`related_services\` CONTIVER DADOS (array com name e url), deve gerar a lista com links conforma a instrução abaixo pois eles são os serviços complementares citados no input.
+REGRA DA LISTA — lê o input com atenção:
+- SE o input indicar serviços relacionados: gerar \`<ul>\` com exactamente N \`<li>\` (um por serviço fornecido, sem adicionar nem remover). Usar o URL real de cada serviço no \`href\`. NUNCA inventar URLs nem adicionar serviços não listados.
+- SE o input NÃO indicar serviços relacionados: NÃO gerar lista \`<ul>\`. Apenas os 3 parágrafos acima.
 
-Lista de serviços complementares (5 itens em \`<ul>\`):
-Cada \`<li>\` contém:
-- \`<a href=\"#\"><strong>Nome do serviço complementar —\`</strong></a>, seguido de um texto descritivo explicando a relação com o serviço principal.
-- O texto descritivo deve ter pelo menos 2 linhas, explicando quando e como este serviço complementar se relaciona e qual a integração com o serviço principal.
-- Essa Lista só deve existir caso os serviços complementares estejam inseridos no payload para solicitação da criação da página, caso contrário apenas os paragrafos devem ser criados.
-- Exemplos de serviços complementares: reparação de janelas, reparação de portas, serviços de estores, reparação de esquentadores, canalizadores, etc. (Não criar do zero, sempre verificar os serviços complementares disponíveis no payload para solicitação da criação da página).
+Quando a lista existe, cada \`<li>\` contém:
+- \`<a href="URL_REAL_DO_SERVIÇO" style="color: #320000 !important; font-weight: 600; text-decoration: underline;"><strong>Nome do serviço —</strong></a>\`, seguido de texto descritivo (mínimo 2 linhas) explicando a relação com o serviço principal.
 
 
 ### PERGUNTAS FREQUENTES (10 pares H3 + P)
@@ -597,7 +595,7 @@ const REINFORCEMENT = `INSTRUÇÕES FINAIS OBRIGATÓRIAS:
 11. ENRIQUECIMENTO DE SERVIÇO OBRIGATÓRIO: mencionar PELO MENOS 3 ferramentas/equipamentos com nomes técnicos reais, 1-2 marcas reconhecidas do sector (levemente, de forma natural), e pelo menos 1 técnica ou método profissional específico com nome técnico. Distribuir por 2-3 secções.
 12. LINKS EXTERNOS OBRIGATÓRIOS (4-6): links para marcas/fabricantes do sector. URLs REAIS e verificáveis — NUNCA inventar.
 13. DENSIDADE: a keyword principal deve aparecer em pelo menos 1% do texto total. Distribui-a naturalmente
-14. INTEGRAÇÃO COM OUTROS SERVIÇOS: 3 parágrafos intro (INTEGRACAO_P1, P2, P3) + lista <ul> com 5 <li>. Cada <li> tem <a href="#" style="color: #320000 !important; font-weight: 600; text-decoration: underline;"><strong>Nome do serviço —</strong></a>, texto descritivo do serviço (pelo menos 2 linhas). O H2 inclui o serviço e a cidade.`;
+14. INTEGRAÇÃO COM OUTROS SERVIÇOS: sempre 3 parágrafos intro (INTEGRACAO_P1, P2, P3). A lista <ul> SÓ existe se o input indicar serviços relacionados — nesse caso exactamente um <li> por serviço fornecido, com o URL real no href. NUNCA inventar URLs ou serviços. Se o input NÃO indicar serviços relacionados: NÃO gerar lista <ul> — apenas os 3 parágrafos. O H2 inclui o serviço e a cidade.`;
 
 // ─── BUILDER ─────────────────────────────────────────────────────────────────
 
@@ -611,12 +609,17 @@ export function buildPrompt(
   // Build related_services instruction
   let relatedServicesNote = '';
   if (input.related_services && input.related_services.length > 0) {
+    const count = input.related_services.length;
     const links = input.related_services
       .map((s) => `{ "name": "${s.name}", "url": "${s.url}" }`)
       .join(', ');
-    relatedServicesNote = `\nServiços relacionados para links internos no INTRO_P10_LINKS: [${links}]`;
+    relatedServicesNote =
+      `\nServiços relacionados (usar em INTRO_P10_LINKS e na lista da secção INTEGRAÇÃO): [${links}]` +
+      `\nINTEGRAÇÃO — lista obrigatória com exactamente ${count} item(s): um <li> por serviço acima, usando o URL real de cada um no href. NÃO inventar URLs. NÃO adicionar serviços extra.`;
   } else {
-    relatedServicesNote = `\nINTRO_P10_LINKS: NÃO há serviços relacionados.Escreve um parágrafo em texto simples SEM NENHUM elemento < a href = "..." >.PROIBIDO usar tags <a>.Menciona apenas nomes de serviços complementares como texto corrido sem links.`;
+    relatedServicesNote =
+      `\nINTRO_P10_LINKS: NÃO há serviços relacionados. Escreve parágrafo em texto simples SEM tags <a>. PROIBIDO usar tags <a>. Menciona apenas nomes de serviços como texto corrido sem links.` +
+      `\nINTEGRAÇÃO: NÃO há serviços relacionados. Gera APENAS os 3 parágrafos (INTEGRACAO_P1, P2, P3). NÃO gerar lista <ul>. PROIBIDO inventar serviços ou URLs.`;
   }
 
   const cityNote = !input.city
