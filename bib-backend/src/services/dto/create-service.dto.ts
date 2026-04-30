@@ -47,4 +47,12 @@ export class CreateServiceDto {
   @IsOptional()
   @IsString()
   wordpress_category?: string;
+
+  @IsOptional()
+  @IsString()
+  seo_title?: string;
+
+  @IsOptional()
+  @IsString()
+  seo_description?: string;
 }

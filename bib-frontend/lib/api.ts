@@ -90,8 +90,8 @@ export const api = {
   updateService: (id: string, input: Partial<CreateServiceInput>) =>
     request<Service>(`/services/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
 
-  archiveService: (id: string) =>
-    request<Service>(`/services/${id}`, { method: 'DELETE' }),
+  deleteService: (id: string) =>
+    request<void>(`/services/${id}`, { method: 'DELETE' }),
 
   // Legacy single-template endpoint (kept for backwards compat)
   generateTemplate: (serviceId: string, input: GenerateTemplateInput) =>

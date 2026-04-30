@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../common/supabase.service';
 import { slugify } from '../common/slug';
 import { CreateServiceDto } from './dto/create-service.dto';
@@ -19,6 +19,8 @@ export interface Service {
   wordpress_category: string | null;
   template_html: string | null;
   template_base_city: string | null;
+  seo_title: string | null;
+  seo_description: string | null;
 }
 
 @Injectable()
@@ -42,6 +44,8 @@ export class ServicesService {
         min_words: dto.min_words ?? 5000,
         status: 'active',
         wordpress_category: dto.wordpress_category ?? null,
+        seo_title: dto.seo_title ?? null,
+        seo_description: dto.seo_description ?? null,
       })
       .select()
       .single();
@@ -87,6 +91,8 @@ export class ServicesService {
     if (dto.tone !== undefined) patch.tone = dto.tone;
     if (dto.min_words !== undefined) patch.min_words = dto.min_words;
     if (dto.wordpress_category !== undefined) patch.wordpress_category = dto.wordpress_category;
+    if (dto.seo_title !== undefined) patch.seo_title = dto.seo_title;
+    if (dto.seo_description !== undefined) patch.seo_description = dto.seo_description;
 
     const { data, error } = await this.supabase
       .getClient()
@@ -98,6 +104,25 @@ export class ServicesService {
 
     if (error || !data) throw new NotFoundException(`Service ${id} not found`);
     return data as Service;
+  }
+
+  async delete(id: string): Promise<void> {
+    const contentCount = await this.countContents(id);
+    if (contentCount > 0) {
+      throw new ConflictException(
+        `Não é possível excluir: existem ${contentCount} página(s) vinculada(s) a este serviço. Elimine-as primeiro.`,
+      );
+    }
+
+    const client = this.supabase.getClient();
+
+    // Remove queue items, section library and templates before removing the service
+    await client.from('queue').delete().eq('service_id', id);
+    await client.from('section_library').delete().eq('service_id', id);
+    await client.from('service_templates').delete().eq('service_id', id);
+
+    const { error } = await client.from('services').delete().eq('id', id);
+    if (error) throw new Error(error.message);
   }
 
   async archive(id: string): Promise<Service> {

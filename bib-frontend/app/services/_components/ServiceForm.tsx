@@ -26,6 +26,8 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
   const [tone, setTone] = useState(initialData?.tone ?? '');
   const [minWords, setMinWords] = useState(initialData?.min_words ?? 5000);
   const [wordpressCategory, setWordpressCategory] = useState(initialData?.wordpress_category ?? '');
+  const [seoTitle, setSeoTitle] = useState(initialData?.seo_title ?? '');
+  const [seoDescription, setSeoDescription] = useState(initialData?.seo_description ?? '');
   const [wpCategories, setWpCategories] = useState<WpCategory[]>([]);
   const [wpCatLoading, setWpCatLoading] = useState(false);
   const [wpCatError, setWpCatError] = useState('');
@@ -71,6 +73,8 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
       tone: tone,
       min_words: minWords,
       wordpress_category: wordpressCategory || null,
+      seo_title: seoTitle.trim() || null,
+      seo_description: seoDescription.trim() || null,
     };
 
     try {
@@ -338,6 +342,42 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
             )}
           </>
         )}
+      </div>
+
+      <div className="bib-divider" />
+
+      {/* SEO */}
+      <div>
+        <label className="bib-label">
+          SEO — Título <span className="bib-label-hint">(meta title para o WordPress)</span>
+        </label>
+        <input
+          className="bib-input"
+          value={seoTitle}
+          onChange={(e) => setSeoTitle(e.target.value)}
+          placeholder="ex: Reparação de Termoacumuladores em Lisboa – Assistência 24H/7"
+          maxLength={70}
+        />
+        <p className="mt-1 text-xs text-gray-400">
+          Use &quot;Lisboa&quot; como cidade — é substituída automaticamente pela cidade real na publicação.
+        </p>
+      </div>
+
+      <div>
+        <label className="bib-label">
+          SEO — Descrição <span className="bib-label-hint">(meta description para o WordPress)</span>
+        </label>
+        <textarea
+          className="bib-textarea"
+          value={seoDescription}
+          onChange={(e) => setSeoDescription(e.target.value)}
+          rows={2}
+          placeholder="ex: Serviço de Reparação de Termoacumuladores em Lisboa 24h/7 - Instalação, Manutenção e Reparação - Sáb, Dom e Feriados."
+          maxLength={160}
+        />
+        <p className="mt-1 text-xs text-gray-400">
+          Máximo 160 caracteres. &quot;Lisboa&quot; é substituída pela cidade real na publicação.
+        </p>
       </div>
 
       {/* Template */}

@@ -64,6 +64,8 @@ export interface Service {
   wordpress_category: string | null;
   template_html: string | null;
   template_base_city: string | null;
+  seo_title: string | null;
+  seo_description: string | null;
 }
 
 export type CreateServiceInput = Omit<Service, 'id' | 'created_at' | 'slug' | 'status' | 'template_html' | 'template_base_city'>;

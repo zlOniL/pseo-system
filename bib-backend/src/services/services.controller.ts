@@ -47,9 +47,9 @@ export class ServicesController {
   }
 
   @Delete(':id')
-  @HttpCode(200)
-  archive(@Param('id') id: string) {
-    return this.servicesService.archive(id);
+  @HttpCode(204)
+  delete(@Param('id') id: string) {
+    return this.servicesService.delete(id);
   }
 
   @Post(':id/generate-template')

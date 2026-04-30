@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import ServiceForm from '../_components/ServiceForm';
+import DeleteServiceButton from './_components/DeleteServiceButton';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -45,6 +46,14 @@ export default async function ServiceDetailPage({ params }: Props) {
             Configuração do Serviço
           </p>
           <ServiceForm initialData={service} />
+        </div>
+
+        {/* Zona de perigo */}
+        <div className="bib-card mt-4 border-red-100">
+          <p className="text-xs font-semibold text-red-500 mb-3 uppercase tracking-wide">
+            Zona de Perigo
+          </p>
+          <DeleteServiceButton serviceId={service.id} serviceName={service.name} />
         </div>
       </div>
     </div>

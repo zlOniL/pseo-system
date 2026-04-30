@@ -369,7 +369,7 @@ Não funciona como conclusão — funciona como consolidação avançada de auto
       <li style="color: #320000;">{{VARIACAO_5}}</li>
     </ul>
 
-    {{IMAGE_5}}
+    {{IMAGE_5}}w
 
     <h2 style="color: #320000;">Prevenção e Manutenção</h2>
     <p style="color: #320000;">{{PREVENCAO_P1}}</p>

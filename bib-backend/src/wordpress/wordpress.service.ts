@@ -3,7 +3,7 @@ import { ContentsService, Content } from '../contents/contents.service';
 import { ServicesService } from '../services/services.service';
 import { assemblePageHtml, assembleTemplateHtml } from '../common/html-assembler';
 import { slugify } from '../common/slug';
-import { getSeoForTemplate } from './seo-templates';
+import { applyCity } from './seo-templates';
 
 export interface MediaItem {
   id: number;
@@ -68,19 +68,22 @@ export class WordPressService {
     const slug = slugify(content.main_keyword);
     const title = content.main_keyword;
 
-    // SEO title and description
+    // Load service once — used for both SEO and category resolution
+    const service = content.service_id
+      ? await this.services.findById(content.service_id).catch(() => null)
+      : null;
+
+    // SEO title and description — source: service DB → default
+    const city = content.city ?? '';
     let seoTitle = `${content.main_keyword} — Atendimento 24h`;
     let metaDescription = content.meta_description ?? '';
 
-    // Always try the SEO templates map regardless of generation mode (ai / template / library)
-    const serviceSlug = slugify(content.service);
-    const seo = getSeoForTemplate(serviceSlug, content.city ?? '');
-    if (seo) {
-      seoTitle = seo.title;
-      metaDescription = seo.description;
-      this.logger.log(`SEO template resolved for "${serviceSlug}": "${seoTitle}"`);
+    if (service?.seo_title) {
+      seoTitle = applyCity(service.seo_title, city);
+      metaDescription = applyCity(service.seo_description ?? '', city);
+      this.logger.log(`Service SEO resolved for "${service.slug}": "${seoTitle}"`);
     } else {
-      this.logger.warn(`No SEO template found for service slug "${serviceSlug}" — using default`);
+      this.logger.warn(`Service "${content.service}" has no seo_title — using default`);
     }
 
     // Resolve categories: always Blog (primary) + service subcategory
@@ -96,8 +99,7 @@ export class WordPressService {
     }
 
     // 2. Ensure service subcategory (under Blog)
-    const wpCatName = content.wordpress_category
-      ?? (content.service_id ? await this.services.findById(content.service_id).then((s) => s.wordpress_category).catch(() => null) : null);
+    const wpCatName = content.wordpress_category ?? service?.wordpress_category ?? null;
 
     if (wpCatName) {
       try {
@@ -148,6 +150,7 @@ export class WordPressService {
   private preparePayload(
     content: Content,
     categories: { ids: number[]; primaryId: number | null },
+    serviceSeo: { title: string; description: string } | null,
   ): object {
     const fullHtml =
       content.generation_mode === 'template'
@@ -156,15 +159,13 @@ export class WordPressService {
 
     const slug = slugify(content.main_keyword);
     const title = content.main_keyword;
+    const city = content.city ?? '';
     let seoTitle = `${content.main_keyword} — Atendimento 24h`;
     let metaDescription = content.meta_description ?? '';
 
-    // Always try the SEO templates map regardless of generation mode (ai / template / library)
-    const serviceSlug = slugify(content.service);
-    const seo = getSeoForTemplate(serviceSlug, content.city ?? '');
-    if (seo) {
-      seoTitle = seo.title;
-      metaDescription = seo.description;
+    if (serviceSeo) {
+      seoTitle = serviceSeo.title;
+      metaDescription = serviceSeo.description;
     }
 
     return {
@@ -182,7 +183,7 @@ export class WordPressService {
 
   private async resolveCategoriesForBulk(
     contents: Content[],
-  ): Promise<Map<string, { ids: number[]; primaryId: number | null }>> {
+  ): Promise<Map<string, { ids: number[]; primaryId: number | null; seo: { title: string; description: string } | null }>> {
     // Fetch all existing WP categories once
     let allCategories = await this.getCategories();
 
@@ -197,18 +198,26 @@ export class WordPressService {
       allCategories = [...allCategories, created];
     }
 
-    // Collect unique service IDs and fetch their WP category names
+    // Collect unique service IDs and fetch their WP category names + SEO
     const serviceIds = [
       ...new Set(contents.filter((c) => c.service_id).map((c) => c.service_id!)),
     ];
     const serviceWpCatMap = new Map<string, string | null>();
+    const serviceSeoMap = new Map<string, { title: string; description: string } | null>();
 
     for (const serviceId of serviceIds) {
       try {
         const service = await this.services.findById(serviceId);
         serviceWpCatMap.set(serviceId, service.wordpress_category ?? null);
+        serviceSeoMap.set(
+          serviceId,
+          service.seo_title
+            ? { title: service.seo_title, description: service.seo_description ?? '' }
+            : null,
+        );
       } catch {
         serviceWpCatMap.set(serviceId, null);
+        serviceSeoMap.set(serviceId, null);
       }
     }
 
@@ -234,8 +243,8 @@ export class WordPressService {
       }
     }
 
-    // Build result map: contentId → { ids, primaryId }
-    const result = new Map<string, { ids: number[]; primaryId: number | null }>();
+    // Build result map: contentId → { ids, primaryId, seo }
+    const result = new Map<string, { ids: number[]; primaryId: number | null; seo: { title: string; description: string } | null }>();
 
     for (const content of contents) {
       const ids: number[] = blogCategoryId ? [blogCategoryId] : [];
@@ -248,7 +257,14 @@ export class WordPressService {
         if (catId && !ids.includes(catId)) ids.push(catId);
       }
 
-      result.set(content.id, { ids, primaryId: blogCategoryId });
+      // Resolve SEO — apply city replacement to the stored template (which uses "Lisboa")
+      const rawSeo = content.service_id ? serviceSeoMap.get(content.service_id) ?? null : null;
+      const city = content.city ?? '';
+      const seo = rawSeo
+        ? { title: applyCity(rawSeo.title, city), description: applyCity(rawSeo.description, city) }
+        : null;
+
+      result.set(content.id, { ids, primaryId: blogCategoryId, seo });
     }
 
     return result;
@@ -283,10 +299,13 @@ export class WordPressService {
     const contents = await this.contents.findByIds(ids);
     const categoryMap = await this.resolveCategoriesForBulk(contents);
 
-    const items = contents.map((c) => ({
-      content: c,
-      payload: this.preparePayload(c, categoryMap.get(c.id)!),
-    }));
+    const items = contents.map((c) => {
+      const resolved = categoryMap.get(c.id)!;
+      return {
+        content: c,
+        payload: this.preparePayload(c, resolved, resolved.seo),
+      };
+    });
 
     const CHUNK_SIZE = 5;
     const MIN_CHUNK_SIZE = 1;
