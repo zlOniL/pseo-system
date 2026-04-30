@@ -90,8 +90,13 @@ export const api = {
   updateService: (id: string, input: Partial<CreateServiceInput>) =>
     request<Service>(`/services/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
 
-  deleteService: (id: string) =>
-    request<void>(`/services/${id}`, { method: 'DELETE' }),
+  deleteService: async (id: string): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/services/${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`API error ${res.status}: ${body}`);
+    }
+  },
 
   // Legacy single-template endpoint (kept for backwards compat)
   generateTemplate: (serviceId: string, input: GenerateTemplateInput) =>
