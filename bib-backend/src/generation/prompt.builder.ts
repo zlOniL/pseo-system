@@ -125,7 +125,7 @@ Lista: 6 ações de manutenção preventiva concreta e técnica
 PREVENCAO_CLOSING: parágrafo final que encoraja contacto preventivo — mencionar disponibilidade 24h.
 
 ### SISTEMAS E INTERVENÇÕES (6 parágrafos — secção técnica aprofundada)
-Secção que demonstra profundidade técnica e abrangência de intervenções. Coloca {{IMAGE_7}} imediatamente após o H2 (o placeholder já está no template — não alterar).
+Secção que demonstra profundidade técnica e abrangência de intervenções.
 Esta secção é ideal para inserir enriquecimento de serviço (ferramentas, marcas, técnicas).
 - P1: introdução ao âmbito — tipos de instalações residenciais, comerciais e industriais; adaptação ao tipo de sistema e nível de desgaste
 - P2: sistemas cobertos — redes de água fria e quente, canalizações embutidas e aparentes, esgotos, colunas prediais, instalações sanitárias; variedade de contextos; inserir link de associação profissional ou norma técnica neste parágrafo
@@ -452,8 +452,6 @@ Não funciona como conclusão — funciona como consolidação avançada de auto
       <li style="color: #320000;"><a href="#"><strong>{{INTEGRACAO_SERV_1_NOME}} —</strong></a> {{INTEGRACAO_SERV_1_DESC}}</li>...</li>
     </ul>
 
-    {{IMAGE_8}}
-
     <h2 style="color: #320000;">Perguntas Frequentes sobre {{MAIN_KEYWORD}}</h2>
 
     <h3 style="color: #320000;">{{FAQ_Q_1}}</h3>
@@ -594,13 +592,12 @@ const REINFORCEMENT = `INSTRUÇÕES FINAIS OBRIGATÓRIAS:
 6. SERVIÇOS SUBCATEGORIAS: 6 categorias, cada uma com H3 + 6 itens <strong> . Cada item = "[serviço específico] em [cidade]". Os itens devem ser long-tail keywords concretas e distintas.
 7. SERVIÇOS ESPECIALIZADOS: 2 colunas (div flex), 14 itens por coluna. Cada item = <li><strong>[keyword long-tail com cidade]</strong></li>. NÃO repetir keywords já usadas nas subcategorias.
 8. PREVENÇÃO: 6 parágrafos + lista de 6 itens + parágrafo final. Secção educativa extensa.
-9. SISTEMAS E INTERVENÇÕES: {{IMAGE_7}} aparece logo após o H2 desta secção, antes do primeiro <p>. Copia o placeholder na posição correta.
-10. FAQ: EXATAMENTE 10 pares H3+P. Cada resposta começa com <strong>SIM.</strong> ou confirmação equivalente, texto explicativo FORA do <strong>.
-11. PESQUISAS RELACIONADAS: EXATAMENTE 30 itens <li>.
-12. ENRIQUECIMENTO DE SERVIÇO OBRIGATÓRIO: mencionar PELO MENOS 3 ferramentas/equipamentos com nomes técnicos reais, 1-2 marcas reconhecidas do sector (levemente, de forma natural), e pelo menos 1 técnica ou método profissional específico com nome técnico. Distribuir por 2-3 secções.
-13. LINKS EXTERNOS OBRIGATÓRIOS (4-6): links para marcas/fabricantes do sector. URLs REAIS e verificáveis — NUNCA inventar.
-14. DENSIDADE: a keyword principal deve aparecer em pelo menos 1% do texto total. Distribui-a naturalmente
-15. INTEGRAÇÃO COM OUTROS SERVIÇOS: 3 parágrafos intro (INTEGRACAO_P1, P2, P3) + lista <ul> com 5 <li>. Cada <li> tem <a href="#" style="color: #320000 !important; font-weight: 600; text-decoration: underline;"><strong>Nome do serviço —</strong></a>, texto descritivo do serviço (pelo menos 2 linhas). O H2 inclui o serviço e a cidade.`;
+9. FAQ: EXATAMENTE 10 pares H3+P. Cada resposta começa com <strong>SIM.</strong> ou confirmação equivalente, texto explicativo FORA do <strong>.
+10. PESQUISAS RELACIONADAS: EXATAMENTE 30 itens <li>.
+11. ENRIQUECIMENTO DE SERVIÇO OBRIGATÓRIO: mencionar PELO MENOS 3 ferramentas/equipamentos com nomes técnicos reais, 1-2 marcas reconhecidas do sector (levemente, de forma natural), e pelo menos 1 técnica ou método profissional específico com nome técnico. Distribuir por 2-3 secções.
+12. LINKS EXTERNOS OBRIGATÓRIOS (4-6): links para marcas/fabricantes do sector. URLs REAIS e verificáveis — NUNCA inventar.
+13. DENSIDADE: a keyword principal deve aparecer em pelo menos 1% do texto total. Distribui-a naturalmente
+14. INTEGRAÇÃO COM OUTROS SERVIÇOS: 3 parágrafos intro (INTEGRACAO_P1, P2, P3) + lista <ul> com 5 <li>. Cada <li> tem <a href="#" style="color: #320000 !important; font-weight: 600; text-decoration: underline;"><strong>Nome do serviço —</strong></a>, texto descritivo do serviço (pelo menos 2 linhas). O H2 inclui o serviço e a cidade.`;
 
 // ─── BUILDER ─────────────────────────────────────────────────────────────────
 
