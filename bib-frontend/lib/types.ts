@@ -21,6 +21,13 @@ export interface Content {
 
 export type ContentSummary = Omit<Content, 'html'>;
 
+export interface PaginatedContents {
+  data: ContentSummary[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export interface RelatedService {
   name: string;
   url: string;

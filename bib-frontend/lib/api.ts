@@ -1,6 +1,7 @@
 import {
   Content,
   ContentSummary,
+  PaginatedContents,
   GenerateInput,
   RegenerateInput,
   Service,
@@ -39,7 +40,16 @@ export const api = {
   regenerate: (input: RegenerateInput) =>
     request<Content>('/regenerate', { method: 'POST', body: JSON.stringify(input) }),
 
-  listContents: () => request<ContentSummary[]>('/contents'),
+  listContents: (params?: { status?: string; service?: string; city?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.service) qs.set('service', params.service);
+    if (params?.city) qs.set('city', params.city);
+    if (params?.page && params.page > 1) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    const q = qs.toString();
+    return request<PaginatedContents>(`/contents${q ? `?${q}` : ''}`);
+  },
 
   getContent: (id: string) => request<Content>(`/contents/${id}`),
 

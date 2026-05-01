@@ -1,13 +1,14 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Patch } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Patch, Query } from '@nestjs/common';
 import { ContentsService } from './contents.service';
+import { ListContentsDto } from './dto/list-contents.dto';
 
 @Controller('contents')
 export class ContentsController {
   constructor(private readonly contentsService: ContentsService) {}
 
   @Get()
-  findAll() {
-    return this.contentsService.findAll();
+  findAll(@Query() dto: ListContentsDto) {
+    return this.contentsService.findAll(dto);
   }
 
   @Get(':id')
