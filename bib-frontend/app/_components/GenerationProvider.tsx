@@ -27,6 +27,13 @@ interface GenerationContextValue {
 }
 
 const GenerationContext = createContext<GenerationContextValue | null>(null);
+const SITE_STORAGE_KEY = "bib-selected-site-id";
+
+function withSelectedSite<T extends GenerateInput | RegenerateInput>(payload: T): T {
+  if (payload.site_id || typeof window === "undefined") return payload;
+  const siteId = window.localStorage.getItem(SITE_STORAGE_KEY) ?? "";
+  return siteId ? { ...payload, site_id: siteId } : payload;
+}
 
 export function GenerationProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -56,10 +63,11 @@ export function GenerationProvider({ children }: { children: React.ReactNode }) 
 
     setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, status: "generating" } : j)));
 
+    const payloadWithSite = withSelectedSite(payload);
     const call =
       type === "regenerate"
-        ? api.regenerate(payload as RegenerateInput)
-        : api.generate(payload as GenerateInput);
+        ? api.regenerate(payloadWithSite as RegenerateInput)
+        : api.generate(payloadWithSite as GenerateInput);
 
     call
       .then((result) => {

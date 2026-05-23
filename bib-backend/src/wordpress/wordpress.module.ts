@@ -5,11 +5,17 @@ import { WordPressCategoriesController } from './wordpress-categories.controller
 import { WordPressMediaController } from './wordpress-media.controller';
 import { ContentsModule } from '../contents/contents.module';
 import { ServicesModule } from '../services/services.module';
+import { WhitelabelApiModule } from '../integrations/whitelabel-api/whitelabel-api.module';
+import { SitesModule } from '../sites/sites.module';
 
 @Module({
-  imports: [ContentsModule, ServicesModule],
+  imports: [ContentsModule, ServicesModule, SitesModule, WhitelabelApiModule],
   providers: [WordPressService],
-  controllers: [WordPressController, WordPressCategoriesController, WordPressMediaController],
+  controllers: [
+    WordPressController,
+    WordPressCategoriesController,
+    WordPressMediaController,
+  ],
   exports: [WordPressService],
 })
 export class WordPressModule {}

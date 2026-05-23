@@ -5,14 +5,15 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
-import { Service, CreateServiceInput, RelatedService, WpCategory } from '@/lib/types';
+import { Service, CreateServiceInput, RelatedService, WpCategory, Site } from '@/lib/types';
 import MediaPickerModal from '@/app/_components/MediaPickerModal';
 
 interface ServiceFormProps {
   initialData?: Service;
+  siteId?: string;
 }
 
-export default function ServiceForm({ initialData }: ServiceFormProps) {
+export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
   const router = useRouter();
   const isEdit = !!initialData;
 
@@ -28,23 +29,38 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
   const [wordpressCategory, setWordpressCategory] = useState(initialData?.wordpress_category ?? '');
   const [seoTitle, setSeoTitle] = useState(initialData?.seo_title ?? '');
   const [seoDescription, setSeoDescription] = useState(initialData?.seo_description ?? '');
+  const [featuredImageAssetId, setFeaturedImageAssetId] = useState(initialData?.featured_image_asset_id ?? '');
+  const [featuredImageUrl, setFeaturedImageUrl] = useState(initialData?.featured_image_url ?? '');
+  const [featuredImageAlt, setFeaturedImageAlt] = useState(initialData?.featured_image_alt ?? '');
   const [wpCategories, setWpCategories] = useState<WpCategory[]>([]);
+  const [site, setSite] = useState<Site | null>(null);
   const [wpCatLoading, setWpCatLoading] = useState(false);
   const [wpCatError, setWpCatError] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showNewCategory, setShowNewCategory] = useState(false);
 
-  const [mediaModal, setMediaModal] = useState<{ open: boolean; mode: 'video' | 'images' } | null>(null);
+  const [mediaModal, setMediaModal] = useState<{ open: boolean; mode: 'video' | 'images'; target?: 'gallery' | 'featured' } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [syncingImage, setSyncingImage] = useState(false);
   const [error, setError] = useState('');
+  const effectiveSiteId = initialData?.site_id ?? siteId;
+  const isWhitelabel = site?.integration_type === 'whitelabel_api';
 
   useEffect(() => {
+    if (!effectiveSiteId) return;
+    api.getSite(effectiveSiteId).then(setSite).catch(() => {});
+  }, [effectiveSiteId]);
+
+  useEffect(() => {
+    if (effectiveSiteId && !site) return;
+    if (isWhitelabel) return;
     setWpCatLoading(true);
-    api.getWpCategories()
+    if (!effectiveSiteId) return;
+    api.getWpCategories(effectiveSiteId)
       .then(setWpCategories)
       .catch((err: Error) => setWpCatError(err.message))
       .finally(() => setWpCatLoading(false));
-  }, []);
+  }, [effectiveSiteId, isWhitelabel, site]);
 
   function addRelated() {
     setRelatedServices((prev) => [...prev, { name: '', url: '' }]);
@@ -58,6 +74,34 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
     );
   }
 
+  async function handleSyncFeaturedImageOnly() {
+    if (!isEdit || !initialData || !effectiveSiteId) return;
+    if (!featuredImageAssetId) {
+      const msg = 'Selecione uma imagem principal antes de sincronizar.';
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
+
+    setSyncingImage(true);
+    setError('');
+    try {
+      await api.updateService(initialData.id, {
+        featured_image_asset_id: featuredImageAssetId || null,
+        featured_image_alt: featuredImageAlt.trim() || null,
+      });
+      await api.syncWhitelabelServiceImage(effectiveSiteId, initialData.id);
+      toast.success('Imagem sincronizada no WhiteLabel.');
+      router.refresh();
+    } catch (err) {
+      const msg = (err as Error).message;
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setSyncingImage(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) { setError('O nome é obrigatório.'); return; }
@@ -66,6 +110,7 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
 
     const input: CreateServiceInput = {
       name: name.trim(),
+      site_id: effectiveSiteId ?? null,
       video_url: videoUrl || null,
       images,
       related_services: relatedServices.filter((r) => r.name && r.url),
@@ -73,14 +118,25 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
       tone: tone,
       min_words: minWords,
       wordpress_category: wordpressCategory || null,
+      featured_image_asset_id: featuredImageAssetId || null,
+      featured_image_alt: featuredImageAlt.trim() || null,
       seo_title: seoTitle.trim() || null,
       seo_description: seoDescription.trim() || null,
     };
 
     try {
       if (isEdit && initialData) {
-        await api.updateService(initialData.id, input);
-        toast.success("Serviço guardado com sucesso!");
+        const service = await api.updateService(initialData.id, input);
+        let syncMessage = '';
+        if (isWhitelabel && effectiveSiteId && featuredImageAssetId) {
+          try {
+            await api.syncWhitelabelServiceImage(effectiveSiteId, service.id);
+            syncMessage = ' Imagem sincronizada no WhiteLabel.';
+          } catch (syncErr) {
+            toast.error(`Serviço guardado, mas a imagem não foi sincronizada: ${(syncErr as Error).message}`);
+          }
+        }
+        toast.success(`Serviço guardado com sucesso!${syncMessage}`);
         router.refresh();
       } else {
         const service = await api.createService(input);
@@ -99,6 +155,11 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {error && <p className="bib-error">{error}</p>}
+      {isWhitelabel && (
+        <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+          Este serviço pertence a um site API Whitelabel. Os templates gerados serão textuais/JSON e publicados pela API do site.
+        </p>
+      )}
 
       {/* Nome */}
       <div>
@@ -116,6 +177,58 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
 
       <div className="bib-divider" />
 
+      {isWhitelabel && (
+        <>
+          <div>
+            <label className="bib-label">
+              Imagem principal WhiteLabel <span className="bib-label-hint">(enviada na criação do serviço)</span>
+            </label>
+            <div className="grid gap-3 sm:grid-cols-[96px_1fr]">
+              <div className="w-24 h-24 rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                {featuredImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={featuredImageUrl} alt={featuredImageAlt || name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-[11px] text-gray-400 text-center px-2">
+                    Sem imagem
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setMediaModal({ open: true, mode: 'images', target: 'featured' })}
+                  className="bib-btn bib-btn-secondary text-xs"
+                >
+                  Selecionar / enviar imagem
+                </button>
+                <input
+                  className="bib-input"
+                  value={featuredImageAlt}
+                  onChange={(e) => setFeaturedImageAlt(e.target.value)}
+                  placeholder="Alt da imagem principal"
+                />
+                <p className="text-xs text-gray-400">
+                  Esta imagem será enviada para a API WhiteLabel no endpoint da página principal do serviço.
+                </p>
+                {isEdit && initialData && (
+                  <button
+                    type="button"
+                    disabled={syncingImage || !featuredImageAssetId}
+                    onClick={() => void handleSyncFeaturedImageOnly()}
+                    className="bib-btn bib-btn-primary text-xs disabled:opacity-50"
+                  >
+                    {syncingImage ? 'A sincronizar imagem...' : 'Subir apenas imagem'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="bib-divider" />
+        </>
+      )}
+
       {/* Vídeo */}
       <div>
         <label className="bib-label">
@@ -130,7 +243,7 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
           />
           <button
             type="button"
-            onClick={() => setMediaModal({ open: true, mode: 'video' })}
+            onClick={() => setMediaModal({ open: true, mode: 'video', target: 'gallery' })}
             className="bib-btn bib-btn-secondary shrink-0 text-xs px-3"
           >
             Escolher
@@ -145,12 +258,12 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
         </label>
         <button
           type="button"
-          onClick={() => setMediaModal({ open: true, mode: 'images' })}
+          onClick={() => setMediaModal({ open: true, mode: 'images', target: 'gallery' })}
           className="w-full text-sm border border-dashed border-gray-300 rounded-lg px-3 py-3 text-gray-500 hover:bg-gray-50 hover:border-gray-400 transition-colors text-center"
         >
           {images.filter(Boolean).length > 0
             ? `${images.filter(Boolean).length} imagem(ns) selecionada(s) — clique para alterar`
-            : 'Escolher Imagens da Biblioteca WordPress'}
+            : `Escolher Imagens da Biblioteca ${isWhitelabel ? 'WhiteLabel' : 'WordPress'}`}
         </button>
         {images.filter(Boolean).length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -260,6 +373,8 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
 
       <div className="bib-divider" />
 
+      {!isWhitelabel && (
+      <>
       {/* Categoria WordPress */}
       <div>
         <label className="bib-label">
@@ -345,6 +460,8 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
       </div>
 
       <div className="bib-divider" />
+      </>
+      )}
 
       {/* SEO */}
       <div>
@@ -415,10 +532,28 @@ export default function ServiceForm({ initialData }: ServiceFormProps) {
           isOpen
           onClose={() => setMediaModal(null)}
           mode={mediaModal.mode}
+          source={isWhitelabel && mediaModal.mode === 'images' ? 'supabase' : 'wordpress'}
+          siteId={effectiveSiteId}
+          maxImages={mediaModal.target === 'featured' ? 1 : 8}
           onConfirmVideo={(url) => { setVideoUrl(url); setMediaModal(null); }}
-          onConfirmImages={(urls) => { setImages(urls); setMediaModal(null); }}
+          onConfirmImages={(urls) => {
+            if (mediaModal.target !== 'featured') setImages(urls);
+            setMediaModal(null);
+          }}
+          onConfirmImageItems={(items) => {
+            if (mediaModal.target !== 'featured') return;
+            const item = items[0];
+            if (!item) return;
+            setFeaturedImageAssetId(String(item.id));
+            setFeaturedImageUrl(item.url);
+            setFeaturedImageAlt(item.alt || item.title || name);
+          }}
           initialVideoUrl={videoUrl}
-          initialImages={images.filter(Boolean)}
+          initialImages={
+            mediaModal.target === 'featured'
+              ? (featuredImageUrl ? [featuredImageUrl] : [])
+              : images.filter(Boolean)
+          }
         />
       )}
     </form>

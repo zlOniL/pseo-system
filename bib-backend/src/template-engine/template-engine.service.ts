@@ -8,6 +8,7 @@ import { Service } from '../services/services.service';
 import { slugify } from '../common/slug';
 import { replaceKeyword } from './utils/keyword-replacer';
 import { buildBacklinksHtml } from './utils/backlinks-builder';
+import { SitesService } from '../sites/sites.service';
 
 export interface TemplateGenerateInput {
   service: Service;
@@ -23,6 +24,7 @@ export class TemplateEngineService {
     private readonly cities: CitiesService,
     private readonly contents: ContentsService,
     private readonly validation: ValidationService,
+    private readonly sites: SitesService,
   ) {}
 
   async generate(input: TemplateGenerateInput): Promise<Content> {
@@ -36,11 +38,15 @@ export class TemplateEngineService {
     if (input.templateHtml) {
       rawHtml = input.templateHtml;
       baseCity = service.template_base_city ?? 'Lisboa';
-      this.logger.log(`Using provided template for "${service.name}" (base city: "${baseCity}")`);
+      this.logger.log(
+        `Using provided template for "${service.name}" (base city: "${baseCity}")`,
+      );
     } else if (service.template_html) {
       rawHtml = service.template_html;
       baseCity = service.template_base_city ?? 'Lisboa';
-      this.logger.log(`Using DB template for "${service.name}" (base city: "${baseCity}")`);
+      this.logger.log(
+        `Using DB template for "${service.name}" (base city: "${baseCity}")`,
+      );
     } else {
       rawHtml = this.loadTemplate(serviceSlug);
       baseCity = this.getBaseCityFromFilename(serviceSlug);
@@ -54,13 +60,28 @@ export class TemplateEngineService {
     // 4. Build and inject the "Atendemos Também" backlinks block
     const region = this.cities.findRegion(city);
     const localities = region ? this.cities.getLocalities(region, city) : [];
-    const wpBase = (process.env.WP_BASE_URL ?? '').replace(/\/$/, '');
-    const linksHtml = buildBacklinksHtml(localities, serviceSlug, service.name, wpBase);
+    const site = service.site_id
+      ? await this.sites.findById(service.site_id).catch(() => null)
+      : null;
+    const wpBase =
+      site?.integration_type === 'wordpress'
+        ? this.sites.wordpressBase(site)
+        : (process.env.WP_BASE_URL ?? '').replace(/\/$/, '');
+    const linksHtml = buildBacklinksHtml(
+      localities,
+      serviceSlug,
+      service.name,
+      wpBase,
+    );
     html = this.injectBacklinks(html, linksHtml);
 
     // 5. Validate (score + issues)
     const mainKeyword = `${service.name} em ${city}`;
-    const validationResult = this.validation.validate(html, mainKeyword, service.min_words ?? 5000);
+    const validationResult = this.validation.validate(
+      html,
+      mainKeyword,
+      service.min_words ?? 5000,
+    );
 
     // 6. Save to contents table (draft, same path as AI generation)
     return this.contents.save(
@@ -70,11 +91,14 @@ export class TemplateEngineService {
         city,
         video_url: service.video_url ?? undefined,
         images: service.images?.length ? service.images : undefined,
-        related_services: service.related_services?.length ? service.related_services : undefined,
+        related_services: service.related_services?.length
+          ? service.related_services
+          : undefined,
         service_notes: service.service_notes ?? undefined,
         tone: service.tone ?? undefined,
         min_words: service.min_words,
         service_id: service.id,
+        site_id: service.site_id ?? undefined,
       },
       html,
       validationResult,

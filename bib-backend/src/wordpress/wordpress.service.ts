@@ -1,9 +1,18 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { ContentsService, Content } from '../contents/contents.service';
 import { ServicesService } from '../services/services.service';
-import { assemblePageHtml, assembleTemplateHtml } from '../common/html-assembler';
+import {
+  assemblePageHtml,
+  assembleTemplateHtml,
+} from '../common/html-assembler';
 import { slugify } from '../common/slug';
 import { applyCity } from './seo-templates';
+import { Site, SitesService } from '../sites/sites.service';
 
 export interface MediaItem {
   id: number;
@@ -44,27 +53,59 @@ export class WordPressService {
   constructor(
     private readonly contents: ContentsService,
     private readonly services: ServicesService,
-  ) { }
+    private readonly sites: SitesService,
+  ) {}
 
   /**
    * Returns the base URL for WordPress API calls.
    * If WP_PROXY_BASE is set, routes through the Vercel proxy to avoid
    * Render IP blocks (e.g. Imunify360 on the WordPress host).
    */
-  private wpApiBase(): string {
-    const proxy = process.env.WP_PROXY_BASE?.replace(/\/$/, '');
+  private wpApiBase(site: Site): string {
+    const proxy = this.sites.wordpressProxyBase(site);
     if (proxy) return `${proxy}/api/wp-proxy`;
-    const base = process.env.WP_BASE_URL?.replace(/\/$/, '') ?? '';
+    const base = this.sites.wordpressBase(site);
     return `${base}/wp-json/custom/v1`;
+  }
+
+  private wpHeaders(site: Site): Record<string, string> {
+    const secret = this.sites.wordpressSecret(site);
+    if (!secret) {
+      throw new BadRequestException(
+        `Site "${site.name}" sem secret WordPress configurado.`,
+      );
+    }
+    return {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      Authorization: `Bearer ${secret}`,
+    };
+  }
+
+  private async siteForContent(content: Content): Promise<Site> {
+    if (!content.site_id) {
+      throw new BadRequestException(
+        'Conteudo sem site associado. Selecione um site antes de publicar.',
+      );
+    }
+    const site = await this.sites.findById(content.site_id);
+    if (site.integration_type !== 'wordpress') {
+      throw new BadRequestException(
+        `Site "${site.name}" nao usa integracao WordPress.`,
+      );
+    }
+    return site;
   }
 
   async publish(contentId: string): Promise<Content> {
     const content = await this.contents.findById(contentId);
-    const fullHtml = content.generation_mode === 'template'
-      ? assembleTemplateHtml(content.html, content.video_url)
-      : assemblePageHtml(content.html, content.video_url);
+    const site = await this.siteForContent(content);
+    const fullHtml =
+      content.generation_mode === 'template'
+        ? assembleTemplateHtml(content.html ?? '', content.video_url)
+        : assemblePageHtml(content.html ?? '', content.video_url);
 
-    const wpUrl = `${this.wpApiBase()}/post`;
+    const wpUrl = `${this.wpApiBase(site)}/post`;
     const slug = slugify(content.main_keyword);
     const title = content.main_keyword;
 
@@ -81,9 +122,13 @@ export class WordPressService {
     if (service?.seo_title) {
       seoTitle = applyCity(service.seo_title, city);
       metaDescription = applyCity(service.seo_description ?? '', city);
-      this.logger.log(`Service SEO resolved for "${service.slug}": "${seoTitle}"`);
+      this.logger.log(
+        `Service SEO resolved for "${service.slug}": "${seoTitle}"`,
+      );
     } else {
-      this.logger.warn(`Service "${content.service}" has no seo_title — using default`);
+      this.logger.warn(
+        `Service "${content.service}" has no seo_title — using default`,
+      );
     }
 
     // Resolve categories: always Blog (primary) + service subcategory
@@ -92,26 +137,33 @@ export class WordPressService {
 
     // 1. Ensure "Blog" parent category (always primary)
     try {
-      blogCategoryId = await this.ensureCategoryExists('Blog');
+      blogCategoryId = await this.ensureCategoryExists(site, 'Blog');
       categories.push(blogCategoryId);
     } catch (err) {
-      this.logger.warn(`Could not resolve "Blog" category: ${(err as Error).message}`);
+      this.logger.warn(
+        `Could not resolve "Blog" category: ${(err as Error).message}`,
+      );
     }
 
     // 2. Ensure service subcategory (under Blog)
-    const wpCatName = content.wordpress_category ?? service?.wordpress_category ?? null;
+    const wpCatName =
+      content.wordpress_category ?? service?.wordpress_category ?? null;
 
     if (wpCatName) {
       try {
         this.logger.log(`Resolving WP subcategory "${wpCatName}"`);
-        const catId = await this.ensureCategoryExists(wpCatName);
+        const catId = await this.ensureCategoryExists(site, wpCatName);
         if (!categories.includes(catId)) categories.push(catId);
         this.logger.log(`Resolved subcategory ID: ${catId}`);
       } catch (err) {
-        this.logger.warn(`Could not resolve category "${wpCatName}": ${(err as Error).message}`);
+        this.logger.warn(
+          `Could not resolve category "${wpCatName}": ${(err as Error).message}`,
+        );
       }
     } else {
-      this.logger.warn(`Content ${contentId} has no wordpress_category or service_id — skipping subcategory`);
+      this.logger.warn(
+        `Content ${contentId} has no wordpress_category or service_id — skipping subcategory`,
+      );
     }
 
     this.logger.log(
@@ -120,10 +172,7 @@ export class WordPressService {
 
     const response = await fetch(wpUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.WP_SECRET}`,
-      },
+      headers: this.wpHeaders(site),
       body: JSON.stringify({
         title,
         seo_title: seoTitle,
@@ -139,7 +188,9 @@ export class WordPressService {
 
     if (!response.ok) {
       const error = await response.text();
-      this.logger.error(`WordPress publish error ${response.status} (url: ${wpUrl}): ${error}`);
+      this.logger.error(
+        `WordPress publish error ${response.status} (url: ${wpUrl}): ${error}`,
+      );
       throw new InternalServerErrorException('WordPress publish failed');
     }
 
@@ -154,12 +205,11 @@ export class WordPressService {
   ): object {
     const fullHtml =
       content.generation_mode === 'template'
-        ? assembleTemplateHtml(content.html, content.video_url)
-        : assemblePageHtml(content.html, content.video_url);
+        ? assembleTemplateHtml(content.html ?? '', content.video_url)
+        : assemblePageHtml(content.html ?? '', content.video_url);
 
     const slug = slugify(content.main_keyword);
     const title = content.main_keyword;
-    const city = content.city ?? '';
     let seoTitle = `${content.main_keyword} — Atendimento 24h`;
     let metaDescription = content.meta_description ?? '';
 
@@ -182,10 +232,20 @@ export class WordPressService {
   }
 
   private async resolveCategoriesForBulk(
+    site: Site,
     contents: Content[],
-  ): Promise<Map<string, { ids: number[]; primaryId: number | null; seo: { title: string; description: string } | null }>> {
+  ): Promise<
+    Map<
+      string,
+      {
+        ids: number[];
+        primaryId: number | null;
+        seo: { title: string; description: string } | null;
+      }
+    >
+  > {
     // Fetch all existing WP categories once
-    let allCategories = await this.getCategories();
+    let allCategories = await this.getCategories(site.id);
 
     // Ensure "Blog" exists
     let blogCategoryId: number | null = null;
@@ -193,17 +253,22 @@ export class WordPressService {
     if (blogCat) {
       blogCategoryId = blogCat.id;
     } else {
-      const created = await this.createCategory('Blog', '');
+      const created = await this.createCategory(site.id, 'Blog', '');
       blogCategoryId = created.id;
       allCategories = [...allCategories, created];
     }
 
     // Collect unique service IDs and fetch their WP category names + SEO
     const serviceIds = [
-      ...new Set(contents.filter((c) => c.service_id).map((c) => c.service_id!)),
+      ...new Set(
+        contents.filter((c) => c.service_id).map((c) => c.service_id!),
+      ),
     ];
     const serviceWpCatMap = new Map<string, string | null>();
-    const serviceSeoMap = new Map<string, { title: string; description: string } | null>();
+    const serviceSeoMap = new Map<
+      string,
+      { title: string; description: string } | null
+    >();
 
     for (const serviceId of serviceIds) {
       try {
@@ -212,7 +277,10 @@ export class WordPressService {
         serviceSeoMap.set(
           serviceId,
           service.seo_title
-            ? { title: service.seo_title, description: service.seo_description ?? '' }
+            ? {
+                title: service.seo_title,
+                description: service.seo_description ?? '',
+              }
             : null,
         );
       } catch {
@@ -227,7 +295,11 @@ export class WordPressService {
       .filter((n): n is string => !!n);
 
     const uniqueCatNames = [
-      ...new Set([...serviceWpCatMap.values(), ...directCatNames].filter((n): n is string => !!n)),
+      ...new Set(
+        [...serviceWpCatMap.values(), ...directCatNames].filter(
+          (n): n is string => !!n,
+        ),
+      ),
     ];
     const categoryIdCache = new Map<string, number>();
 
@@ -238,19 +310,29 @@ export class WordPressService {
       if (existing) {
         categoryIdCache.set(catName, existing.id);
       } else {
-        const created = await this.createCategory(catName, 'Blog');
+        const created = await this.createCategory(site.id, catName, 'Blog');
         categoryIdCache.set(catName, created.id);
       }
     }
 
     // Build result map: contentId → { ids, primaryId, seo }
-    const result = new Map<string, { ids: number[]; primaryId: number | null; seo: { title: string; description: string } | null }>();
+    const result = new Map<
+      string,
+      {
+        ids: number[];
+        primaryId: number | null;
+        seo: { title: string; description: string } | null;
+      }
+    >();
 
     for (const content of contents) {
       const ids: number[] = blogCategoryId ? [blogCategoryId] : [];
 
-      const wpCatName = content.wordpress_category
-        ?? (content.service_id ? serviceWpCatMap.get(content.service_id) ?? null : null);
+      const wpCatName =
+        content.wordpress_category ??
+        (content.service_id
+          ? (serviceWpCatMap.get(content.service_id) ?? null)
+          : null);
 
       if (wpCatName) {
         const catId = categoryIdCache.get(wpCatName);
@@ -258,10 +340,15 @@ export class WordPressService {
       }
 
       // Resolve SEO — apply city replacement to the stored template (which uses "Lisboa")
-      const rawSeo = content.service_id ? serviceSeoMap.get(content.service_id) ?? null : null;
+      const rawSeo = content.service_id
+        ? (serviceSeoMap.get(content.service_id) ?? null)
+        : null;
       const city = content.city ?? '';
       const seo = rawSeo
-        ? { title: applyCity(rawSeo.title, city), description: applyCity(rawSeo.description, city) }
+        ? {
+            title: applyCity(rawSeo.title, city),
+            description: applyCity(rawSeo.description, city),
+          }
         : null;
 
       result.set(content.id, { ids, primaryId: blogCategoryId, seo });
@@ -271,33 +358,78 @@ export class WordPressService {
   }
 
   private async callWpBulk(
+    site: Site,
     payloads: object[],
-  ): Promise<Array<{ id: number; link: string; slug: string; success: boolean; error?: string }>> {
-    const url = `${this.wpApiBase()}/posts/bulk`;
+  ): Promise<
+    Array<{
+      id: number;
+      link: string;
+      slug: string;
+      success: boolean;
+      error?: string;
+    }>
+  > {
+    const url = `${this.wpApiBase(site)}/posts/bulk`;
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.WP_SECRET}`,
-      },
+      headers: this.wpHeaders(site),
       body: JSON.stringify({ posts: payloads }),
     });
 
     if (!response.ok) {
       const err = await response.text();
-      this.logger.error(`WordPress bulk publish error ${response.status}: ${err}`);
+      this.logger.error(
+        `WordPress bulk publish error ${response.status}: ${err}`,
+      );
       if (response.status === 413) {
         throw new PayloadTooLargeError('WordPress bulk publish failed');
       }
       throw new InternalServerErrorException('WordPress bulk publish failed');
     }
 
-    return response.json();
+    return (await response.json()) as Array<{
+      id: number;
+      link: string;
+      slug: string;
+      success: boolean;
+      error?: string;
+    }>;
   }
 
   async bulkPublish(ids: string[]): Promise<BulkPublishResult[]> {
     const contents = await this.contents.findByIds(ids);
-    const categoryMap = await this.resolveCategoriesForBulk(contents);
+    const grouped = new Map<string, { site: Site; contents: Content[] }>();
+    const results: BulkPublishResult[] = [];
+
+    for (const content of contents) {
+      try {
+        const site = await this.siteForContent(content);
+        const bucket = grouped.get(site.id) ?? { site, contents: [] };
+        bucket.contents.push(content);
+        grouped.set(site.id, bucket);
+      } catch (err) {
+        results.push({
+          id: content.id,
+          success: false,
+          error: (err as Error).message,
+        });
+      }
+    }
+
+    for (const group of grouped.values()) {
+      results.push(
+        ...(await this.bulkPublishForSite(group.site, group.contents)),
+      );
+    }
+
+    return results;
+  }
+
+  private async bulkPublishForSite(
+    site: Site,
+    contents: Content[],
+  ): Promise<BulkPublishResult[]> {
+    const categoryMap = await this.resolveCategoriesForBulk(site, contents);
 
     const items = contents.map((c) => {
       const resolved = categoryMap.get(c.id)!;
@@ -312,7 +444,7 @@ export class WordPressService {
     const MAX_RETRIES = 3;
     const CONCURRENCY = 3;
 
-    const chunks: typeof items[] = [];
+    const chunks: (typeof items)[] = [];
     for (let i = 0; i < items.length; i += CHUNK_SIZE) {
       chunks.push(items.slice(i, i + CHUNK_SIZE));
     }
@@ -320,7 +452,7 @@ export class WordPressService {
     const results: BulkPublishResult[] = [];
 
     this.logger.log(
-      `Bulk publish: ${items.length} posts → ${chunks.length} chunk(s) de ${CHUNK_SIZE} (concorrência: ${CONCURRENCY})`,
+      `Bulk publish [${site.domain}]: ${items.length} posts → ${chunks.length} chunk(s) de ${CHUNK_SIZE} (concorrência: ${CONCURRENCY})`,
     );
 
     for (let i = 0; i < chunks.length; i += CONCURRENCY) {
@@ -338,7 +470,10 @@ export class WordPressService {
 
             for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
               try {
-                const wpResults = await this.callWpBulk(subChunk.map((item) => item.payload));
+                const wpResults = await this.callWpBulk(
+                  site,
+                  subChunk.map((item) => item.payload),
+                );
 
                 for (let j = 0; j < wpResults.length; j++) {
                   const wpResult = wpResults[j];
@@ -346,35 +481,65 @@ export class WordPressService {
 
                   if (wpResult.success) {
                     try {
-                      const updated = await this.contents.setPublished(content.id, wpResult.id, wpResult.link);
-                      chunkResults.push({ id: content.id, success: true, data: updated });
+                      const updated = await this.contents.setPublished(
+                        content.id,
+                        wpResult.id,
+                        wpResult.link,
+                      );
+                      chunkResults.push({
+                        id: content.id,
+                        success: true,
+                        data: updated,
+                      });
                     } catch (err) {
-                      chunkResults.push({ id: content.id, success: false, error: (err as Error).message });
+                      chunkResults.push({
+                        id: content.id,
+                        success: false,
+                        error: (err as Error).message,
+                      });
                     }
                   } else {
-                    this.logger.warn(`Bulk publish: slug "${wpResult.slug}" falhou — ${wpResult.error}`);
-                    chunkResults.push({ id: content.id, success: false, error: wpResult.error });
+                    this.logger.warn(
+                      `Bulk publish: slug "${wpResult.slug}" falhou — ${wpResult.error}`,
+                    );
+                    chunkResults.push({
+                      id: content.id,
+                      success: false,
+                      error: wpResult.error,
+                    });
                   }
                 }
 
                 subStart += chunkSize;
                 break;
               } catch (err) {
-                if (err instanceof PayloadTooLargeError && chunkSize > MIN_CHUNK_SIZE) {
-                  chunkSize = Math.max(MIN_CHUNK_SIZE, Math.floor(chunkSize / 2));
+                if (
+                  err instanceof PayloadTooLargeError &&
+                  chunkSize > MIN_CHUNK_SIZE
+                ) {
+                  chunkSize = Math.max(
+                    MIN_CHUNK_SIZE,
+                    Math.floor(chunkSize / 2),
+                  );
                   this.logger.warn(
                     `Chunk ${chunkIndex} — 413 detectado, reduzindo para ${chunkSize} post(s) por sub-chunk`,
                   );
                   break;
                 }
                 if (attempt < MAX_RETRIES) {
-                  await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+                  await new Promise((resolve) =>
+                    setTimeout(resolve, 2000 * attempt),
+                  );
                 } else {
                   this.logger.error(
                     `Chunk ${chunkIndex} — sub-chunk falhou após ${MAX_RETRIES} tentativas: ${(err as Error).message}`,
                   );
                   for (const item of subChunk) {
-                    chunkResults.push({ id: item.content.id, success: false, error: (err as Error).message });
+                    chunkResults.push({
+                      id: item.content.id,
+                      success: false,
+                      error: (err as Error).message,
+                    });
                   }
                   subStart += chunkSize;
                 }
@@ -392,47 +557,52 @@ export class WordPressService {
     }
 
     const succeeded = results.filter((r) => r.success).length;
-    this.logger.log(`Bulk publish concluído: ${succeeded}/${results.length} publicados`);
+    this.logger.log(
+      `Bulk publish concluído: ${succeeded}/${results.length} publicados`,
+    );
 
     return results;
   }
 
-  async getCategories(): Promise<WpCategory[]> {
-    const url = `${this.wpApiBase()}/wp-cats`;
+  async getCategories(siteId: string): Promise<WpCategory[]> {
+    const site = await this.sites.findById(siteId);
+    const url = `${this.wpApiBase(site)}/wp-cats`;
     this.logger.log(`getCategories → GET ${url}`);
     const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        Authorization: `Bearer ${process.env.WP_SECRET}`,
-      },
+      headers: this.wpHeaders(site),
     });
     if (!response.ok) {
       const err = await response.text();
-      throw new InternalServerErrorException(`WordPress getCategories failed: ${err}`);
+      throw new InternalServerErrorException(
+        `WordPress getCategories failed: ${err}`,
+      );
     }
     return response.json() as Promise<WpCategory[]>;
   }
 
-  async createCategory(name: string, parent: string = 'Blog'): Promise<WpCategory> {
-    const url = `${this.wpApiBase()}/wp-cats`;
+  async createCategory(
+    siteId: string,
+    name: string,
+    parent: string = 'Blog',
+  ): Promise<WpCategory> {
+    const site = await this.sites.findById(siteId);
+    const url = `${this.wpApiBase(site)}/wp-cats`;
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.WP_SECRET}`,
-      },
+      headers: this.wpHeaders(site),
       body: JSON.stringify({ name, parent }),
     });
     if (!response.ok) {
       const err = await response.text();
-      throw new InternalServerErrorException(`WordPress createCategory failed: ${err}`);
+      throw new InternalServerErrorException(
+        `WordPress createCategory failed: ${err}`,
+      );
     }
     return response.json() as Promise<WpCategory>;
   }
 
-  async ensureCategoryExists(name: string): Promise<number> {
-    const categories = await this.getCategories();
+  async ensureCategoryExists(site: Site, name: string): Promise<number> {
+    const categories = await this.getCategories(site.id);
     const existing = categories.find(
       (c) => c.name.toLowerCase() === name.toLowerCase(),
     );
@@ -447,11 +617,12 @@ export class WordPressService {
     }
 
     this.logger.log(`Category "${name}" not found — creating under "Blog"`);
-    const created = await this.createCategory(name, 'Blog');
+    const created = await this.createCategory(site.id, name, 'Blog');
     return created.id;
   }
 
   async listMedia(
+    siteId: string,
     type: string = 'image',
     page: number = 1,
     search: string = '',
@@ -464,18 +635,18 @@ export class WordPressService {
     });
     if (search) params.set('search', search);
 
-    const wpUrl = `${this.wpApiBase()}/media?${params.toString()}`;
+    const site = await this.sites.findById(siteId);
+    const wpUrl = `${this.wpApiBase(site)}/media?${params.toString()}`;
 
     const response = await fetch(wpUrl, {
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${process.env.WP_SECRET}`,
-      },
+      headers: this.wpHeaders(site),
     });
 
     if (!response.ok) {
       const err = await response.text();
-      this.logger.error(`WordPress media list error ${response.status}: ${err}`);
+      this.logger.error(
+        `WordPress media list error ${response.status}: ${err}`,
+      );
       throw new InternalServerErrorException('WordPress media list failed');
     }
 

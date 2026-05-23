@@ -1,4 +1,14 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Patch, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Query,
+} from '@nestjs/common';
 import { ContentsService } from './contents.service';
 import { ListContentsDto } from './dto/list-contents.dto';
 

@@ -2,12 +2,27 @@ import { slugify } from '../../common/slug';
 
 // Mirrors the prep sets in CitiesService — pure utility (no DI)
 const PREP_NA = new Set([
-  'Amadora', 'Maia', 'Moita', 'Margem Sul', 'Quinta do Conde',
-  'Pontinha', 'Odivelas', 'Reboleira', 'Brandoa', 'Damaia', 'Venda Nova',
+  'Amadora',
+  'Maia',
+  'Moita',
+  'Margem Sul',
+  'Quinta do Conde',
+  'Pontinha',
+  'Odivelas',
+  'Reboleira',
+  'Brandoa',
+  'Damaia',
+  'Venda Nova',
 ]);
 const PREP_NO = new Set([
-  'Porto', 'Barreiro', 'Seixal', 'Montijo', 'Pinhal Novo',
-  'Gavà', 'Alentejo', 'Algarve',
+  'Porto',
+  'Barreiro',
+  'Seixal',
+  'Montijo',
+  'Pinhal Novo',
+  'Gavà',
+  'Alentejo',
+  'Algarve',
 ]);
 
 function getPrep(name: string): string {

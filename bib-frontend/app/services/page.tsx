@@ -1,14 +1,31 @@
 export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { api } from '@/lib/api';
 
-export default async function ServicesPage() {
-  const services = await api.listServices().catch(() => []);
+export default async function ServicesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ site_id?: string }>;
+}) {
+  const resolvedSearchParams = await searchParams;
+  const siteId = resolvedSearchParams?.site_id;
+
+  if (!siteId) {
+    const sites = await api.listSites().catch(() => []);
+    if (sites[0]?.id) redirect(`/services?site_id=${sites[0].id}`);
+  }
+
+  const [services, site] = await Promise.all([
+    siteId ? api.listServices(siteId).catch(() => []) : Promise.resolve([]),
+    siteId ? api.getSite(siteId).catch(() => null) : Promise.resolve(null),
+  ]);
 
   return (
     <div className="bib-page">
       <div className="bib-container">
+        {site && <p className="text-xs text-gray-400 mb-2">Site: {site.name}</p>}
 
         <div className="bib-page-header">
           <div>
@@ -17,7 +34,7 @@ export default async function ServicesPage() {
               {services.length} serviço{services.length !== 1 ? 's' : ''} activo{services.length !== 1 ? 's' : ''}
             </p>
           </div>
-          <Link href="/services/new" className="bib-btn bib-btn-primary">
+          <Link href={`/services/new${siteId ? `?site_id=${siteId}` : ''}`} className="bib-btn bib-btn-primary">
             + Novo Serviço
           </Link>
         </div>
@@ -25,7 +42,7 @@ export default async function ServicesPage() {
         {services.length === 0 ? (
           <div className="bib-empty">
             <p>Nenhum serviço criado ainda.</p>
-            <Link href="/services/new" className="mt-2 inline-block text-sm text-gray-700 underline">
+            <Link href={`/services/new${siteId ? `?site_id=${siteId}` : ''}`} className="mt-2 inline-block text-sm text-gray-700 underline">
               Criar primeiro serviço
             </Link>
           </div>

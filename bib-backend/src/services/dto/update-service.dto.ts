@@ -6,11 +6,16 @@ import {
   Min,
   Max,
   ValidateNested,
+  IsUUID,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { RelatedService } from '../../generation/dto/generate.dto';
 
 export class UpdateServiceDto {
+  @IsOptional()
+  @IsUUID()
+  site_id?: string;
+
   @IsOptional()
   @IsString()
   name?: string;
@@ -47,6 +52,14 @@ export class UpdateServiceDto {
   @IsOptional()
   @IsString()
   wordpress_category?: string;
+
+  @IsOptional()
+  @IsUUID()
+  featured_image_asset_id?: string;
+
+  @IsOptional()
+  @IsString()
+  featured_image_alt?: string;
 
   @IsOptional()
   @IsString()

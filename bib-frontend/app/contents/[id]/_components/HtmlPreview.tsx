@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-function buildPreviewHtml(contentHtml: string, videoUrl?: string, generationMode?: 'ai' | 'template'): string {
+function buildPreviewHtml(contentHtml: string, videoUrl?: string, generationMode?: 'ai' | 'template' | 'library'): string {
   const video = videoUrl?.trim() ?? "";
   const videoBlock = video
     ? `<section style="margin:0;padding:0"><video src="${video}" style="width:100%;height:auto;display:block;" autoplay loop muted controls></video></section>`
@@ -15,7 +15,7 @@ function buildPreviewHtml(contentHtml: string, videoUrl?: string, generationMode
   return `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{box-sizing:border-box}body{margin:0;font-family:sans-serif}img{max-width:100%;height:auto}</style></head><body>${body}</body></html>`;
 }
 
-export function HtmlPreview({ html, videoUrl, generationMode }: { html: string; videoUrl?: string; generationMode?: 'ai' | 'template' }) {
+export function HtmlPreview({ html, videoUrl, generationMode }: { html: string; videoUrl?: string; generationMode?: 'ai' | 'template' | 'library' }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {

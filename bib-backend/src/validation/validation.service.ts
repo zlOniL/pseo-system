@@ -19,7 +19,11 @@ const REQUIRED_H2S = [
 
 @Injectable()
 export class ValidationService {
-  validate(html: string, mainKeyword: string, minWords = 800): ValidationResult {
+  validate(
+    html: string,
+    mainKeyword: string,
+    minWords = 800,
+  ): ValidationResult {
     const root = parse(html);
     const issues: string[] = [];
 
@@ -42,7 +46,8 @@ export class ValidationService {
       h2Texts.some((t) => t.toLowerCase().includes(req.toLowerCase())),
     );
     const missingH2s = REQUIRED_H2S.filter(
-      (req) => !h2Texts.some((t) => t.toLowerCase().includes(req.toLowerCase())),
+      (req) =>
+        !h2Texts.some((t) => t.toLowerCase().includes(req.toLowerCase())),
     );
 
     const h2Score = Math.round((presentH2s.length / REQUIRED_H2S.length) * 10);
@@ -54,10 +59,14 @@ export class ValidationService {
     // Check order: first present required H2 should come before last present required H2
     // Simple check: all required H2s appear in the correct relative order
     const h2Order = presentH2s.every((req, i) => {
-      const posReq = h2Texts.findIndex((t) => t.toLowerCase().includes(req.toLowerCase()));
+      const posReq = h2Texts.findIndex((t) =>
+        t.toLowerCase().includes(req.toLowerCase()),
+      );
       if (i === 0) return true;
       const prevReq = presentH2s[i - 1];
-      const posPrev = h2Texts.findIndex((t) => t.toLowerCase().includes(prevReq.toLowerCase()));
+      const posPrev = h2Texts.findIndex((t) =>
+        t.toLowerCase().includes(prevReq.toLowerCase()),
+      );
       return posReq > posPrev;
     });
 
@@ -90,15 +99,23 @@ export class ValidationService {
 
     const bodyText = root.text.toLowerCase();
     const wordCount = bodyText.split(/\s+/).filter(Boolean).length;
-    const kwCount = (bodyText.match(new RegExp(kwLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) ?? []).length;
+    const kwCount = (
+      bodyText.match(
+        new RegExp(kwLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+      ) ?? []
+    ).length;
     const density = wordCount > 0 ? (kwCount / wordCount) * 100 : 0;
 
     if (density >= 1.0 && density <= 2.5) {
       seo += 10;
     } else if (density < 1.0) {
-      issues.push(`Densidade da keyword baixa (${density.toFixed(2)}% — mínimo 1.0%)`);
+      issues.push(
+        `Densidade da keyword baixa (${density.toFixed(2)}% — mínimo 1.0%)`,
+      );
     } else {
-      issues.push(`Densidade da keyword alta (${density.toFixed(2)}% — máximo 2.5%)`);
+      issues.push(
+        `Densidade da keyword alta (${density.toFixed(2)}% — máximo 2.5%)`,
+      );
     }
 
     // ── Content checks (30 pts) ───────────────────────────────────────
@@ -107,7 +124,9 @@ export class ValidationService {
     if (wordCount >= minWords) {
       content += 20;
     } else {
-      issues.push(`Contagem de palavras insuficiente (${wordCount} — mínimo ${minWords})`);
+      issues.push(
+        `Contagem de palavras insuficiente (${wordCount} — mínimo ${minWords})`,
+      );
     }
 
     const hasUnfilledPlaceholders = /\{\{[^}]+\}\}/.test(html);

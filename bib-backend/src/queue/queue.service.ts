@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../common/supabase.service';
+import { DbCountResult, DbResult } from '../common/supabase.types';
 
 export interface QueueItem {
   id: string;
@@ -27,7 +28,12 @@ export interface QueueStats {
 export class QueueService {
   constructor(private readonly supabase: SupabaseService) {}
 
-  async enqueue(serviceId: string, cities: string[], mode: 'ai' | 'template' | 'library' = 'ai', templateId?: string): Promise<QueueItem[]> {
+  async enqueue(
+    serviceId: string,
+    cities: string[],
+    mode: 'ai' | 'template' | 'library' = 'ai',
+    templateId?: string,
+  ): Promise<QueueItem[]> {
     // Remove failed and done items so they can be re-queued fresh
     await this.supabase
       .getClient()
@@ -45,34 +51,37 @@ export class QueueService {
       template_id: templateId ?? null,
     }));
 
-    const { data, error } = await this.supabase
+    const { data, error } = (await this.supabase
       .getClient()
       .from('queue')
       .upsert(rows, { onConflict: 'service_id,city', ignoreDuplicates: true })
-      .select();
+      .select()) as DbResult<QueueItem[]>;
 
     if (error) throw new Error(error.message);
-    return (data ?? []) as QueueItem[];
+    return data ?? [];
   }
 
   async pickNext(): Promise<QueueItem | null> {
-    const { data, error } = await this.supabase
+    const { data, error } = (await this.supabase
       .getClient()
       .from('queue')
       .select()
       .eq('status', 'pending')
       .order('created_at', { ascending: true })
       .limit(1)
-      .maybeSingle();
+      .maybeSingle()) as DbResult<QueueItem>;
 
     if (error) throw new Error(error.message);
-    return data as QueueItem | null;
+    return data;
   }
 
-  async pickAndClaim(mode: 'ai' | 'template' | 'library'): Promise<QueueItem | null> {
-    const modeFilter = mode === 'ai' ? 'mode.eq.ai,mode.is.null' : `mode.eq.${mode}`;
+  async pickAndClaim(
+    mode: 'ai' | 'template' | 'library',
+  ): Promise<QueueItem | null> {
+    const modeFilter =
+      mode === 'ai' ? 'mode.eq.ai,mode.is.null' : `mode.eq.${mode}`;
 
-    const { data: item } = await this.supabase
+    const { data: item } = (await this.supabase
       .getClient()
       .from('queue')
       .select()
@@ -80,24 +89,24 @@ export class QueueService {
       .or(modeFilter)
       .order('created_at', { ascending: true })
       .limit(1)
-      .maybeSingle();
+      .maybeSingle()) as DbResult<QueueItem>;
 
     if (!item) return null;
 
-    const { data: claimed } = await this.supabase
+    const { data: claimed } = (await this.supabase
       .getClient()
       .from('queue')
       .update({
         status: 'processing',
         started_at: new Date().toISOString(),
-        attempts: (item as QueueItem).attempts + 1,
+        attempts: item.attempts + 1,
       })
-      .eq('id', (item as QueueItem).id)
+      .eq('id', item.id)
       .eq('status', 'pending')
       .select()
-      .maybeSingle();
+      .maybeSingle()) as DbResult<QueueItem>;
 
-    return (claimed ?? null) as QueueItem | null;
+    return claimed ?? null;
   }
 
   async hasPending(mode?: 'ai' | 'template' | 'library'): Promise<boolean> {
@@ -108,23 +117,24 @@ export class QueueService {
       .eq('status', 'pending');
 
     if (mode) {
-      query = mode === 'ai'
-        ? query.or('mode.eq.ai,mode.is.null')
-        : query.eq('mode', mode);
+      query =
+        mode === 'ai'
+          ? query.or('mode.eq.ai,mode.is.null')
+          : query.eq('mode', mode);
     }
 
-    const { count } = await query;
+    const { count } = (await query) as DbCountResult<null>;
     return (count ?? 0) > 0;
   }
 
   async markProcessing(id: string): Promise<void> {
     // First read current attempts
-    const { data: row } = await this.supabase
+    const { data: row } = (await this.supabase
       .getClient()
       .from('queue')
       .select('attempts')
       .eq('id', id)
-      .single();
+      .single()) as DbResult<{ attempts: number | null }>;
 
     await this.supabase
       .getClient()
@@ -132,7 +142,7 @@ export class QueueService {
       .update({
         status: 'processing',
         started_at: new Date().toISOString(),
-        attempts: ((row?.attempts as number) ?? 0) + 1,
+        attempts: (row?.attempts ?? 0) + 1,
       })
       .eq('id', id);
   }
@@ -170,24 +180,30 @@ export class QueueService {
   }
 
   async findByService(serviceId: string): Promise<QueueItem[]> {
-    const { data, error } = await this.supabase
+    const { data, error } = (await this.supabase
       .getClient()
       .from('queue')
       .select()
       .eq('service_id', serviceId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })) as DbResult<QueueItem[]>;
 
     if (error) throw new Error(error.message);
     return data as QueueItem[];
   }
 
-  async findAll(filters: { status?: string; service_id?: string } = {}): Promise<QueueItem[]> {
-    let query = this.supabase.getClient().from('queue').select().order('created_at', { ascending: false });
+  async findAll(
+    filters: { status?: string; service_id?: string } = {},
+  ): Promise<QueueItem[]> {
+    let query = this.supabase
+      .getClient()
+      .from('queue')
+      .select()
+      .order('created_at', { ascending: false });
 
     if (filters.status) query = query.eq('status', filters.status);
     if (filters.service_id) query = query.eq('service_id', filters.service_id);
 
-    const { data, error } = await query;
+    const { data, error } = (await query) as DbResult<QueueItem[]>;
     if (error) throw new Error(error.message);
     return data as QueueItem[];
   }
@@ -196,11 +212,11 @@ export class QueueService {
     const statuses = ['pending', 'processing', 'done', 'failed'] as const;
     const counts = await Promise.all(
       statuses.map(async (s) => {
-        const { count } = await this.supabase
+        const { count } = (await this.supabase
           .getClient()
           .from('queue')
           .select('id', { count: 'exact', head: true })
-          .eq('status', s);
+          .eq('status', s)) as DbCountResult<null>;
         return [s, count ?? 0] as const;
       }),
     );
@@ -208,14 +224,15 @@ export class QueueService {
   }
 
   async remove(id: string): Promise<void> {
-    const { data, error } = await this.supabase
+    const { data, error } = (await this.supabase
       .getClient()
       .from('queue')
       .select('status')
       .eq('id', id)
-      .single();
+      .single()) as DbResult<{ status: QueueItem['status'] }>;
 
-    if (error || !data) throw new NotFoundException(`Queue item ${id} not found`);
+    if (error || !data)
+      throw new NotFoundException(`Queue item ${id} not found`);
     if (data.status !== 'pending') {
       throw new Error('Only pending items can be removed');
     }
@@ -224,16 +241,22 @@ export class QueueService {
   }
 
   async retry(id: string): Promise<QueueItem> {
-    const { data, error } = await this.supabase
+    const { data, error } = (await this.supabase
       .getClient()
       .from('queue')
-      .update({ status: 'pending', error: null, started_at: null, finished_at: null })
+      .update({
+        status: 'pending',
+        error: null,
+        started_at: null,
+        finished_at: null,
+      })
       .eq('id', id)
       .eq('status', 'failed')
       .select()
-      .single();
+      .single()) as DbResult<QueueItem>;
 
-    if (error || !data) throw new NotFoundException(`Queue item ${id} not found or not failed`);
-    return data as QueueItem;
+    if (error || !data)
+      throw new NotFoundException(`Queue item ${id} not found or not failed`);
+    return data;
   }
 }

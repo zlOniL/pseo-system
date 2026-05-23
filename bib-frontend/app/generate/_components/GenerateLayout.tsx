@@ -45,7 +45,9 @@ export function GenerateLayout() {
     : "";
 
   useEffect(() => {
-    api.getWpCategories().then(setWpCategories).catch(() => {});
+    const siteId = window.localStorage.getItem("bib-selected-site-id") ?? "";
+    if (!siteId) return;
+    api.getWpCategories(siteId).then(setWpCategories).catch(() => {});
   }, []);
 
   function addRelatedService() {
@@ -81,6 +83,7 @@ export function GenerateLayout() {
         video_url: videoUrl.trim() || undefined,
         skip_backlinks: true,
         wordpress_category: wpCategory || undefined,
+        site_id: window.localStorage.getItem("bib-selected-site-id") || undefined,
       });
       setResult(content);
       toast.success("Página gerada com sucesso!");

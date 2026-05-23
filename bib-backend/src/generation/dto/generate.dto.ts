@@ -1,4 +1,14 @@
-import { IsString, IsOptional, IsNumber, Min, Max, IsArray, ValidateNested, IsUUID, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  Min,
+  Max,
+  IsArray,
+  ValidateNested,
+  IsUUID,
+  IsBoolean,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class RelatedService {
@@ -62,10 +72,29 @@ export class GenerateDto {
   service_id?: string;
 
   @IsOptional()
+  @IsUUID()
+  site_id?: string;
+
+  @IsOptional()
   @IsBoolean()
   skip_backlinks?: boolean;
 
   @IsOptional()
   @IsString()
   wordpress_category?: string;
+
+  @IsOptional()
+  @IsString()
+  output_format?: 'html' | 'whitelabel_json';
+
+  @IsOptional()
+  content_json?: unknown;
+
+  @IsOptional()
+  @IsString()
+  external_page_type?: 'service' | 'service_location' | 'page';
+
+  @IsOptional()
+  @IsString()
+  external_slug?: string;
 }

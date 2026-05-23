@@ -3,19 +3,19 @@ import { SECTION_KEYS, SectionKey } from './service-templates.types';
 const EXCLUDED_KEYS = new Set(['atendemos_tambem']);
 
 const H2_MAP: Array<[RegExp, SectionKey | 'atendemos_tambem']> = [
-  [/Procura em Buscadores/i,               'procura_buscadores'],
-  [/Avarias Comuns/i,                      'avarias_comuns'],
-  [/Servi[çc]os Especializados/i,          'servicos_especializados'], // must come before generic 'servicos'
-  [/Servi[çc]os de /i,                     'servicos'],
-  [/Como Funciona/i,                       'como_funciona'],
-  [/Tipos de/i,                            'tipos'],
-  [/Preven[çc][ãa]o/i,                     'prevencao'],
-  [/Atendemos/i,                           'atendemos_tambem'],
-  [/Sistemas e Interven/i,                 'sistemas'],
-  [/Perguntas Frequentes/i,                'perguntas_frequentes'],
-  [/Pesquisas Relacionadas/i,              'pesquisas_relacionadas'],
-  [/Conclus[ãa]o/i,                        'conclusao'],
-  [/Mais sobre/i,                          'mais_sobre'],
+  [/Procura em Buscadores/i, 'procura_buscadores'],
+  [/Avarias Comuns/i, 'avarias_comuns'],
+  [/Servi[çc]os Especializados/i, 'servicos_especializados'], // must come before generic 'servicos'
+  [/Servi[çc]os de /i, 'servicos'],
+  [/Como Funciona/i, 'como_funciona'],
+  [/Tipos de/i, 'tipos'],
+  [/Preven[çc][ãa]o/i, 'prevencao'],
+  [/Atendemos/i, 'atendemos_tambem'],
+  [/Sistemas e Interven/i, 'sistemas'],
+  [/Perguntas Frequentes/i, 'perguntas_frequentes'],
+  [/Pesquisas Relacionadas/i, 'pesquisas_relacionadas'],
+  [/Conclus[ãa]o/i, 'conclusao'],
+  [/Mais sobre/i, 'mais_sobre'],
 ];
 
 function classifyH2(h2Text: string): SectionKey | 'atendemos_tambem' | null {

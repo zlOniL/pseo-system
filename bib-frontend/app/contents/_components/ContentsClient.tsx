@@ -17,9 +17,10 @@ function parseLimit(raw: string): number {
 
 interface ContentsClientProps {
   services: Service[];
+  siteId?: string;
 }
 
-export default function ContentsClient({ services }: ContentsClientProps) {
+export default function ContentsClient({ services, siteId }: ContentsClientProps) {
   // Estado local puro — sem leitura de URL nem sincronização com router
   const [status, setStatus] = useState('');
   const [service, setService] = useState('');
@@ -45,12 +46,22 @@ export default function ContentsClient({ services }: ContentsClientProps) {
   // ── Fetch de dados sempre que os filtros locais mudam ─────────────────────────
   useEffect(() => {
     let cancelled = false;
+
+    if (!siteId) {
+      setResult({ data: [], total: 0, page: 1, limit });
+      setLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     setLoading(true);
     api
       .listContents({
         status: status || undefined,
         service: service || undefined,
         city: city || undefined,
+        site_id: siteId,
         page,
         limit,
       })
@@ -58,12 +69,12 @@ export default function ContentsClient({ services }: ContentsClientProps) {
       .catch(() => { if (!cancelled) setResult({ data: [], total: 0, page: 1, limit }); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [status, service, city, page, limit, refreshTick]);
+  }, [status, service, city, page, limit, refreshTick, siteId]);
 
   // Limpa selecção quando os filtros mudam
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [status, service, city, page, limit]);
+  }, [status, service, city, page, limit, siteId]);
 
   // ── Handlers de filtros ───────────────────────────────────────────────────────
 

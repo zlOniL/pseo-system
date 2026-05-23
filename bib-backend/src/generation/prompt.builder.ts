@@ -632,27 +632,31 @@ export function buildPrompt(
 
   const enrichmentNotes: string[] = [];
   if (input.locality_notes?.trim()) {
-    enrichmentNotes.push(`\nContexto adicional sobre a localidade(usa estas informações para enriquecer o texto): ${input.locality_notes.trim()} `);
+    enrichmentNotes.push(
+      `\nContexto adicional sobre a localidade(usa estas informações para enriquecer o texto): ${input.locality_notes.trim()} `,
+    );
   }
   if (input.service_notes?.trim()) {
-    enrichmentNotes.push(`\nContexto adicional sobre o serviço / ferramentas(usa estas informações para enriquecer o texto): ${input.service_notes.trim()} `);
+    enrichmentNotes.push(
+      `\nContexto adicional sobre o serviço / ferramentas(usa estas informações para enriquecer o texto): ${input.service_notes.trim()} `,
+    );
   }
 
   let user = `Preenche o template HTML para o seguinte input:
 
 \`\`\`json
 ${JSON.stringify(
-    {
-      main_keyword: input.main_keyword,
-      service: input.service,
-      city: input.city,
-      neighborhood: input.neighborhood ?? '',
-      tone,
-      min_words: minWords,
-    },
-    null,
-    2,
-  )}
+  {
+    main_keyword: input.main_keyword,
+    service: input.service,
+    city: input.city,
+    neighborhood: input.neighborhood ?? '',
+    tone,
+    min_words: minWords,
+  },
+  null,
+  2,
+)}
 \`\`\`${cityNote}${relatedServicesNote}${enrichmentNotes.join('')}`;
 
   if (feedback) {

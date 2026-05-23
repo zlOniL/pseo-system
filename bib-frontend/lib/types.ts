@@ -1,11 +1,12 @@
 export interface Content {
   id: string;
   created_at: string;
+  site_id: string | null;
   main_keyword: string;
   service: string;
   city: string;
   neighborhood: string | null;
-  html: string;
+  html: string | null;
   score: number | null;
   score_issues: string[] | null;
   status: 'draft' | 'approved' | 'published';
@@ -15,8 +16,14 @@ export interface Content {
   images: string[] | null;
   related_services: RelatedService[] | null;
   meta_description: string | null;
-  generation_mode: 'ai' | 'template';
+  generation_mode: 'ai' | 'template' | 'library';
   wordpress_category: string | null;
+  output_format: 'html' | 'whitelabel_json';
+  content_json: WhitelabelContentJson | null;
+  external_page_type: 'service' | 'service_location' | 'page' | null;
+  external_slug: string | null;
+  external_page_id: number | null;
+  external_page_url: string | null;
 }
 
 export type ContentSummary = Omit<Content, 'html'>;
@@ -47,6 +54,7 @@ export interface GenerateInput {
   service_notes?: string;
   skip_backlinks?: boolean;
   wordpress_category?: string;
+  site_id?: string;
 }
 
 export interface RegenerateInput extends GenerateInput {
@@ -59,6 +67,7 @@ export interface RegenerateInput extends GenerateInput {
 export interface Service {
   id: string;
   created_at: string;
+  site_id: string | null;
   name: string;
   slug: string;
   video_url: string | null;
@@ -69,13 +78,16 @@ export interface Service {
   min_words: number;
   status: 'active' | 'archived';
   wordpress_category: string | null;
+  featured_image_asset_id: string | null;
+  featured_image_alt: string | null;
+  featured_image_url?: string | null;
   template_html: string | null;
   template_base_city: string | null;
   seo_title: string | null;
   seo_description: string | null;
 }
 
-export type CreateServiceInput = Omit<Service, 'id' | 'created_at' | 'slug' | 'status' | 'template_html' | 'template_base_city'>;
+export type CreateServiceInput = Omit<Service, 'id' | 'created_at' | 'slug' | 'status' | 'template_html' | 'template_base_city' | 'featured_image_url'>;
 
 export interface GenerateTemplateInput {
   base_city?: string;
@@ -97,8 +109,11 @@ export interface ServiceTemplate {
   id: string;
   created_at: string;
   service_id: string;
+  site_id: string | null;
   version: number;
-  html: string;
+  html: string | null;
+  content_json: WhitelabelContentJson | null;
+  output_format: 'html' | 'whitelabel_json';
   base_city: string | null;
   images: string[];
   video_url: string | null;
@@ -158,12 +173,13 @@ export interface RegionWithCities {
 // ── WordPress Media ───────────────────────────────────────────────────────────
 
 export interface MediaItem {
-  id: number;
+  id: number | string;
   title: string;
   url: string;
   mime_type: string;
   date: string;
   thumbnail: string | null;
+  alt?: string | null;
 }
 
 export interface MediaResponse {
@@ -173,6 +189,24 @@ export interface MediaResponse {
   page: number;
 }
 
+export interface MediaAsset {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  site_id: string | null;
+  bucket: string;
+  storage_path: string;
+  public_url: string;
+  title: string;
+  alt: string | null;
+  mime_type: string;
+  size_bytes: number;
+  width: number | null;
+  height: number | null;
+  tags: string[];
+  source: string;
+}
+
 // ── Bulk Operations ───────────────────────────────────────────────────────────
 
 export interface BulkPublishResult {
@@ -180,4 +214,34 @@ export interface BulkPublishResult {
   success: boolean;
   data?: Content;
   error?: string;
+}
+
+export interface Site {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  name: string;
+  domain: string;
+  integration_type: 'wordpress' | 'whitelabel_api';
+  wordpress_base_url: string | null;
+  status: 'active' | 'archived';
+  has_api_token: boolean;
+  has_wordpress_secret: boolean;
+}
+
+export interface CreateSiteInput {
+  name: string;
+  domain: string;
+  integration_type: 'wordpress' | 'whitelabel_api';
+  api_token?: string;
+  wordpress_base_url?: string;
+  wordpress_secret?: string;
+}
+
+export interface WhitelabelContentJson {
+  topbar?: { left?: string[] };
+  hero?: Record<string, unknown>;
+  form?: Record<string, unknown>;
+  article?: { blocks?: Array<Record<string, unknown>> } | Array<Record<string, unknown>>;
+  faqs?: Array<{ question: string; answer: string }>;
 }

@@ -2,8 +2,11 @@ export interface ServiceTemplate {
   id: string;
   created_at: string;
   service_id: string;
+  site_id: string | null;
   version: number;
-  html: string;
+  html: string | null;
+  content_json: unknown;
+  output_format: 'html' | 'whitelabel_json';
   base_city: string | null;
   images: string[];
   video_url: string | null;
@@ -33,10 +36,13 @@ export interface SectionLibraryRow {
   id: string;
   created_at: string;
   service_id: string;
+  site_id: string | null;
   template_id: string | null;
   section_key: SectionKey;
   version: number;
-  html: string;
+  html: string | null;
+  content_json: unknown;
+  output_format: 'html' | 'whitelabel_json';
   base_city: string;
 }
 

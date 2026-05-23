@@ -64,7 +64,10 @@ export function injectImages(
 
     const anchor = STRUCTURAL_ANCHORS[i];
     if (anchor && anchor.test(html)) {
-      html = html.replace(anchor, `${buildImgHtml(src, alts[i] ?? keyword)}\n$1`);
+      html = html.replace(
+        anchor,
+        `${buildImgHtml(src, alts[i] ?? keyword)}\n$1`,
+      );
     }
   }
 

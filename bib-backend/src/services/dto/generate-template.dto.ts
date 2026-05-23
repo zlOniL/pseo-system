@@ -1,4 +1,10 @@
-import { IsOptional, IsString, IsArray, IsBoolean, ValidateNested } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsArray,
+  IsBoolean,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class RelatedServiceDto {

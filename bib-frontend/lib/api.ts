@@ -15,8 +15,11 @@ import {
   QueueStats,
   RegionWithCities,
   MediaResponse,
+  MediaAsset,
   BulkPublishResult,
   WpCategory,
+  Site,
+  CreateSiteInput,
 } from './types';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -30,21 +33,44 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     const body = await res.text();
     throw new Error(`API error ${res.status}: ${body}`);
   }
-  return res.json() as Promise<T>;
+  const body = await res.text();
+  return (body ? JSON.parse(body) : null) as T;
 }
 
 export const api = {
   generate: (input: GenerateInput) =>
     request<Content>('/generate', { method: 'POST', body: JSON.stringify(input) }),
 
+  listSites: () => request<Site[]>('/sites'),
+
+  getSite: (id: string) => request<Site>(`/sites/${id}`),
+
+  createSite: (input: CreateSiteInput) =>
+    request<Site>('/sites', { method: 'POST', body: JSON.stringify(input) }),
+
+  updateSite: (id: string, input: Partial<CreateSiteInput>) =>
+    request<Site>(`/sites/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
+
+  refreshWhitelabelBlueprints: (siteId: string) =>
+    request<{ ok: boolean; blueprints: string[] }>(`/sites/${siteId}/whitelabel/blueprints/refresh`, { method: 'POST' }),
+
+  testWhitelabelApi: (siteId: string) =>
+    request<{ ok: boolean }>(`/sites/${siteId}/whitelabel/test`, { method: 'POST' }),
+
+  syncWhitelabelServiceImage: (siteId: string, serviceId: string) =>
+    request<{ data: unknown }>(`/sites/${siteId}/whitelabel/services/${serviceId}/image/sync`, {
+      method: 'POST',
+    }),
+
   regenerate: (input: RegenerateInput) =>
     request<Content>('/regenerate', { method: 'POST', body: JSON.stringify(input) }),
 
-  listContents: (params?: { status?: string; service?: string; city?: string; page?: number; limit?: number }) => {
+  listContents: (params?: { status?: string; service?: string; city?: string; page?: number; limit?: number; site_id?: string }) => {
     const qs = new URLSearchParams();
     if (params?.status) qs.set('status', params.status);
     if (params?.service) qs.set('service', params.service);
     if (params?.city) qs.set('city', params.city);
+    if (params?.site_id) qs.set('site_id', params.site_id);
     if (params?.page && params.page > 1) qs.set('page', String(params.page));
     if (params?.limit) qs.set('limit', String(params.limit));
     const q = qs.toString();
@@ -90,7 +116,7 @@ export const api = {
 
   // ── Services ────────────────────────────────────────────────────────────────
 
-  listServices: () => request<Service[]>('/services'),
+  listServices: (siteId?: string) => request<Service[]>(`/services${siteId ? `?site_id=${siteId}` : ''}`),
 
   getService: (id: string) => request<Service>(`/services/${id}`),
 
@@ -160,6 +186,9 @@ export const api = {
   getLibrarySummary: (serviceId: string) =>
     request<SectionLibrarySummary[]>(`/services/${serviceId}/templates/library-summary`),
 
+  getMainTemplateContent: (serviceId: string) =>
+    request<Content | null>(`/services/${serviceId}/templates/main-content`),
+
   // ── Cities ───────────────────────────────────────────────────────────────────
 
   getCities: () => request<RegionWithCities[]>('/cities'),
@@ -179,19 +208,55 @@ export const api = {
 
   // ── WordPress Media ─────────────────────────────────────────────────────────
 
-  listMedia: (type: 'image' | 'video', page: number, search: string) =>
+  listMedia: (type: 'image' | 'video', page: number, search: string, siteId?: string) =>
     request<MediaResponse>(
-      `/wordpress/media?type=${type}&page=${page}&search=${encodeURIComponent(search)}`,
+      `/wordpress/media?type=${type}&page=${page}&search=${encodeURIComponent(search)}${siteId ? `&site_id=${siteId}` : ''}`,
     ),
 
-  // ── WordPress Categories (proxied via Vercel to avoid Render IP block) ───────
+  listSupabaseMedia: (type: 'image', page: number, search: string, siteId?: string) => {
+    const qs = new URLSearchParams({ type, page: String(page), search });
+    if (siteId) qs.set('site_id', siteId);
+    return request<MediaResponse>(`/media?${qs.toString()}`);
+  },
 
-  getWpCategories: async () => {
-    const res = await fetch('/api/wp-cats', { headers: { 'Content-Type': 'application/json' } });
+  uploadSupabaseMedia: async (input: {
+    files: Array<{ file: File; title?: string; alt?: string }>;
+    site_id?: string;
+    tags?: string[];
+  }) => {
+    const form = new FormData();
+    input.files.forEach((item) => {
+      form.append('files', item.file);
+      form.append('titles', item.title ?? '');
+      form.append('alts', item.alt ?? '');
+    });
+    if (input.site_id) form.set('site_id', input.site_id);
+    if (input.tags?.length) form.set('tags', input.tags.join(','));
+
+    const res = await fetch(`${BASE_URL}/media/upload`, {
+      method: 'POST',
+      body: form,
+    });
     if (!res.ok) {
       const body = await res.text();
       throw new Error(`API error ${res.status}: ${body}`);
     }
-    return res.json() as Promise<WpCategory[]>;
+    return res.json() as Promise<MediaAsset[]>;
   },
+
+  updateSupabaseMedia: (id: string, input: { title?: string; alt?: string; tags?: string[] }) =>
+    request<MediaAsset>(`/media/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
+
+  deleteSupabaseMedia: async (id: string): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/media/${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`API error ${res.status}: ${body}`);
+    }
+  },
+
+  // ── WordPress Categories ────────────────────────────────────────────────────
+
+  getWpCategories: (siteId?: string) =>
+    request<WpCategory[]>(`/wordpress/categories${siteId ? `?site_id=${siteId}` : ''}`),
 };

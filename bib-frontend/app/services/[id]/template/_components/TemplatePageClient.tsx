@@ -4,8 +4,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
-import { Service, ServiceTemplate, GenerateTemplateInput, SectionLibrarySummary, RelatedService } from '@/lib/types';
+import { Content, Service, ServiceTemplate, GenerateTemplateInput, SectionLibrarySummary, RelatedService } from '@/lib/types';
 import { PreviewPane, buildPreviewHtml } from '@/app/generate/_components/PreviewPane';
+import { WhitelabelTextPreview } from '@/app/_components/WhitelabelTextPreview';
 
 // ── tipos locais ──────────────────────────────────────────────────────────────
 
@@ -330,7 +331,10 @@ interface Props {
 
 export default function TemplatePageClient({ service }: Props) {
   const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [templates, setTemplates] = useState<ServiceTemplate[]>([]);
@@ -339,18 +343,22 @@ export default function TemplatePageClient({ service }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ServiceTemplate | undefined>();
   const [previewTemplate, setPreviewTemplate] = useState<ServiceTemplate | null>(null);
+  const [mainContent, setMainContent] = useState<Content | null>(null);
   const [reextracting, setReextracting] = useState(false);
+  const [mainActionLoading, setMainActionLoading] = useState(false);
   const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
   const [showQueueModal, setShowQueueModal] = useState(false);
 
   async function reload() {
-    const [tpls, sum] = await Promise.all([
+    const [tpls, sum, main] = await Promise.all([
       api.listTemplates(service.id),
       api.getLibrarySummary(service.id),
+      api.getMainTemplateContent(service.id),
     ]);
     if (mountedRef.current) {
       setTemplates(tpls);
       setSummary(sum);
+      setMainContent(main);
     }
   }
 
@@ -379,6 +387,7 @@ export default function TemplatePageClient({ service }: Props) {
         toast.success(`Template #${res.template.version} guardado com ${res.sections_saved} secções extraídas.`);
         if (mountedRef.current) {
           setPreviewTemplate(res.template);
+          if (res.template.is_main_page) setMainContent(res.content);
           void reload();
         }
       })
@@ -417,6 +426,34 @@ export default function TemplatePageClient({ service }: Props) {
       void reload();
     } finally {
       if (mountedRef.current) setReextracting(false);
+    }
+  }
+
+  async function handleApproveMainContent() {
+    if (!mainContent) return;
+    setMainActionLoading(true);
+    try {
+      const updated = await api.approveContent(mainContent.id);
+      setMainContent(updated);
+      toast.success('Pagina principal aprovada.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao aprovar pagina principal.');
+    } finally {
+      setMainActionLoading(false);
+    }
+  }
+
+  async function handlePublishMainContent() {
+    if (!mainContent) return;
+    setMainActionLoading(true);
+    try {
+      const updated = await api.publishContent(mainContent.id);
+      setMainContent(updated);
+      toast.success(updated.output_format === 'whitelabel_json' ? 'Pagina principal publicada via API.' : 'Pagina principal publicada no WordPress.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao publicar pagina principal.');
+    } finally {
+      setMainActionLoading(false);
     }
   }
 
@@ -564,20 +601,61 @@ export default function TemplatePageClient({ service }: Props) {
                   ? `Template #${previewTemplate.version} · Página Principal`
                   : `Template #${previewTemplate.version} · ${previewTemplate.base_city}`}
               </span>
-              <button
+              {previewTemplate.output_format !== 'whitelabel_json' && <button
                 onClick={() => {
-                  navigator.clipboard.writeText(buildPreviewHtml(previewTemplate.html, previewTemplate.video_url ?? undefined, 'ai'))
+                  navigator.clipboard.writeText(buildPreviewHtml(previewTemplate.html ?? '', previewTemplate.video_url ?? undefined, 'ai'))
                     .then(() => toast.success('HTML copiado para a área de transferência.'))
                     .catch(() => toast.error('Não foi possível copiar o HTML.'));
                 }}
                 className="ml-auto text-xs text-gray-500 hover:text-gray-900 border border-gray-200 rounded-md px-2.5 py-1.5 hover:bg-gray-50 transition-colors"
               >
                 Copiar HTML
-              </button>
+              </button>}
+              {previewTemplate.is_main_page && (
+                <div className={previewTemplate.output_format === 'whitelabel_json' ? 'ml-auto flex items-center gap-2' : 'flex items-center gap-2'}>
+                  {mainContent?.status === 'draft' && (
+                    <button
+                      onClick={handleApproveMainContent}
+                      disabled={mainActionLoading}
+                      className="text-xs text-white bg-gray-900 hover:bg-gray-800 disabled:opacity-40 border border-gray-900 rounded-md px-2.5 py-1.5 transition-colors"
+                    >
+                      Aprovar pagina
+                    </button>
+                  )}
+                  {mainContent?.status === 'approved' && (
+                    <button
+                      onClick={handlePublishMainContent}
+                      disabled={mainActionLoading}
+                      className="text-xs text-white bg-gray-900 hover:bg-gray-800 disabled:opacity-40 border border-gray-900 rounded-md px-2.5 py-1.5 transition-colors"
+                    >
+                      {mainContent.output_format === 'whitelabel_json' ? 'Publicar via API' : 'Publicar no WordPress'}
+                    </button>
+                  )}
+                  {mainContent?.status === 'published' && (mainContent.external_page_url || mainContent.wp_post_url) && (
+                    <a
+                      href={mainContent.external_page_url ?? mainContent.wp_post_url ?? '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md px-2.5 py-1.5 transition-colors"
+                    >
+                      Ver pagina
+                    </a>
+                  )}
+                  {!mainContent && (
+                    <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5">
+                      Conteudo principal nao encontrado
+                    </span>
+                  )}
+                </div>
+              )}
               <button onClick={() => setPreviewTemplate(null)} className="text-gray-400 hover:text-gray-700">✕</button>
             </div>
             <div className="p-4">
-              <PreviewPane html={previewTemplate.html} videoUrl={previewTemplate.video_url ?? undefined} loading={false} generationMode="ai" />
+              {previewTemplate.output_format === 'whitelabel_json' ? (
+                <WhitelabelTextPreview content={previewTemplate.content_json} />
+              ) : (
+                <PreviewPane html={previewTemplate.html ?? null} videoUrl={previewTemplate.video_url ?? undefined} loading={false} generationMode="ai" />
+              )}
             </div>
           </>
         ) : (

@@ -3,7 +3,10 @@
  * The template HTML is kept completely intact — no wrapper div, no extra styles.
  * Only the video section is added at the top when a videoUrl is provided.
  */
-export function assembleTemplateHtml(templateHtml: string, videoUrl?: string | null): string {
+export function assembleTemplateHtml(
+  templateHtml: string,
+  videoUrl?: string | null,
+): string {
   const video = videoUrl?.trim() ?? '';
   const videoSection = video
     ? `<section style="margin: 0; padding: 0;"><video src="${video}" style="width: 100%; height: auto; display: block;" autoplay="autoplay" loop="loop" muted="" controls="controls"></video></section>\n`
@@ -16,7 +19,10 @@ export function assembleTemplateHtml(templateHtml: string, videoUrl?: string | n
  * Wraps AI-generated content HTML in the fixed visual shell
  * (video header + inline styles + WhatsApp CTA)
  */
-export function assemblePageHtml(contentHtml: string, videoUrl?: string | null): string {
+export function assemblePageHtml(
+  contentHtml: string,
+  videoUrl?: string | null,
+): string {
   const waLink = process.env.WP_WHATSAPP_LINK ?? '';
   const video = videoUrl?.trim() ?? '';
 

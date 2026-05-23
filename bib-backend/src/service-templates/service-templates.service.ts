@@ -1,5 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { SupabaseService } from '../common/supabase.service';
+import { DbError, DbResult } from '../common/supabase.types';
 import { ServiceTemplate } from './service-templates.types';
 
 @Injectable()
@@ -7,84 +12,123 @@ export class ServiceTemplatesService {
   constructor(private readonly supabase: SupabaseService) {}
 
   async findByService(serviceId: string): Promise<ServiceTemplate[]> {
-    const { data, error } = await this.supabase
+    const { data, error } = (await this.supabase
       .getClient()
       .from('service_templates')
       .select('*')
       .eq('service_id', serviceId)
       .order('is_main_page', { ascending: false })
-      .order('version', { ascending: true });
+      .order('version', { ascending: true })) as DbResult<ServiceTemplate[]>;
 
-    if (error) throw new Error(error.message);
-    return (data ?? []) as ServiceTemplate[];
+    if (error) this.throwFriendlyTemplateError(error);
+    return data ?? [];
   }
 
   async findById(id: string): Promise<ServiceTemplate> {
-    const { data, error } = await this.supabase
+    const { data, error } = (await this.supabase
       .getClient()
       .from('service_templates')
       .select('*')
       .eq('id', id)
-      .single();
+      .single()) as DbResult<ServiceTemplate>;
 
-    if (error || !data) throw new NotFoundException(`Template ${id} not found`);
-    return data as ServiceTemplate;
+    if (error || !data) {
+      if (error) this.throwFriendlyTemplateError(error);
+      throw new NotFoundException(`Template ${id} not found`);
+    }
+    return data;
   }
 
   async create(
     serviceId: string,
-    html: string,
+    html: string | null,
     baseCity: string | null,
     images: string[],
     videoUrl: string | null,
     isMainPage = false,
     label?: string,
+    options?: {
+      siteId?: string | null;
+      outputFormat?: 'html' | 'whitelabel_json';
+      contentJson?: unknown;
+    },
   ): Promise<ServiceTemplate> {
     const nextVersion = await this.nextVersion(serviceId);
 
-    const { data, error } = await this.supabase
+    const { data, error } = (await this.supabase
       .getClient()
       .from('service_templates')
-      .insert({ service_id: serviceId, version: nextVersion, html, base_city: baseCity, images, video_url: videoUrl, is_main_page: isMainPage, label: label ?? null })
+      .insert({
+        service_id: serviceId,
+        site_id: options?.siteId ?? null,
+        version: nextVersion,
+        html,
+        content_json: options?.contentJson ?? null,
+        output_format: options?.outputFormat ?? 'html',
+        base_city: baseCity,
+        images,
+        video_url: videoUrl,
+        is_main_page: isMainPage,
+        label: label ?? null,
+      })
       .select()
-      .single();
+      .single()) as DbResult<ServiceTemplate>;
 
-    if (error) throw new Error(error.message);
+    if (error) this.throwFriendlyTemplateError(error);
     return data as ServiceTemplate;
   }
 
   async update(
     id: string,
-    html: string,
+    html: string | null,
     baseCity: string | null,
     images: string[],
     videoUrl: string | null,
     isMainPage = false,
     label?: string,
+    options?: {
+      outputFormat?: 'html' | 'whitelabel_json';
+      contentJson?: unknown;
+    },
   ): Promise<ServiceTemplate> {
-    const { data, error } = await this.supabase
+    const { data, error } = (await this.supabase
       .getClient()
       .from('service_templates')
-      .update({ html, base_city: baseCity, images, video_url: videoUrl, is_main_page: isMainPage, label: label ?? null })
+      .update({
+        html,
+        content_json: options?.contentJson ?? null,
+        output_format: options?.outputFormat ?? 'html',
+        base_city: baseCity,
+        images,
+        video_url: videoUrl,
+        is_main_page: isMainPage,
+        label: label ?? null,
+      })
       .eq('id', id)
       .select()
-      .single();
+      .single()) as DbResult<ServiceTemplate>;
 
-    if (error || !data) throw new NotFoundException(`Template ${id} not found`);
-    return data as ServiceTemplate;
+    if (error || !data) {
+      if (error) this.throwFriendlyTemplateError(error);
+      throw new NotFoundException(`Template ${id} not found`);
+    }
+    return data;
   }
 
   async rename(id: string, label: string): Promise<ServiceTemplate> {
-    const { data, error } = await this.supabase
+    const { data, error } = (await this.supabase
       .getClient()
       .from('service_templates')
       .update({ label: label.trim() || null })
       .eq('id', id)
       .select()
-      .single();
+      .single()) as DbResult<ServiceTemplate>;
 
-    if (error || !data) throw new NotFoundException(`Template ${id} not found`);
-    return data as ServiceTemplate;
+    if (error || !data) {
+      if (error) this.throwFriendlyTemplateError(error);
+      throw new NotFoundException(`Template ${id} not found`);
+    }
+    return data;
   }
 
   async delete(id: string): Promise<void> {
@@ -94,19 +138,33 @@ export class ServiceTemplatesService {
       .delete()
       .eq('id', id);
 
-    if (error) throw new Error(error.message);
+    if (error) this.throwFriendlyTemplateError(error);
   }
 
   private async nextVersion(serviceId: string): Promise<number> {
-    const { data } = await this.supabase
+    const { data } = (await this.supabase
       .getClient()
       .from('service_templates')
       .select('version')
       .eq('service_id', serviceId)
       .order('version', { ascending: false })
       .limit(1)
-      .maybeSingle();
+      .maybeSingle()) as DbResult<{ version: number }>;
 
-    return ((data as { version: number } | null)?.version ?? 0) + 1;
+    return (data?.version ?? 0) + 1;
+  }
+
+  private throwFriendlyTemplateError(error: DbError): never {
+    if (error.code === '42703') {
+      throw new BadRequestException(
+        `Coluna ausente em service_templates: ${error.message}. Execute a migration multi-site atualizada.`,
+      );
+    }
+    if (error.code === '23502') {
+      throw new BadRequestException(
+        `Constraint antiga bloqueou o template: ${error.message}. Garanta que service_templates.html permite NULL.`,
+      );
+    }
+    throw new BadRequestException(error.message);
   }
 }

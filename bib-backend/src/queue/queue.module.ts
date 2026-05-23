@@ -7,9 +7,17 @@ import { GenerationModule } from '../generation/generation.module';
 import { ContentsModule } from '../contents/contents.module';
 import { TemplateEngineModule } from '../template-engine/template-engine.module';
 import { ServiceTemplatesModule } from '../service-templates/service-templates.module';
+import { SitesModule } from '../sites/sites.module';
 
 @Module({
-  imports: [ServicesModule, GenerationModule, ContentsModule, TemplateEngineModule, ServiceTemplatesModule],
+  imports: [
+    ServicesModule,
+    GenerationModule,
+    ContentsModule,
+    TemplateEngineModule,
+    ServiceTemplatesModule,
+    SitesModule,
+  ],
   providers: [QueueService, QueueWorker],
   controllers: [QueueController],
   exports: [QueueService],

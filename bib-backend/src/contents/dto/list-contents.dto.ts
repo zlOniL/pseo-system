@@ -1,4 +1,11 @@
-import { IsOptional, IsIn, IsString, IsInt, Min } from 'class-validator';
+import {
+  IsOptional,
+  IsIn,
+  IsString,
+  IsInt,
+  Min,
+  IsUUID,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class ListContentsDto {
@@ -13,6 +20,10 @@ export class ListContentsDto {
   @IsOptional()
   @IsString()
   city?: string;
+
+  @IsOptional()
+  @IsUUID()
+  site_id?: string;
 
   @IsOptional()
   @Type(() => Number)

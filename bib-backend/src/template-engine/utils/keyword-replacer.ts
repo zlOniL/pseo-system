@@ -3,10 +3,25 @@
  * e.g. "Monte do Outreiro", "Albufeira de Cima", "Vila Nova de Gaia"
  */
 const PT_LOWERCASE_WORDS = new Set([
-  'de', 'do', 'da', 'dos', 'das',
-  'no', 'na', 'nos', 'nas',
-  'em', 'e', 'a', 'o',
-  'por', 'para', 'com', 'sob', 'sobre', 'entre',
+  'de',
+  'do',
+  'da',
+  'dos',
+  'das',
+  'no',
+  'na',
+  'nos',
+  'nas',
+  'em',
+  'e',
+  'a',
+  'o',
+  'por',
+  'para',
+  'com',
+  'sob',
+  'sobre',
+  'entre',
 ]);
 
 /**
@@ -37,7 +52,11 @@ function titleCasePt(str: string): string {
  *   - Title Case (first letter upper) → titleCasePt(target)
  *   - lowercase → lowercase target
  */
-export function replaceKeyword(html: string, baseCity: string, targetCity: string): string {
+export function replaceKeyword(
+  html: string,
+  baseCity: string,
+  targetCity: string,
+): string {
   const escaped = baseCity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const regex = new RegExp(escaped, 'gi');
 

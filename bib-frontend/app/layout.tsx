@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Geist } from "next/font/google";
 import Link from "next/link";
 import { Toaster } from "sonner";
 import LogoutButton from "./_components/LogoutButton";
 import { GenerationProvider } from "./_components/GenerationProvider";
 import { FloatingGenerationStatus } from "./_components/FloatingGenerationStatus";
+import SiteSelector from "./_components/SiteSelector";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -20,7 +22,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="h-full flex flex-col bg-white text-gray-800" suppressHydrationWarning>
         <nav className="shrink-0 bg-white border-b border-gray-200 px-6 h-14 flex items-center gap-6">
           <span className="font-semibold text-gray-900 text-sm tracking-tight">BIB SEO Engine</span>
+          <Suspense fallback={null}>
+            <SiteSelector />
+          </Suspense>
           <div className="h-4 w-px bg-gray-200" />
+          <Link
+            href="/sites"
+            className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
+          >
+            Sites
+          </Link>
           <Link
             href="/services"
             className="text-sm text-gray-500 hover:text-gray-900 transition-colors"

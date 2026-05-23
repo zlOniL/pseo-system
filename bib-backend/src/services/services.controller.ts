@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ServicesService } from './services.service';
 import { GenerationService } from '../generation/generation.service';
@@ -19,7 +20,7 @@ export class ServicesController {
   constructor(
     private readonly servicesService: ServicesService,
     private readonly generationService: GenerationService,
-  ) { }
+  ) {}
 
   @Post()
   create(@Body() dto: CreateServiceDto) {
@@ -27,8 +28,8 @@ export class ServicesController {
   }
 
   @Get()
-  findAll() {
-    return this.servicesService.findAll();
+  findAll(@Query('site_id') siteId?: string) {
+    return this.servicesService.findAll(siteId);
   }
 
   @Get(':id/template')
@@ -78,7 +79,7 @@ export class ServicesController {
 
     const updatedService = await this.servicesService.saveTemplate(
       id,
-      content.html,
+      content.html ?? '',
       baseCity,
       images,
       videoUrl,

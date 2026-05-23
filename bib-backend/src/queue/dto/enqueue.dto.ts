@@ -1,4 +1,11 @@
-import { IsArray, IsString, IsUUID, ArrayMinSize, IsOptional, IsIn } from 'class-validator';
+import {
+  IsArray,
+  IsString,
+  IsUUID,
+  ArrayMinSize,
+  IsOptional,
+  IsIn,
+} from 'class-validator';
 
 export class EnqueueDto {
   @IsUUID()

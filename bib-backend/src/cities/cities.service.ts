@@ -5,14 +5,29 @@ import { slugify } from '../common/slug';
 
 // Localities that require "na" (feminine article) in the URL and display
 const PREP_NA = new Set([
-  'Amadora', 'Maia', 'Moita', 'Margem Sul', 'Quinta do Conde',
-  'Pontinha', 'Odivelas', 'Reboleira', 'Brandoa', 'Damaia', 'Venda Nova',
+  'Amadora',
+  'Maia',
+  'Moita',
+  'Margem Sul',
+  'Quinta do Conde',
+  'Pontinha',
+  'Odivelas',
+  'Reboleira',
+  'Brandoa',
+  'Damaia',
+  'Venda Nova',
 ]);
 
 // Localities that require "no" (masculine article) in the URL and display
 const PREP_NO = new Set([
-  'Porto', 'Barreiro', 'Seixal', 'Montijo', 'Pinhal Novo',
-  'Gavà', 'Alentejo', 'Algarve',
+  'Porto',
+  'Barreiro',
+  'Seixal',
+  'Montijo',
+  'Pinhal Novo',
+  'Gavà',
+  'Alentejo',
+  'Algarve',
 ]);
 
 function getPrep(name: string): string {
@@ -30,17 +45,24 @@ export class CitiesService implements OnModuleInit {
 
   onModuleInit() {
     const localPath = path.join(process.cwd(), 'CITIES.md');
-    const citiesPath = process.env.CITIES_PATH
-      ?? (fs.existsSync(localPath) ? localPath : path.join(process.cwd(), '../CITIES.md'));
+    const citiesPath =
+      process.env.CITIES_PATH ??
+      (fs.existsSync(localPath)
+        ? localPath
+        : path.join(process.cwd(), '../CITIES.md'));
 
     try {
       const content = fs.readFileSync(citiesPath, 'utf-8');
       this.regions = this.parseCities(content);
       let total = 0;
       this.regions.forEach((locs) => (total += locs.length));
-      this.logger.log(`Loaded ${this.regions.size} regions, ${total} localities from CITIES.md`);
+      this.logger.log(
+        `Loaded ${this.regions.size} regions, ${total} localities from CITIES.md`,
+      );
     } catch (err) {
-      this.logger.warn(`Could not load CITIES.md from ${citiesPath}: ${(err as Error).message}`);
+      this.logger.warn(
+        `Could not load CITIES.md from ${citiesPath}: ${(err as Error).message}`,
+      );
     }
   }
 
@@ -104,7 +126,9 @@ export class CitiesService implements OnModuleInit {
   ): string {
     const region = this.findRegion(cityName);
     if (!region) {
-      this.logger.warn(`City "${cityName}" not found in CITIES.md — "Atendemos Também" will be empty`);
+      this.logger.warn(
+        `City "${cityName}" not found in CITIES.md — "Atendemos Também" will be empty`,
+      );
       return `<h2 style="color: #320000;">Também Atendemos nas Seguintes Localidades</h2>\n<ul>\n</ul>`;
     }
 
@@ -145,8 +169,11 @@ export class CitiesService implements OnModuleInit {
       const line = rawLine.trim();
       if (!line) continue;
 
-      const hasSeparator = line.includes(' - ') || line.includes(' | ') ||
-        line.includes('- ') || line.includes(' -');
+      const hasSeparator =
+        line.includes(' - ') ||
+        line.includes(' | ') ||
+        line.includes('- ') ||
+        line.includes(' -');
 
       if (!hasSeparator) {
         // This is a region header

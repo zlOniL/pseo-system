@@ -7,13 +7,30 @@ import { GenerationModule } from '../generation/generation.module';
 import { ServicesModule } from '../services/services.module';
 import { ContentsModule } from '../contents/contents.module';
 import { ValidationModule } from '../validation/validation.module';
+import { SitesModule } from '../sites/sites.module';
+import { WhitelabelApiModule } from '../integrations/whitelabel-api/whitelabel-api.module';
 
 // CitiesModule is @Global() — available everywhere without explicit import
 
 @Module({
-  imports: [GenerationModule, ServicesModule, ContentsModule, ValidationModule],
-  providers: [ServiceTemplatesService, SectionLibraryService, SectionAssemblerService],
+  imports: [
+    GenerationModule,
+    ServicesModule,
+    ContentsModule,
+    ValidationModule,
+    SitesModule,
+    WhitelabelApiModule,
+  ],
+  providers: [
+    ServiceTemplatesService,
+    SectionLibraryService,
+    SectionAssemblerService,
+  ],
   controllers: [ServiceTemplatesController],
-  exports: [ServiceTemplatesService, SectionLibraryService, SectionAssemblerService],
+  exports: [
+    ServiceTemplatesService,
+    SectionLibraryService,
+    SectionAssemblerService,
+  ],
 })
 export class ServiceTemplatesModule {}

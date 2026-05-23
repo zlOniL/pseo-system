@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-export function buildPreviewHtml(contentHtml: string, videoUrl?: string, generationMode?: 'ai' | 'template'): string {
+export function buildPreviewHtml(contentHtml: string, videoUrl?: string, generationMode?: 'ai' | 'template' | 'library'): string {
   const video = videoUrl?.trim() ?? "";
   const videoBlock = video
     ? `<section style="margin:0;padding:0"><video src="${video}" style="width:100%;height:auto;display:block;" autoplay loop muted controls></video></section>`
@@ -19,7 +19,7 @@ interface Props {
   html: string | null;
   videoUrl?: string;
   loading: boolean;
-  generationMode?: 'ai' | 'template';
+  generationMode?: 'ai' | 'template' | 'library';
 }
 
 export function PreviewPane({ html, videoUrl, loading, generationMode }: Props) {
