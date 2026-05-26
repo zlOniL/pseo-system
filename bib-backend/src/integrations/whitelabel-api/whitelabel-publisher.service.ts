@@ -1,13 +1,16 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ContentsService, Content } from '../../contents/contents.service';
 import { ServicesService } from '../../services/services.service';
 import { SitesService } from '../../sites/sites.service';
 import { WhitelabelApiClient } from './whitelabel-api.client';
 import { buildExternalSlug } from './whitelabel-json';
 import { WhitelabelPublishResult } from './whitelabel.types';
+import { applyCity } from '../../wordpress/seo-templates';
 
 @Injectable()
 export class WhitelabelPublisherService {
+  private readonly logger = new Logger(WhitelabelPublisherService.name);
+
   constructor(
     private readonly contents: ContentsService,
     private readonly services: ServicesService,
@@ -35,14 +38,30 @@ export class WhitelabelPublisherService {
       content.external_slug ??
       buildExternalSlug(content.service, content.city || undefined);
     const publicUrl = `https://${this.sites.normalizeDomain(site.domain)}/${slug}`;
+    const city = content.city ?? '';
+
+    let seoTitle = content.main_keyword;
+    let seoDescription = content.meta_description ?? '';
+
+    if (service?.seo_title) {
+      seoTitle = applyCity(service.seo_title, city);
+      seoDescription = applyCity(service.seo_description ?? '', city);
+      this.logger.log(
+        `Whitelabel SEO resolved for "${service.slug}": "${seoTitle}"`,
+      );
+    } else {
+      this.logger.warn(
+        `Service "${content.service}" has no seo_title for Whitelabel publish — using content fallback`,
+      );
+    }
 
     const payload: Record<string, unknown> = {
       slug,
       status: 'published',
       template: 'service-default',
       title: content.main_keyword,
-      seo_title: content.main_keyword,
-      seo_description: content.meta_description ?? '',
+      seo_title: seoTitle,
+      seo_description: seoDescription,
       content_json: content.content_json,
       related_pages_json: [],
     };
@@ -57,7 +76,7 @@ export class WhitelabelPublisherService {
         location_name: null,
         show_on_home: true,
         home_card_title: service?.name ?? content.service,
-        home_card_excerpt: content.meta_description ?? '',
+        home_card_excerpt: seoDescription,
         home_card_icon: (service?.name ?? content.service)
           .slice(0, 2)
           .toUpperCase(),
