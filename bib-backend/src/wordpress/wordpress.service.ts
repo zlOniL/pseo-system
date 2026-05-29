@@ -68,6 +68,11 @@ export class WordPressService {
     return `${base}/wp-json/custom/v1`;
   }
 
+  private wpDirectApiBase(site: Site): string {
+    const base = this.sites.wordpressBase(site);
+    return `${base}/wp-json/custom/v1`;
+  }
+
   private wpHeaders(site: Site): Record<string, string> {
     const secret = this.sites.wordpressSecret(site);
     if (!secret) {
@@ -566,7 +571,7 @@ export class WordPressService {
 
   async getCategories(siteId: string): Promise<WpCategory[]> {
     const site = await this.sites.findById(siteId);
-    const url = `${this.wpApiBase(site)}/wp-cats`;
+    const url = `${this.wpDirectApiBase(site)}/wp-cats`;
     this.logger.log(`getCategories → GET ${url}`);
     const response = await fetch(url, {
       headers: this.wpHeaders(site),
@@ -586,7 +591,7 @@ export class WordPressService {
     parent: string = 'Blog',
   ): Promise<WpCategory> {
     const site = await this.sites.findById(siteId);
-    const url = `${this.wpApiBase(site)}/wp-cats`;
+    const url = `${this.wpDirectApiBase(site)}/wp-cats`;
     const response = await fetch(url, {
       method: 'POST',
       headers: this.wpHeaders(site),
