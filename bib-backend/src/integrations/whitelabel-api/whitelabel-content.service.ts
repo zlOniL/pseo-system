@@ -80,7 +80,7 @@ export class WhitelabelContentService {
         },
       });
 
-      const raw = await this.ai.callOpenRouter(system, user);
+      const raw = await this.ai.generateText(system, user);
       const parsed = parseGeneratedPage(raw);
       const generated = input.isMainPage
         ? (removeMainPageGeoPlaceholders(parsed) as WhitelabelGeneratedPage)

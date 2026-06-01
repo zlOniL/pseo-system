@@ -73,7 +73,7 @@ export class GenerationService {
     feedback?: string,
   ): Promise<{ html: string; metaDescription: string }> {
     const { system, user } = buildPrompt(dto, feedback);
-    const raw = await this.ai.callOpenRouter(system, user);
+    const raw = await this.ai.generateText(system, user);
 
     const metaMatch = raw.match(/<!--\s*BIB_META:\s*([\s\S]*?)\s*-->/);
     const metaDescription = metaMatch ? metaMatch[1].trim() : '';

@@ -8,19 +8,36 @@ import {
 class RateLimitError extends Error {}
 class TransientAiError extends Error {}
 
+type OpenRouterResponse = {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
+};
+
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
+  private readonly openRouterUrl =
+    'https://openrouter.ai/api/v1/chat/completions';
   private readonly exhaustedUntil = new Map<string, number>();
 
   private getModels(): string[] {
-    const list = process.env.GOOGLE_AI_MODELS;
-    if (list)
+    const list = process.env.OPENROUTER_MODELS;
+    if (list) {
       return list
         .split(',')
         .map((m) => m.trim())
         .filter(Boolean);
-    return [process.env.GOOGLE_AI_MODEL ?? 'gemini-2.0-flash'];
+    }
+
+    return ['openrouter/owl-alpha'];
+  }
+
+  private getMaxTokens(): number {
+    const value = Number(process.env.OPENROUTER_MAX_TOKENS);
+    return Number.isFinite(value) && value > 0 ? value : 65536;
   }
 
   private isExhausted(model: string): boolean {
@@ -35,14 +52,17 @@ export class AiService {
     );
     this.exhaustedUntil.set(model, midnight.getTime());
     this.logger.warn(
-      `Model ${model} rate-limited — suspenso até ${midnight.toISOString()}`,
+      `Model ${model} rate-limited - suspended until ${midnight.toISOString()}`,
     );
   }
 
-  async callOpenRouter(
-    systemPrompt: string,
-    userPrompt: string,
-  ): Promise<string> {
+  async generateText(systemPrompt: string, userPrompt: string): Promise<string> {
+    if (!process.env.OPENROUTER_KEY) {
+      throw new ServiceUnavailableException(
+        'OPENROUTER_KEY nao configurada no backend',
+      );
+    }
+
     const available = this.getModels().filter((m) => !this.isExhausted(m));
 
     if (available.length === 0) {
@@ -74,21 +94,26 @@ export class AiService {
     );
   }
 
+  async callOpenRouter(
+    systemPrompt: string,
+    userPrompt: string,
+  ): Promise<string> {
+    return this.generateText(systemPrompt, userPrompt);
+  }
+
   private async tryModel(
     model: string,
     systemPrompt: string,
     userPrompt: string,
   ): Promise<string> {
-    const url =
-      'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-    this.logger.log(`Calling Google AI Studio model: ${model}`);
+    this.logger.log(`Calling OpenRouter model: ${model}`);
 
     const response = await this.fetchWithTransientRetry(
-      url,
+      this.openRouterUrl,
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${process.env.GOOGLE_AI_API_KEY}`,
+          Authorization: `Bearer ${process.env.OPENROUTER_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -97,7 +122,7 @@ export class AiService {
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt },
           ],
-          max_tokens: 65536,
+          max_tokens: this.getMaxTokens(),
         }),
       },
       model,
@@ -112,21 +137,29 @@ export class AiService {
     if (!response.ok) {
       const error = await response.text();
       this.logger.error(
-        `Google AI Studio error ${response.status} (${model}): ${error}`,
+        `OpenRouter error ${response.status} (${model}): ${error}`,
       );
       if (response.status >= 500 || response.status === 408) {
         throw new TransientAiError(this.compactError(error));
       }
+      if (response.status === 401 || response.status === 403) {
+        throw new BadRequestException(
+          `OpenRouter ${response.status}: verifique a OPENROUTER_KEY e as permissoes da conta`,
+        );
+      }
       throw new BadRequestException(
-        `Google AI Studio ${response.status}: ${this.compactError(error)}`,
+        `OpenRouter ${response.status}: ${this.compactError(error)}`,
       );
     }
 
-    const data = (await response.json()) as {
-      choices: { message: { content: string } }[];
-    };
+    const data = (await response.json()) as OpenRouterResponse;
+    const content = data.choices?.[0]?.message?.content ?? '';
 
-    return this.stripMarkdown(data.choices?.[0]?.message?.content ?? '');
+    if (!content.trim()) {
+      throw new BadRequestException('OpenRouter retornou uma resposta vazia');
+    }
+
+    return this.stripMarkdown(content);
   }
 
   private async fetchWithTransientRetry(
@@ -145,7 +178,7 @@ export class AiService {
       }
       const body = await response.text();
       this.logger.warn(
-        `Google AI Studio transient ${response.status} (${model}) attempt ${attempt}/${maxAttempts}: ${this.compactError(body)}`,
+        `OpenRouter transient ${response.status} (${model}) attempt ${attempt}/${maxAttempts}: ${this.compactError(body)}`,
       );
       await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
     }
