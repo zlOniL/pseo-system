@@ -7,6 +7,7 @@ import { ContentsModule } from '../contents/contents.module';
 import { CitiesModule } from '../cities/cities.module';
 import { SitesModule } from '../sites/sites.module';
 import { WhitelabelApiModule } from '../integrations/whitelabel-api/whitelabel-api.module';
+import { PromptContextModule } from '../prompt-context/prompt-context.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { WhitelabelApiModule } from '../integrations/whitelabel-api/whitelabel-a
     ContentsModule,
     CitiesModule,
     SitesModule,
+    PromptContextModule,
     forwardRef(() => WhitelabelApiModule),
   ],
   providers: [GenerationService],

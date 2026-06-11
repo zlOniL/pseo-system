@@ -1,5 +1,6 @@
 import {
   Content,
+  ContentSection,
   ContentSummary,
   PaginatedContents,
   GenerateInput,
@@ -39,7 +40,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   generate: (input: GenerateInput) =>
-    request<Content>('/generate', { method: 'POST', body: JSON.stringify(input) }),
+    request<Content>('/generate', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
 
   listSites: () => request<Site[]>('/sites'),
 
@@ -49,23 +53,44 @@ export const api = {
     request<Site>('/sites', { method: 'POST', body: JSON.stringify(input) }),
 
   updateSite: (id: string, input: Partial<CreateSiteInput>) =>
-    request<Site>(`/sites/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
+    request<Site>(`/sites/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
 
   refreshWhitelabelBlueprints: (siteId: string) =>
-    request<{ ok: boolean; blueprints: string[] }>(`/sites/${siteId}/whitelabel/blueprints/refresh`, { method: 'POST' }),
+    request<{ ok: boolean; blueprints: string[] }>(
+      `/sites/${siteId}/whitelabel/blueprints/refresh`,
+      { method: 'POST' },
+    ),
 
   testWhitelabelApi: (siteId: string) =>
-    request<{ ok: boolean }>(`/sites/${siteId}/whitelabel/test`, { method: 'POST' }),
-
-  syncWhitelabelServiceImage: (siteId: string, serviceId: string) =>
-    request<{ data: unknown }>(`/sites/${siteId}/whitelabel/services/${serviceId}/image/sync`, {
+    request<{ ok: boolean }>(`/sites/${siteId}/whitelabel/test`, {
       method: 'POST',
     }),
 
-  regenerate: (input: RegenerateInput) =>
-    request<Content>('/regenerate', { method: 'POST', body: JSON.stringify(input) }),
+  syncWhitelabelServiceImage: (siteId: string, serviceId: string) =>
+    request<{ data: unknown }>(
+      `/sites/${siteId}/whitelabel/services/${serviceId}/image/sync`,
+      {
+        method: 'POST',
+      },
+    ),
 
-  listContents: (params?: { status?: string; service?: string; city?: string; page?: number; limit?: number; site_id?: string }) => {
+  regenerate: (input: RegenerateInput) =>
+    request<Content>('/regenerate', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  listContents: (params?: {
+    status?: string;
+    service?: string;
+    city?: string;
+    page?: number;
+    limit?: number;
+    site_id?: string;
+  }) => {
     const qs = new URLSearchParams();
     if (params?.status) qs.set('status', params.status);
     if (params?.service) qs.set('service', params.service);
@@ -78,6 +103,29 @@ export const api = {
   },
 
   getContent: (id: string) => request<Content>(`/contents/${id}`),
+
+  getContentSections: (id: string) =>
+    request<ContentSection[]>(`/contents/${id}/sections`),
+
+  updateContentSection: (
+    id: string,
+    sectionKey: string,
+    input: { html?: string; content_json?: unknown },
+  ) =>
+    request<{ content: Content; section: ContentSection }>(
+      `/contents/${id}/sections/${sectionKey}`,
+      { method: 'PATCH', body: JSON.stringify(input) },
+    ),
+
+  regenerateContentSection: (
+    id: string,
+    sectionKey: string,
+    input?: { feedback?: string },
+  ) =>
+    request<{ content: Content; section: ContentSection }>(
+      `/contents/${id}/sections/${sectionKey}/regenerate`,
+      { method: 'POST', body: JSON.stringify(input ?? {}) },
+    ),
 
   approveContent: (id: string) =>
     request<Content>(`/contents/${id}/status`, {
@@ -116,15 +164,22 @@ export const api = {
 
   // ── Services ────────────────────────────────────────────────────────────────
 
-  listServices: (siteId?: string) => request<Service[]>(`/services${siteId ? `?site_id=${siteId}` : ''}`),
+  listServices: (siteId?: string) =>
+    request<Service[]>(`/services${siteId ? `?site_id=${siteId}` : ''}`),
 
   getService: (id: string) => request<Service>(`/services/${id}`),
 
   createService: (input: CreateServiceInput) =>
-    request<Service>('/services', { method: 'POST', body: JSON.stringify(input) }),
+    request<Service>('/services', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
 
   updateService: (id: string, input: Partial<CreateServiceInput>) =>
-    request<Service>(`/services/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
+    request<Service>(`/services/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
 
   deleteService: async (id: string): Promise<void> => {
     const res = await fetch(`${BASE_URL}/services/${id}`, { method: 'DELETE' });
@@ -142,9 +197,10 @@ export const api = {
     }),
 
   getServiceTemplate: (serviceId: string) =>
-    request<{ template_html: string | null; template_base_city: string | null }>(
-      `/services/${serviceId}/template`,
-    ),
+    request<{
+      template_html: string | null;
+      template_base_city: string | null;
+    }>(`/services/${serviceId}/template`),
 
   // ── Service Templates (multi-template) ──────────────────────────────────────
 
@@ -157,14 +213,27 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
-  regenerateTemplate: (serviceId: string, templateId: string, input: GenerateTemplateInput) =>
-    request<GenerateTemplateResult>(`/services/${serviceId}/templates/${templateId}`, {
-      method: 'PUT',
-      body: JSON.stringify(input),
-    }),
+  regenerateTemplate: (
+    serviceId: string,
+    templateId: string,
+    input: GenerateTemplateInput,
+  ) =>
+    request<GenerateTemplateResult>(
+      `/services/${serviceId}/templates/${templateId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      },
+    ),
 
-  deleteTemplate: async (serviceId: string, templateId: string): Promise<void> => {
-    const res = await fetch(`${BASE_URL}/services/${serviceId}/templates/${templateId}`, { method: 'DELETE' });
+  deleteTemplate: async (
+    serviceId: string,
+    templateId: string,
+  ): Promise<void> => {
+    const res = await fetch(
+      `${BASE_URL}/services/${serviceId}/templates/${templateId}`,
+      { method: 'DELETE' },
+    );
     if (!res.ok) {
       const body = await res.text();
       throw new Error(`API error ${res.status}: ${body}`);
@@ -172,19 +241,28 @@ export const api = {
   },
 
   renameTemplate: (serviceId: string, templateId: string, label: string) =>
-    request<import('./types').ServiceTemplate>(`/services/${serviceId}/templates/${templateId}/label`, {
-      method: 'PATCH',
-      body: JSON.stringify({ label }),
-    }),
-
-  reextractAllSections: (serviceId: string) =>
-    request<{ templates_processed: number; results: Array<{ templateId: string; version: number; sections_saved: number }> }>(
-      `/services/${serviceId}/templates/reextract-all`,
-      { method: 'POST' },
+    request<import('./types').ServiceTemplate>(
+      `/services/${serviceId}/templates/${templateId}/label`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ label }),
+      },
     ),
 
+  reextractAllSections: (serviceId: string) =>
+    request<{
+      templates_processed: number;
+      results: Array<{
+        templateId: string;
+        version: number;
+        sections_saved: number;
+      }>;
+    }>(`/services/${serviceId}/templates/reextract-all`, { method: 'POST' }),
+
   getLibrarySummary: (serviceId: string) =>
-    request<SectionLibrarySummary[]>(`/services/${serviceId}/templates/library-summary`),
+    request<SectionLibrarySummary[]>(
+      `/services/${serviceId}/templates/library-summary`,
+    ),
 
   getMainTemplateContent: (serviceId: string) =>
     request<Content | null>(`/services/${serviceId}/templates/main-content`),
@@ -195,8 +273,16 @@ export const api = {
 
   // ── Queue ─────────────────────────────────────────────────────────────────────
 
-  enqueue: (input: { service_id: string; cities: string[]; mode?: 'ai' | 'template' | 'library'; template_id?: string }) =>
-    request<QueueItem[]>('/queue/enqueue', { method: 'POST', body: JSON.stringify(input) }),
+  enqueue: (input: {
+    service_id: string;
+    cities: string[];
+    mode?: 'ai' | 'template' | 'library';
+    template_id?: string;
+  }) =>
+    request<QueueItem[]>('/queue/enqueue', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
 
   getQueueForService: (serviceId: string) =>
     request<QueueItem[]>(`/queue/service/${serviceId}`),
@@ -208,12 +294,22 @@ export const api = {
 
   // ── WordPress Media ─────────────────────────────────────────────────────────
 
-  listMedia: (type: 'image' | 'video', page: number, search: string, siteId?: string) =>
+  listMedia: (
+    type: 'image' | 'video',
+    page: number,
+    search: string,
+    siteId?: string,
+  ) =>
     request<MediaResponse>(
       `/wordpress/media?type=${type}&page=${page}&search=${encodeURIComponent(search)}${siteId ? `&site_id=${siteId}` : ''}`,
     ),
 
-  listSupabaseMedia: (type: 'image', page: number, search: string, siteId?: string) => {
+  listSupabaseMedia: (
+    type: 'image',
+    page: number,
+    search: string,
+    siteId?: string,
+  ) => {
     const qs = new URLSearchParams({ type, page: String(page), search });
     if (siteId) qs.set('site_id', siteId);
     return request<MediaResponse>(`/media?${qs.toString()}`);
@@ -244,8 +340,14 @@ export const api = {
     return res.json() as Promise<MediaAsset[]>;
   },
 
-  updateSupabaseMedia: (id: string, input: { title?: string; alt?: string; tags?: string[] }) =>
-    request<MediaAsset>(`/media/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
+  updateSupabaseMedia: (
+    id: string,
+    input: { title?: string; alt?: string; tags?: string[] },
+  ) =>
+    request<MediaAsset>(`/media/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
 
   deleteSupabaseMedia: async (id: string): Promise<void> => {
     const res = await fetch(`${BASE_URL}/media/${id}`, { method: 'DELETE' });
@@ -258,5 +360,7 @@ export const api = {
   // ── WordPress Categories ────────────────────────────────────────────────────
 
   getWpCategories: (siteId?: string) =>
-    request<WpCategory[]>(`/wordpress/categories${siteId ? `?site_id=${siteId}` : ''}`),
+    request<WpCategory[]>(
+      `/wordpress/categories${siteId ? `?site_id=${siteId}` : ''}`,
+    ),
 };

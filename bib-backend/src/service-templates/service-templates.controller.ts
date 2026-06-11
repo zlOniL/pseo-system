@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  Logger,
   Param,
   Patch,
   Post,
@@ -15,6 +16,7 @@ import { SectionLibraryService } from './section-library.service';
 import { GenerationService } from '../generation/generation.service';
 import { ServicesService } from '../services/services.service';
 import { ContentsService } from '../contents/contents.service';
+import { ContentSectionsService } from '../contents/content-sections.service';
 import { ValidationService } from '../validation/validation.service';
 import { CitiesService } from '../cities/cities.service';
 import { SitesService } from '../sites/sites.service';
@@ -25,16 +27,19 @@ import { slugify } from '../common/slug';
 import { buildMainPageCityLinksHtml } from '../template-engine/utils/main-page-city-links-builder';
 import { GenerateTemplateDto } from '../services/dto/generate-template.dto';
 import { buildExternalSlug } from '../integrations/whitelabel-api/whitelabel-json';
-import { ServiceTemplate } from './service-templates.types';
+import { SectionKey, ServiceTemplate } from './service-templates.types';
 
 @Controller('services/:serviceId/templates')
 export class ServiceTemplatesController {
+  private readonly logger = new Logger(ServiceTemplatesController.name);
+
   constructor(
     private readonly templates: ServiceTemplatesService,
     private readonly library: SectionLibraryService,
     private readonly generation: GenerationService,
     private readonly services: ServicesService,
     private readonly contents: ContentsService,
+    private readonly contentSections: ContentSectionsService,
     private readonly validation: ValidationService,
     private readonly cities: CitiesService,
     private readonly sites: SitesService,
@@ -290,6 +295,7 @@ export class ServiceTemplatesController {
       metaDescription,
       'ai',
     );
+    await this.persistHtmlSections(content.id, finalHtml);
 
     // Keep service.template_html in sync for backwards compat (only regular templates)
     if (!isMainPage) {
@@ -397,7 +403,35 @@ export class ServiceTemplatesController {
       generated.generated.page.seo_description,
       'ai',
     );
+    await this.persistJsonSections(content.id, generated.sections);
 
     return { template, content, sections_saved: sectionsSaved };
+  }
+
+  private async persistHtmlSections(
+    contentId: string,
+    html: string,
+  ): Promise<void> {
+    try {
+      const { sections } = parseHtmlSections(html);
+      await this.contentSections.replaceHtmlSections(contentId, sections);
+    } catch (err) {
+      this.logger.warn(
+        `Could not persist HTML sections for content ${contentId}: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  private async persistJsonSections(
+    contentId: string,
+    sections: Map<SectionKey, unknown>,
+  ): Promise<void> {
+    try {
+      await this.contentSections.replaceJsonSections(contentId, sections);
+    } catch (err) {
+      this.logger.warn(
+        `Could not persist JSON sections for content ${contentId}: ${(err as Error).message}`,
+      );
+    }
   }
 }

@@ -1,20 +1,30 @@
-"use client";
+'use client';
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { api } from "@/lib/api";
-import { Content, RelatedService, Service, Site, WpCategory } from "@/lib/types";
-import { useGeneration } from "@/app/_components/GenerationProvider";
-import MediaPickerModal from "@/app/_components/MediaPickerModal";
-import { WhitelabelTextPreview } from "@/app/_components/WhitelabelTextPreview";
-import { ScoreCard } from "@/app/generate/_components/ScoreCard";
-import { PreviewPane, buildPreviewHtml } from "@/app/generate/_components/PreviewPane";
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { api } from '@/lib/api';
+import {
+  Content,
+  RelatedService,
+  Service,
+  Site,
+  WpCategory,
+} from '@/lib/types';
+import { useGeneration } from '@/app/_components/GenerationProvider';
+import MediaPickerModal from '@/app/_components/MediaPickerModal';
+import { ContentSectionsPanel } from '@/app/_components/ContentSectionsPanel';
+import { WhitelabelSectionPreview } from '@/app/_components/WhitelabelSectionPreview';
+import { ScoreCard } from '@/app/generate/_components/ScoreCard';
+import {
+  PreviewPane,
+  buildPreviewHtml,
+} from '@/app/generate/_components/PreviewPane';
 
 function initImages(stored: string[] | null): string[] {
   const base = stored ?? [];
-  return Array.from({ length: 8 }, (_, index) => base[index] ?? "");
+  return Array.from({ length: 8 }, (_, index) => base[index] ?? '');
 }
 
 interface RelatedServiceDraft {
@@ -26,37 +36,40 @@ interface RelatedServiceDraft {
 
 function initRelated(stored: RelatedService[] | null): RelatedServiceDraft[] {
   if (!stored?.length) {
-    return [{ name: "", url: "", serviceId: "", useService: false }];
+    return [{ name: '', url: '', serviceId: '', useService: false }];
   }
 
   return stored.map((item) => ({
     name: item.name,
     url: item.url,
-    serviceId: "",
+    serviceId: '',
     useService: false,
   }));
 }
 
 function normalizeBaseUrl(site: Site | null): string {
-  if (!site) return "";
-  return (site.wordpress_base_url?.trim() || `https://${site.domain}`).replace(/\/+$/, "");
+  if (!site) return '';
+  return (site.wordpress_base_url?.trim() || `https://${site.domain}`).replace(
+    /\/+$/,
+    '',
+  );
 }
 
 function buildServiceUrl(site: Site | null, service: Service | null): string {
-  if (!site || !service) return "";
+  if (!site || !service) return '';
   return `${normalizeBaseUrl(site)}/${service.slug}/`;
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  draft: "Rascunho",
-  approved: "Aprovado",
-  published: "Publicado",
+  draft: 'Rascunho',
+  approved: 'Aprovado',
+  published: 'Publicado',
 };
 
 const STATUS_DOT: Record<string, string> = {
-  draft: "bg-gray-300",
-  approved: "bg-amber-400",
-  published: "bg-emerald-500",
+  draft: 'bg-gray-300',
+  approved: 'bg-amber-400',
+  published: 'bg-emerald-500',
 };
 
 function Divider() {
@@ -64,14 +77,18 @@ function Divider() {
 }
 
 function Label({ children }: { children: React.ReactNode }) {
-  return <label className="mb-1.5 block text-xs font-medium text-gray-600">{children}</label>;
+  return (
+    <label className="mb-1.5 block text-xs font-medium text-gray-600">
+      {children}
+    </label>
+  );
 }
 
 function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10 ${props.className ?? ""}`}
+      className={`w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10 ${props.className ?? ''}`}
     />
   );
 }
@@ -88,36 +105,51 @@ export function UnifiedLayout({ initialContent }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [content, setContent] = useState<Content | null>(initialContent ?? null);
+  const [content, setContent] = useState<Content | null>(
+    initialContent ?? null,
+  );
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showRegenerate, setShowRegenerate] = useState(false);
+  const [selectedSectionKey, setSelectedSectionKey] = useState('');
+  const [sectionsRefreshKey, setSectionsRefreshKey] = useState(0);
 
-  const [selectedSiteId, setSelectedSiteId] = useState(initialContent?.site_id ?? "");
+  const [selectedSiteId, setSelectedSiteId] = useState(
+    initialContent?.site_id ?? '',
+  );
   const [site, setSite] = useState<Site | null>(null);
   const [availableServices, setAvailableServices] = useState<Service[]>([]);
-  const [baseServiceId, setBaseServiceId] = useState("");
-  const [importServiceId, setImportServiceId] = useState("");
+  const [baseServiceId, setBaseServiceId] = useState('');
+  const [importServiceId, setImportServiceId] = useState('');
 
-  const [service, setService] = useState(initialContent?.service ?? "");
-  const [city, setCity] = useState(initialContent?.city ?? "");
+  const [service, setService] = useState(initialContent?.service ?? '');
+  const [city, setCity] = useState(initialContent?.city ?? '');
   const [keyword, setKeyword] = useState(
-    initialContent && initialContent.main_keyword !== `${initialContent.service} em ${initialContent.city}`
+    initialContent &&
+      initialContent.main_keyword !==
+        `${initialContent.service} em ${initialContent.city}`
       ? initialContent.main_keyword
-      : "",
+      : '',
   );
-  const [videoUrl, setVideoUrl] = useState(initialContent?.video_url ?? "");
-  const [images, setImages] = useState(() => initImages(initialContent?.images ?? null));
-  const [relatedServices, setRelatedServices] = useState<RelatedServiceDraft[]>(() =>
-    initRelated(initialContent?.related_services ?? null),
+  const [videoUrl, setVideoUrl] = useState(initialContent?.video_url ?? '');
+  const [images, setImages] = useState(() =>
+    initImages(initialContent?.images ?? null),
   );
-  const [wpCategory, setWpCategory] = useState(initialContent?.wordpress_category ?? "");
+  const [relatedServices, setRelatedServices] = useState<RelatedServiceDraft[]>(
+    () => initRelated(initialContent?.related_services ?? null),
+  );
+  const [wpCategory, setWpCategory] = useState(
+    initialContent?.wordpress_category ?? '',
+  );
   const [wpCategories, setWpCategories] = useState<WpCategory[]>([]);
-  const [localityNotes, setLocalityNotes] = useState("");
-  const [serviceNotes, setServiceNotes] = useState("");
-  const [feedback, setFeedback] = useState("");
-  const [mediaModal, setMediaModal] = useState<{ open: boolean; mode: "video" | "images" } | null>(null);
+  const [localityNotes, setLocalityNotes] = useState('');
+  const [serviceNotes, setServiceNotes] = useState('');
+  const [feedback, setFeedback] = useState('');
+  const [mediaModal, setMediaModal] = useState<{
+    open: boolean;
+    mode: 'video' | 'images';
+  } | null>(null);
 
-  const autoKeyword = service ? (city ? `${service} em ${city}` : service) : "";
+  const autoKeyword = service ? (city ? `${service} em ${city}` : service) : '';
   const effectiveKeyword = keyword || autoKeyword;
 
   const selectedBaseService = useMemo(
@@ -128,23 +160,26 @@ export function UnifiedLayout({ initialContent }: Props) {
   useEffect(() => {
     if (initialContent?.site_id) return;
 
-    const stored = window.localStorage.getItem("bib-selected-site-id") ?? "";
+    const stored = window.localStorage.getItem('bib-selected-site-id') ?? '';
     setSelectedSiteId(stored);
 
     const onStorage = (event: StorageEvent) => {
-      if (event.key === "bib-selected-site-id") setSelectedSiteId(event.newValue ?? "");
+      if (event.key === 'bib-selected-site-id')
+        setSelectedSiteId(event.newValue ?? '');
     };
 
     const onSelected = (event: Event) => {
-      setSelectedSiteId((event as CustomEvent<{ siteId: string }>).detail?.siteId ?? "");
+      setSelectedSiteId(
+        (event as CustomEvent<{ siteId: string }>).detail?.siteId ?? '',
+      );
     };
 
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("bib-site-selected", onSelected);
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('bib-site-selected', onSelected);
 
     return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("bib-site-selected", onSelected);
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('bib-site-selected', onSelected);
     };
   }, [initialContent?.site_id]);
 
@@ -152,39 +187,59 @@ export function UnifiedLayout({ initialContent }: Props) {
     if (!selectedSiteId) {
       setSite(null);
       setAvailableServices([]);
-      setBaseServiceId("");
-      setImportServiceId("");
+      setBaseServiceId('');
+      setImportServiceId('');
       setWpCategories([]);
       return;
     }
 
-    api.getSite(selectedSiteId).then(setSite).catch(() => setSite(null));
-    api.listServices(selectedSiteId).then(setAvailableServices).catch(() => setAvailableServices([]));
-    api.getWpCategories(selectedSiteId).then(setWpCategories).catch(() => setWpCategories([]));
+    api
+      .getSite(selectedSiteId)
+      .then(setSite)
+      .catch(() => setSite(null));
+    api
+      .listServices(selectedSiteId)
+      .then(setAvailableServices)
+      .catch(() => setAvailableServices([]));
+    api
+      .getWpCategories(selectedSiteId)
+      .then(setWpCategories)
+      .catch(() => setWpCategories([]));
   }, [selectedSiteId]);
 
   function updateImage(index: number, value: string) {
-    setImages((current) => current.map((item, currentIndex) => (currentIndex === index ? value : item)));
+    setImages((current) =>
+      current.map((item, currentIndex) =>
+        currentIndex === index ? value : item,
+      ),
+    );
   }
 
   function addRelated() {
-    setRelatedServices((current) => [...current, { name: "", url: "", serviceId: "", useService: false }]);
+    setRelatedServices((current) => [
+      ...current,
+      { name: '', url: '', serviceId: '', useService: false },
+    ]);
   }
 
   function removeRelated(index: number) {
-    setRelatedServices((current) => current.filter((_, currentIndex) => currentIndex !== index));
+    setRelatedServices((current) =>
+      current.filter((_, currentIndex) => currentIndex !== index),
+    );
   }
 
   function updateRelatedName(index: number, value: string) {
     setRelatedServices((current) =>
-      current.map((item, currentIndex) => (currentIndex === index ? { ...item, name: value } : item)),
+      current.map((item, currentIndex) =>
+        currentIndex === index ? { ...item, name: value } : item,
+      ),
     );
   }
 
   function updateRelatedUrl(index: number, value: string) {
     setRelatedServices((current) =>
       current.map((item, currentIndex) =>
-        currentIndex === index ? { ...item, url: value, serviceId: "" } : item,
+        currentIndex === index ? { ...item, url: value, serviceId: '' } : item,
       ),
     );
   }
@@ -196,8 +251,8 @@ export function UnifiedLayout({ initialContent }: Props) {
           ? {
               ...item,
               useService: checked,
-              serviceId: checked ? item.serviceId : "",
-              url: checked ? item.url : "",
+              serviceId: checked ? item.serviceId : '',
+              url: checked ? item.url : '',
             }
           : item,
       ),
@@ -205,7 +260,8 @@ export function UnifiedLayout({ initialContent }: Props) {
   }
 
   function updateRelatedLinkedService(index: number, serviceId: string) {
-    const linked = availableServices.find((item) => item.id === serviceId) ?? null;
+    const linked =
+      availableServices.find((item) => item.id === serviceId) ?? null;
     const resolvedUrl = buildServiceUrl(site, linked);
 
     setRelatedServices((current) =>
@@ -215,7 +271,7 @@ export function UnifiedLayout({ initialContent }: Props) {
               ...item,
               serviceId,
               url: resolvedUrl,
-              name: item.name.trim() ? item.name : linked?.name ?? "",
+              name: item.name.trim() ? item.name : (linked?.name ?? ''),
             }
           : item,
       ),
@@ -223,7 +279,8 @@ export function UnifiedLayout({ initialContent }: Props) {
   }
 
   function importRelatedFromService(serviceId: string) {
-    const importedService = availableServices.find((item) => item.id === serviceId) ?? null;
+    const importedService =
+      availableServices.find((item) => item.id === serviceId) ?? null;
     if (!importedService) return;
 
     const imported =
@@ -231,28 +288,31 @@ export function UnifiedLayout({ initialContent }: Props) {
         ? importedService.related_services.map((item) => ({
             name: item.name,
             url: item.url,
-            serviceId: "",
+            serviceId: '',
             useService: false,
           }))
-        : [{ name: "", url: "", serviceId: "", useService: false }];
+        : [{ name: '', url: '', serviceId: '', useService: false }];
 
     setRelatedServices(imported);
-    toast.success(`Serviços complementares importados de "${importedService.name}".`);
+    toast.success(
+      `Serviços complementares importados de "${importedService.name}".`,
+    );
   }
 
   function handleBaseServiceChange(serviceId: string) {
     setBaseServiceId(serviceId);
 
-    const selected = availableServices.find((item) => item.id === serviceId) ?? null;
+    const selected =
+      availableServices.find((item) => item.id === serviceId) ?? null;
     if (!selected) {
       return;
     }
 
     setService(selected.name);
-    setWpCategory((current) => current || selected.wordpress_category || "");
-    setVideoUrl(selected.video_url ?? "");
+    setWpCategory((current) => current || selected.wordpress_category || '');
+    setVideoUrl(selected.video_url ?? '');
     setImages(initImages(selected.images ?? []));
-    setServiceNotes((current) => current || selected.service_notes || "");
+    setServiceNotes((current) => current || selected.service_notes || '');
   }
 
   function buildGeneratePayload() {
@@ -262,7 +322,10 @@ export function UnifiedLayout({ initialContent }: Props) {
         if (!name) return null;
 
         if (item.useService) {
-          const linked = availableServices.find((serviceItem) => serviceItem.id === item.serviceId) ?? null;
+          const linked =
+            availableServices.find(
+              (serviceItem) => serviceItem.id === item.serviceId,
+            ) ?? null;
           const resolvedUrl = buildServiceUrl(site, linked);
           return resolvedUrl ? { name, url: resolvedUrl } : null;
         }
@@ -294,12 +357,12 @@ export function UnifiedLayout({ initialContent }: Props) {
     event.preventDefault();
 
     if (!selectedSiteId) {
-      toast.error("Seleciona um site no menu superior antes de gerar.");
+      toast.error('Seleciona um site no menu superior antes de gerar.');
       return;
     }
 
     const label = effectiveKeyword || service;
-    addJob("generate", buildGeneratePayload(), label);
+    addJob('generate', buildGeneratePayload(), label);
     toast.info(`"${label}" adicionada à fila de geração.`);
   }
 
@@ -308,7 +371,7 @@ export function UnifiedLayout({ initialContent }: Props) {
     if (!content) return;
 
     addJob(
-      "regenerate",
+      'regenerate',
       {
         content_id: content.id,
         ...buildGeneratePayload(),
@@ -318,7 +381,7 @@ export function UnifiedLayout({ initialContent }: Props) {
     );
 
     setShowRegenerate(false);
-    setFeedback("");
+    setFeedback('');
     toast.info(`Regeneração de "${content.main_keyword}" adicionada à fila.`);
   }
 
@@ -331,9 +394,9 @@ export function UnifiedLayout({ initialContent }: Props) {
     try {
       const result = await api.approveContent(content.id);
       setContent(result);
-      toast.success("Página aprovada.");
+      toast.success('Página aprovada.');
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Erro ao aprovar";
+      const message = err instanceof Error ? err.message : 'Erro ao aprovar';
       setError(message);
       toast.error(message);
     } finally {
@@ -350,9 +413,13 @@ export function UnifiedLayout({ initialContent }: Props) {
     try {
       const result = await api.publishContent(content.id);
       setContent(result);
-      toast.success(content.output_format === "whitelabel_json" ? "Publicado via API." : "Publicado no WordPress.");
+      toast.success(
+        content.output_format === 'whitelabel_json'
+          ? 'Publicado via API.'
+          : 'Publicado no WordPress.',
+      );
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Erro ao publicar";
+      const message = err instanceof Error ? err.message : 'Erro ao publicar';
       setError(message);
       toast.error(message);
     } finally {
@@ -372,10 +439,10 @@ export function UnifiedLayout({ initialContent }: Props) {
 
     try {
       await api.deleteContent(content.id);
-      toast.success("Página apagada.");
-      router.push("/contents");
+      toast.success('Página apagada.');
+      router.push('/contents');
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Erro ao apagar";
+      const message = err instanceof Error ? err.message : 'Erro ao apagar';
       setError(message);
       toast.error(message);
       setActionLoading(false);
@@ -396,9 +463,13 @@ export function UnifiedLayout({ initialContent }: Props) {
                 ← Conteúdos
               </Link>
               <span className="text-gray-200">|</span>
-              {content && <span className={`h-2 w-2 rounded-full ${STATUS_DOT[content.status]}`} />}
+              {content && (
+                <span
+                  className={`h-2 w-2 rounded-full ${STATUS_DOT[content.status]}`}
+                />
+              )}
               <span className="truncate text-sm font-semibold text-gray-900">
-                {content ? content.main_keyword : "Nova página SEO"}
+                {content ? content.main_keyword : 'Nova página SEO'}
               </span>
             </div>
             <button
@@ -407,7 +478,13 @@ export function UnifiedLayout({ initialContent }: Props) {
               title="Ocultar painel"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path
+                  d="M10 12L6 8l4-4"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </button>
           </div>
@@ -417,7 +494,7 @@ export function UnifiedLayout({ initialContent }: Props) {
               <ScoreCard content={content} />
 
               <div className="flex flex-wrap gap-2">
-                {content.status === "draft" && (
+                {content.status === 'draft' && (
                   <button
                     onClick={handleApprove}
                     disabled={actionLoading}
@@ -426,30 +503,35 @@ export function UnifiedLayout({ initialContent }: Props) {
                     Aprovar
                   </button>
                 )}
-                {content.status === "approved" && (
+                {content.status === 'approved' && (
                   <button
                     onClick={handlePublish}
                     disabled={actionLoading}
                     className="flex-1 rounded-lg bg-gray-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-40"
                   >
-                    {content.output_format === "whitelabel_json" ? "Publicar via API" : "Publicar no WordPress"}
+                    {content.output_format === 'whitelabel_json'
+                      ? 'Publicar via API'
+                      : 'Publicar no WordPress'}
                   </button>
                 )}
-                {content.status === "published" && (content.wp_post_url || content.external_page_url) && (
-                  <a
-                    href={content.external_page_url ?? content.wp_post_url ?? "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-center text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50"
-                  >
-                    Ver página ↗
-                  </a>
-                )}
+                {content.status === 'published' &&
+                  (content.wp_post_url || content.external_page_url) && (
+                    <a
+                      href={
+                        content.external_page_url ?? content.wp_post_url ?? '#'
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-center text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50"
+                    >
+                      Ver página ↗
+                    </a>
+                  )}
                 <button
                   onClick={() => setShowRegenerate((value) => !value)}
                   className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
                 >
-                  {showRegenerate ? "Fechar" : "Regenerar"}
+                  {showRegenerate ? 'Fechar' : 'Regenerar'}
                 </button>
               </div>
 
@@ -466,18 +548,24 @@ export function UnifiedLayout({ initialContent }: Props) {
                     type="submit"
                     className="w-full rounded-lg bg-gray-900 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-gray-800"
                   >
-                    {isQueueActive ? "Adicionar à fila" : "Regenerar com alterações do formulário"}
+                    {isQueueActive
+                      ? 'Adicionar à fila'
+                      : 'Regenerar com alterações do formulário'}
                   </button>
                 </form>
               )}
 
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-gray-500">
-                  <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${STATUS_DOT[content.status]}`} />
+                  <span
+                    className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${STATUS_DOT[content.status]}`}
+                  />
                   {STATUS_LABEL[content.status] ?? content.status}
                 </span>
-                {content.status === "published" ? (
-                  <span className="text-xs text-gray-400">Publicada, não apagável</span>
+                {content.status === 'published' ? (
+                  <span className="text-xs text-gray-400">
+                    Publicada, não apagável
+                  </span>
                 ) : confirmDelete ? (
                   <div className="flex gap-1.5">
                     <button
@@ -485,7 +573,7 @@ export function UnifiedLayout({ initialContent }: Props) {
                       disabled={actionLoading}
                       className="rounded-md border border-red-200 px-2.5 py-1 text-xs text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
                     >
-                      {actionLoading ? "..." : "Confirmar"}
+                      {actionLoading ? '...' : 'Confirmar'}
                     </button>
                     <button
                       onClick={() => setConfirmDelete(false)}
@@ -509,16 +597,41 @@ export function UnifiedLayout({ initialContent }: Props) {
           )}
 
           <div className="flex-1 overflow-y-auto px-5 py-4">
+            {content && (
+              <div className="mb-4">
+                <ContentSectionsPanel
+                  content={content}
+                  onContentUpdated={setContent}
+                  onSectionUpdated={() =>
+                    setSectionsRefreshKey((value) => value + 1)
+                  }
+                  selectedSectionKey={selectedSectionKey}
+                  onSelectedSectionChange={setSelectedSectionKey}
+                />
+              </div>
+            )}
+
             <form
-              onSubmit={isEditing || content ? (event) => event.preventDefault() : handleGenerate}
+              onSubmit={
+                isEditing || content
+                  ? (event) => event.preventDefault()
+                  : handleGenerate
+              }
               className="space-y-4"
             >
               <div className="space-y-3">
                 <div>
-                  <Label>Serviço base <span className="font-normal text-gray-400">(opcional)</span></Label>
+                  <Label>
+                    Serviço base{' '}
+                    <span className="font-normal text-gray-400">
+                      (opcional)
+                    </span>
+                  </Label>
                   <select
                     value={baseServiceId}
-                    onChange={(event) => handleBaseServiceChange(event.target.value)}
+                    onChange={(event) =>
+                      handleBaseServiceChange(event.target.value)
+                    }
                     className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
                     disabled={!selectedSiteId || availableServices.length === 0}
                   >
@@ -531,7 +644,8 @@ export function UnifiedLayout({ initialContent }: Props) {
                   </select>
                   {selectedBaseService && (
                     <p className="mt-1 text-xs text-gray-400">
-                      Serviço base selecionado para reaproveitar nome, categoria, vídeo e imagens.
+                      Serviço base selecionado para reaproveitar nome,
+                      categoria, vídeo e imagens.
                     </p>
                   )}
                 </div>
@@ -547,24 +661,39 @@ export function UnifiedLayout({ initialContent }: Props) {
                 </div>
 
                 <div>
-                  <Label>Cidade <span className="font-normal text-gray-400">(opcional)</span></Label>
-                  <Input value={city} onChange={(event) => setCity(event.target.value)} placeholder="ex: Lisboa" />
+                  <Label>
+                    Cidade{' '}
+                    <span className="font-normal text-gray-400">
+                      (opcional)
+                    </span>
+                  </Label>
+                  <Input
+                    value={city}
+                    onChange={(event) => setCity(event.target.value)}
+                    placeholder="ex: Lisboa"
+                  />
                 </div>
 
                 <div>
                   <Label>
-                    Palavra-chave <span className="font-normal text-gray-400">(auto: "{autoKeyword || "Serviço"}")</span>
+                    Palavra-chave{' '}
+                    <span className="font-normal text-gray-400">
+                      (auto: "{autoKeyword || 'Serviço'}")
+                    </span>
                   </Label>
                   <Input
                     value={keyword}
                     onChange={(event) => setKeyword(event.target.value)}
-                    placeholder={autoKeyword || "Deixar em branco para auto"}
+                    placeholder={autoKeyword || 'Deixar em branco para auto'}
                   />
                 </div>
               </div>
 
               <div>
-                <Label>Categoria WordPress <span className="font-normal text-gray-400">(opcional)</span></Label>
+                <Label>
+                  Categoria WordPress{' '}
+                  <span className="font-normal text-gray-400">(opcional)</span>
+                </Label>
                 <select
                   value={wpCategory}
                   onChange={(event) => setWpCategory(event.target.value)}
@@ -582,7 +711,12 @@ export function UnifiedLayout({ initialContent }: Props) {
               <Divider />
 
               <div>
-                <Label>URL do Vídeo <span className="font-normal text-gray-400">(MP4 no topo da página)</span></Label>
+                <Label>
+                  URL do Vídeo{' '}
+                  <span className="font-normal text-gray-400">
+                    (MP4 no topo da página)
+                  </span>
+                </Label>
                 <div className="flex gap-2">
                   <Input
                     value={videoUrl}
@@ -592,7 +726,7 @@ export function UnifiedLayout({ initialContent }: Props) {
                   />
                   <button
                     type="button"
-                    onClick={() => setMediaModal({ open: true, mode: "video" })}
+                    onClick={() => setMediaModal({ open: true, mode: 'video' })}
                     className="shrink-0 rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-600 transition-colors hover:bg-gray-50"
                   >
                     Escolher
@@ -601,22 +735,34 @@ export function UnifiedLayout({ initialContent }: Props) {
               </div>
 
               <div>
-                <Label>Imagens <span className="font-normal text-gray-400">({images.filter(Boolean).length}/8 selecionadas)</span></Label>
+                <Label>
+                  Imagens{' '}
+                  <span className="font-normal text-gray-400">
+                    ({images.filter(Boolean).length}/8 selecionadas)
+                  </span>
+                </Label>
                 <button
                   type="button"
-                  onClick={() => setMediaModal({ open: true, mode: "images" })}
+                  onClick={() => setMediaModal({ open: true, mode: 'images' })}
                   className="w-full rounded-lg border border-dashed border-gray-300 px-3 py-3 text-center text-sm text-gray-500 transition-colors hover:border-gray-400 hover:bg-gray-50"
                 >
                   {images.filter(Boolean).length > 0
                     ? `${images.filter(Boolean).length} imagem(ns) - clique para alterar`
-                    : "Escolher imagens da biblioteca WordPress"}
+                    : 'Escolher imagens da biblioteca WordPress'}
                 </button>
                 {images.filter(Boolean).length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {images.filter(Boolean).map((url, index) => (
-                      <div key={index} className="relative h-14 w-14 overflow-hidden rounded border border-gray-200">
+                      <div
+                        key={index}
+                        className="relative h-14 w-14 overflow-hidden rounded border border-gray-200"
+                      >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={url} alt={`Imagem ${index + 1}`} className="h-full w-full object-cover" />
+                        <img
+                          src={url}
+                          alt={`Imagem ${index + 1}`}
+                          className="h-full w-full object-cover"
+                        />
                         <span className="absolute left-0 top-0 flex h-4 w-4 items-center justify-center rounded-br bg-gray-900 text-[10px] text-white">
                           {index + 1}
                         </span>
@@ -624,13 +770,18 @@ export function UnifiedLayout({ initialContent }: Props) {
                     ))}
                   </div>
                 )}
-                <p className="mt-1.5 text-xs text-gray-400">Posições preservadas conforme a ordem de seleção.</p>
+                <p className="mt-1.5 text-xs text-gray-400">
+                  Posições preservadas conforme a ordem de seleção.
+                </p>
               </div>
 
               <Divider />
 
               <div>
-                <Label>Contexto da localidade <span className="font-normal text-gray-400">(opcional)</span></Label>
+                <Label>
+                  Contexto da localidade{' '}
+                  <span className="font-normal text-gray-400">(opcional)</span>
+                </Label>
                 <textarea
                   value={localityNotes}
                   onChange={(event) => setLocalityNotes(event.target.value)}
@@ -641,7 +792,10 @@ export function UnifiedLayout({ initialContent }: Props) {
               </div>
 
               <div>
-                <Label>Contexto do serviço <span className="font-normal text-gray-400">(opcional)</span></Label>
+                <Label>
+                  Contexto do serviço{' '}
+                  <span className="font-normal text-gray-400">(opcional)</span>
+                </Label>
                 <textarea
                   value={serviceNotes}
                   onChange={(event) => setServiceNotes(event.target.value)}
@@ -655,7 +809,12 @@ export function UnifiedLayout({ initialContent }: Props) {
 
               <div className="space-y-3">
                 <div>
-                  <Label>Importar de Serviço <span className="font-normal text-gray-400">(traz títulos e URLs já cadastrados)</span></Label>
+                  <Label>
+                    Importar de Serviço{' '}
+                    <span className="font-normal text-gray-400">
+                      (traz títulos e URLs já cadastrados)
+                    </span>
+                  </Label>
                   <div className="flex gap-2">
                     <select
                       value={importServiceId}
@@ -665,7 +824,9 @@ export function UnifiedLayout({ initialContent }: Props) {
                         if (nextId) importRelatedFromService(nextId);
                       }}
                       className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-                      disabled={!selectedSiteId || availableServices.length === 0}
+                      disabled={
+                        !selectedSiteId || availableServices.length === 0
+                      }
                     >
                       <option value="">Selecionar serviço para importar</option>
                       {availableServices.map((item) => (
@@ -678,16 +839,26 @@ export function UnifiedLayout({ initialContent }: Props) {
                 </div>
 
                 <div>
-                  <Label>Serviços complementares <span className="font-normal text-gray-400">(links internos)</span></Label>
+                  <Label>
+                    Serviços complementares{' '}
+                    <span className="font-normal text-gray-400">
+                      (links internos)
+                    </span>
+                  </Label>
                   <div className="space-y-3">
                     {relatedServices.map((item, index) => (
-                      <div key={index} className="space-y-2 rounded-lg border border-gray-200 p-3">
+                      <div
+                        key={index}
+                        className="space-y-2 rounded-lg border border-gray-200 p-3"
+                      >
                         <div className="flex items-start gap-2">
                           <div className="flex-1">
                             <Label>Título</Label>
                             <Input
                               value={item.name}
-                              onChange={(event) => updateRelatedName(index, event.target.value)}
+                              onChange={(event) =>
+                                updateRelatedName(index, event.target.value)
+                              }
                               placeholder="ex: Reparação de Portas"
                             />
                           </div>
@@ -702,12 +873,19 @@ export function UnifiedLayout({ initialContent }: Props) {
 
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <Label>{item.useService ? "Serviço relacionado" : "URL"}</Label>
+                            <Label>
+                              {item.useService ? 'Serviço relacionado' : 'URL'}
+                            </Label>
                             <label className="flex items-center gap-2 text-xs text-gray-500">
                               <input
                                 type="checkbox"
                                 checked={item.useService}
-                                onChange={(event) => toggleRelatedService(index, event.target.checked)}
+                                onChange={(event) =>
+                                  toggleRelatedService(
+                                    index,
+                                    event.target.checked,
+                                  )
+                                }
                               />
                               Serviço
                             </label>
@@ -716,12 +894,22 @@ export function UnifiedLayout({ initialContent }: Props) {
                           {item.useService ? (
                             <select
                               value={item.serviceId}
-                              onChange={(event) => updateRelatedLinkedService(index, event.target.value)}
+                              onChange={(event) =>
+                                updateRelatedLinkedService(
+                                  index,
+                                  event.target.value,
+                                )
+                              }
                               className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
                             >
-                              <option value="">Selecionar serviço existente</option>
+                              <option value="">
+                                Selecionar serviço existente
+                              </option>
                               {availableServices.map((serviceItem) => (
-                                <option key={serviceItem.id} value={serviceItem.id}>
+                                <option
+                                  key={serviceItem.id}
+                                  value={serviceItem.id}
+                                >
                                   {serviceItem.name}
                                 </option>
                               ))}
@@ -729,7 +917,9 @@ export function UnifiedLayout({ initialContent }: Props) {
                           ) : (
                             <Input
                               value={item.url}
-                              onChange={(event) => updateRelatedUrl(index, event.target.value)}
+                              onChange={(event) =>
+                                updateRelatedUrl(index, event.target.value)
+                              }
                               placeholder="https://site.pt/reparacao-de-portas/"
                             />
                           )}
@@ -753,7 +943,7 @@ export function UnifiedLayout({ initialContent }: Props) {
                   type="submit"
                   className="w-full rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-800"
                 >
-                  {isQueueActive ? "Adicionar à fila" : "Gerar Página"}
+                  {isQueueActive ? 'Adicionar à fila' : 'Gerar Página'}
                 </button>
               )}
             </form>
@@ -769,23 +959,39 @@ export function UnifiedLayout({ initialContent }: Props) {
               className="flex shrink-0 items-center gap-1.5 rounded-md border border-gray-200 px-2.5 py-1.5 text-xs text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-900"
             >
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path
+                  d="M6 4l4 4-4 4"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
               Painel
             </button>
           )}
 
           <span className="flex-1 truncate text-xs text-gray-400">
-            {content ? content.main_keyword : "Preenche o formulário e clica em Gerar Página"}
+            {content
+              ? content.main_keyword
+              : 'Preenche o formulário e clica em Gerar Página'}
           </span>
 
-          {content?.html && content.output_format !== "whitelabel_json" && (
+          {content?.html && content.output_format !== 'whitelabel_json' && (
             <button
               onClick={() => {
                 navigator.clipboard
-                  .writeText(buildPreviewHtml(content.html ?? "", videoUrl || undefined, content.generation_mode))
-                  .then(() => toast.success("HTML copiado para a área de transferência."))
-                  .catch(() => toast.error("Não foi possível copiar o HTML."));
+                  .writeText(
+                    buildPreviewHtml(
+                      content.html ?? '',
+                      videoUrl || undefined,
+                      content.generation_mode,
+                    ),
+                  )
+                  .then(() =>
+                    toast.success('HTML copiado para a área de transferência.'),
+                  )
+                  .catch(() => toast.error('Não foi possível copiar o HTML.'));
               }}
               className="shrink-0 rounded-md border border-gray-200 px-2.5 py-1.5 text-xs text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-900"
             >
@@ -795,14 +1001,23 @@ export function UnifiedLayout({ initialContent }: Props) {
         </div>
 
         <div className="flex-1 overflow-auto p-6">
-          {content?.output_format === "whitelabel_json" ? (
-            <WhitelabelTextPreview content={content.content_json} />
+          {content?.output_format === 'whitelabel_json' ? (
+            <WhitelabelSectionPreview
+              content={content}
+              refreshKey={sectionsRefreshKey}
+              selectedSectionKey={selectedSectionKey}
+              onSectionSelect={setSelectedSectionKey}
+            />
           ) : (
             <PreviewPane
               html={content?.html ?? null}
               videoUrl={videoUrl}
               loading={false}
               generationMode={content?.generation_mode}
+              interactiveSections={Boolean(content?.html)}
+              selectedSectionKey={selectedSectionKey}
+              onSectionSelect={setSelectedSectionKey}
+              onSectionEdit={setSelectedSectionKey}
             />
           )}
         </div>
@@ -819,7 +1034,9 @@ export function UnifiedLayout({ initialContent }: Props) {
             setMediaModal(null);
           }}
           onConfirmImages={(urls) => {
-            setImages(Array.from({ length: 8 }, (_, index) => urls[index] ?? ""));
+            setImages(
+              Array.from({ length: 8 }, (_, index) => urls[index] ?? ''),
+            );
             setMediaModal(null);
           }}
           initialVideoUrl={videoUrl}

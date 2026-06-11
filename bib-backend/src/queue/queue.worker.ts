@@ -14,7 +14,7 @@ export class QueueWorker implements OnModuleInit {
   private isRunning = false;
 
   private readonly concurrency = {
-    ai: parseInt(process.env.QUEUE_CONCURRENCY_AI ?? '1'),
+    ai: 1,
     template: parseInt(process.env.QUEUE_CONCURRENCY_TEMPLATE ?? '8'),
     library: parseInt(process.env.QUEUE_CONCURRENCY_LIBRARY ?? '10'),
   };

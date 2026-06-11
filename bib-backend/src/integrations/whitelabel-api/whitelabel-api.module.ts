@@ -7,6 +7,7 @@ import { WhitelabelApiClient } from './whitelabel-api.client';
 import { WhitelabelApiController } from './whitelabel-api.controller';
 import { WhitelabelContentService } from './whitelabel-content.service';
 import { WhitelabelPublisherService } from './whitelabel-publisher.service';
+import { PromptContextModule } from '../../prompt-context/prompt-context.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { WhitelabelPublisherService } from './whitelabel-publisher.service';
     ContentsModule,
     forwardRef(() => ServicesModule),
     SitesModule,
+    PromptContextModule,
   ],
   controllers: [WhitelabelApiController],
   providers: [

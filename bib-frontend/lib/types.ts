@@ -28,6 +28,20 @@ export interface Content {
 
 export type ContentSummary = Omit<Content, 'html'>;
 
+export interface ContentSection {
+  id: string;
+  content_id: string;
+  section_key: string;
+  sort_order: number;
+  output_format: 'html' | 'whitelabel_json';
+  html: string | null;
+  content_json: unknown;
+  word_count: number;
+  generation_status: 'pending' | 'generating' | 'done' | 'failed';
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PaginatedContents {
   data: ContentSummary[];
   total: number;
@@ -87,7 +101,16 @@ export interface Service {
   seo_description: string | null;
 }
 
-export type CreateServiceInput = Omit<Service, 'id' | 'created_at' | 'slug' | 'status' | 'template_html' | 'template_base_city' | 'featured_image_url'>;
+export type CreateServiceInput = Omit<
+  Service,
+  | 'id'
+  | 'created_at'
+  | 'slug'
+  | 'status'
+  | 'template_html'
+  | 'template_base_city'
+  | 'featured_image_url'
+>;
 
 export interface GenerateTemplateInput {
   base_city?: string;
@@ -242,6 +265,8 @@ export interface WhitelabelContentJson {
   topbar?: { left?: string[] };
   hero?: Record<string, unknown>;
   form?: Record<string, unknown>;
-  article?: { blocks?: Array<Record<string, unknown>> } | Array<Record<string, unknown>>;
+  article?:
+    | { blocks?: Array<Record<string, unknown>> }
+    | Array<Record<string, unknown>>;
   faqs?: Array<{ question: string; answer: string }>;
 }

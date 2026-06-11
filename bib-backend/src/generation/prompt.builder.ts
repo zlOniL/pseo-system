@@ -1,4 +1,8 @@
 import { GenerateDto } from './dto/generate.dto';
+import {
+  PromptContext,
+  SERVICE_EXAMPLE_USAGE_RULE,
+} from '../prompt-context/prompt-context.types';
 
 // ─── SYSTEM PROMPT ────────────────────────────────────────────────────────────
 
@@ -602,6 +606,7 @@ const REINFORCEMENT = `INSTRUÇÕES FINAIS OBRIGATÓRIAS:
 export function buildPrompt(
   input: GenerateDto,
   feedback?: string,
+  promptContext?: PromptContext,
 ): { system: string; user: string } {
   const tone = input.tone ?? 'profissional, confiável e direto';
   const minWords = input.min_words ?? 5000;
@@ -642,6 +647,14 @@ export function buildPrompt(
     );
   }
 
+  let contextNote = '';
+  if (promptContext?.guardrailPrompt) {
+    contextNote += `\n\nPROMPT GUARDRAIL GERAL:\n${promptContext.guardrailPrompt}`;
+  }
+  if (promptContext?.serviceExamplePrompt) {
+    contextNote += `\n\n${SERVICE_EXAMPLE_USAGE_RULE}\n\nPROMPT EXEMPLO DO SERVICO (${promptContext.servicePromptSlug}):\n${promptContext.serviceExamplePrompt}`;
+  }
+
   let user = `Preenche o template HTML para o seguinte input:
 
 \`\`\`json
@@ -657,7 +670,7 @@ ${JSON.stringify(
   null,
   2,
 )}
-\`\`\`${cityNote}${relatedServicesNote}${enrichmentNotes.join('')}`;
+\`\`\`${contextNote}${cityNote}${relatedServicesNote}${enrichmentNotes.join('')}`;
 
   if (feedback) {
     user += `\n\nFeedback sobre a versão anterior (aplica estas melhorias):\n${feedback}`;

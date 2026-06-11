@@ -2,6 +2,10 @@ import { GenerateTemplateDto } from '../../services/dto/generate-template.dto';
 import { Service } from '../../services/services.service';
 import { SECTION_KEYS } from '../../service-templates/service-templates.types';
 import { buildExternalSlug } from './whitelabel-json';
+import {
+  PromptContext,
+  SERVICE_EXAMPLE_USAGE_RULE,
+} from '../../prompt-context/prompt-context.types';
 
 export function buildWhitelabelPrompt(input: {
   service: Service;
@@ -9,8 +13,10 @@ export function buildWhitelabelPrompt(input: {
   isMainPage: boolean;
   blueprints: Record<string, unknown>;
   dto: GenerateTemplateDto;
+  promptContext?: PromptContext;
 }): { system: string; user: string } {
-  const { service, baseCity, isMainPage, blueprints, dto } = input;
+  const { service, baseCity, isMainPage, blueprints, dto, promptContext } =
+    input;
   const mainKeyword = isMainPage
     ? service.name
     : `${service.name} em ${baseCity}`;
@@ -32,6 +38,7 @@ Não geres HTML completo. Gera textos estruturados e blocos de artigo compatíve
 
 Contexto do site via blueprints:
 ${JSON.stringify(blueprints, null, 2)}
+${promptContextRules(promptContext)}
 
 Input:
 ${JSON.stringify(
@@ -105,4 +112,20 @@ ${geoRule}
 ${dto.feedback ? `\nFeedback a aplicar:\n${dto.feedback}` : ''}`;
 
   return { system, user };
+}
+
+function promptContextRules(promptContext?: PromptContext): string {
+  if (!promptContext) return '';
+
+  const parts: string[] = [];
+  if (promptContext.guardrailPrompt) {
+    parts.push(`PROMPT GUARDRAIL GERAL:\n${promptContext.guardrailPrompt}`);
+  }
+  if (promptContext.serviceExamplePrompt) {
+    parts.push(
+      `${SERVICE_EXAMPLE_USAGE_RULE}\n\nPROMPT EXEMPLO DO SERVICO (${promptContext.servicePromptSlug}):\n${promptContext.serviceExamplePrompt}`,
+    );
+  }
+
+  return parts.length ? `\n${parts.join('\n\n')}` : '';
 }
