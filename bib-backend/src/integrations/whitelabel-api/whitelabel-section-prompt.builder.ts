@@ -45,13 +45,16 @@ function geoRule(input: {
 }): string {
   if (input.isMainPage) {
     return `- Esta e uma pagina principal de servico, NAO e uma pagina local.
-- Nao uses "em [Nome da Cidade]", "em {{CITY}}", "em ${input.baseCity ?? 'Lisboa'}", nomes de cidades, localidades, bairros ou qualquer placeholder geografico.
+- Nao uses "em [Nome da Cidade]", "em {{CITY}}", "em ${input.baseCity ?? 'Lisboa'}" nem placeholders geograficos.
+- Fora da secao contexto_local, nao menciones nomes de cidades, localidades ou bairros.
+- Na secao contexto_local, segue a instrucao especifica do Modulo 12 e gera "Zonas de Atendimento" com Grande Lisboa, Margem Sul, Grande Porto, Braga e Algarve.
 - Se os blueprints tiverem placeholders de cidade, ignora-os para esta pagina principal.`;
   }
 
   return `- Esta e uma pagina local.
 - Usa a cidade base "${input.baseCity ?? ''}" quando houver cidade.
-- Nao menciones bairros, ruas, monumentos ou locais especificos.`;
+- Fora da secao contexto_local, evita bairros, ruas, monumentos ou locais especificos.
+- Na secao contexto_local, segue a instrucao especifica do Modulo 12 e cria contexto local forte com freguesias, bairros, ruas, pracas, avenidas e referencias reais da localidade.`;
 }
 
 function sharedInput(input: {
@@ -73,7 +76,10 @@ function sharedInput(input: {
   };
 }
 
-function sectionContract(sectionKey: SectionKey): string {
+function sectionContract(
+  sectionKey: SectionKey,
+  input: WhitelabelSectionPromptInput,
+): string {
   if (sectionKey === 'intro') {
     return `Retorna JSON valido neste formato:
 {
@@ -107,17 +113,114 @@ function sectionContract(sectionKey: SectionKey): string {
 Gera varias perguntas e respostas uteis.`;
   }
 
+  const spec = articleSectionSpec(sectionKey, input);
   return `Retorna JSON valido neste formato:
 {
   "section_key": "${sectionKey}",
   "content": [
-    { "type": "heading", "text": "titulo da secao" },
+    { "type": "heading", "text": "${spec.heading}" },
     { "type": "paragraph", "text": "paragrafo desenvolvido" },
     { "type": "callout", "text": "destaque util" },
     { "type": "list", "items": ["item", "item"] }
   ]
 }
-Usa apenas blocos suportados: heading, paragraph, callout, list, faq_list.`;
+Usa apenas blocos suportados: heading, paragraph, callout, list, faq_list.
+Objetivo obrigatorio desta secao:
+${spec.instructions}`;
+}
+
+function articleSectionSpec(
+  sectionKey: SectionKey,
+  input: WhitelabelSectionPromptInput,
+): {
+  heading: string;
+  instructions: string;
+} {
+  switch (sectionKey) {
+    case 'assistencia_especializada':
+      return {
+        heading: 'Assistencia Especializada',
+        instructions:
+          '- Explicar por que o servico deve ser feito por tecnicos especializados.\n- Mostrar que a avaria pode ter varias causas.\n- Reforcar diagnostico tecnico, seguranca, durabilidade e evitar trocas desnecessarias.',
+      };
+    case 'tipos':
+      return {
+        heading: 'Tipos do Servico',
+        instructions:
+          '- Listar e explicar os principais tipos relacionados ao servico.\n- Usar subtitulos ou blocos de lista quando fizer sentido.\n- Adaptar sempre ao servico pedido.',
+      };
+    case 'servicos':
+      return {
+        heading: 'Servicos Realizados',
+        instructions:
+          '- Explicar de forma completa os servicos realizados.\n- Incluir servicos mais procurados, manutencao, assistencia urgente e diagnostico antes do orcamento.\n- Incluir marcas e componentes compativeis quando for util, sem inventar URLs.',
+      };
+    case 'avarias_comuns':
+      return {
+        heading: 'Principais Problemas que Resolvemos',
+        instructions:
+          '- Criar problemas/avarias reais do servico.\n- Para cada problema, explicar causa provavel, consequencia e solucao.\n- Evitar texto generico curto.',
+      };
+    case 'como_funciona':
+      return {
+        heading: 'Como Funciona o Nosso Servico',
+        instructions:
+          '- Explicar o passo a passo do atendimento.\n- Incluir contacto, fotos/videos, diagnostico no local, solucao, orcamento antecipado, reparacao e testes finais.',
+      };
+    case 'servico_24h':
+      return {
+        heading: 'Servico 24H/7',
+        instructions:
+          '- Focar urgencia, sabados, domingos e feriados.\n- Explicar avarias que nao podem esperar.\n- Reforcar piquetes moveis, diagnostico antes da intervencao e servico sem improvisos.',
+      };
+    case 'prevencao':
+      return {
+        heading: 'Manutencao e Prevencao',
+        instructions:
+          '- Explicar manutencao preventiva.\n- Mostrar sinais pequenos que devem ser resolvidos cedo.\n- Incluir acoes praticas para evitar custos maiores.',
+      };
+    case 'reparar_ou_substituir':
+      return {
+        heading: 'Reparar ou Substituir?',
+        instructions:
+          '- Ajudar o cliente a decidir.\n- Reforcar que reparar com seguranca e a primeira opcao quando viavel.\n- Explicar quando substituicao e mais adequada.',
+      };
+    case 'por_que_escolher':
+      return {
+        heading: 'Por Que Escolher a Empresa',
+        instructions:
+          '- Construir confianca comercial.\n- Incluir tecnicos qualificados, atendimento 24H/7, diagnostico, orcamento justo, materiais de qualidade, testes finais e transparencia.',
+      };
+    case 'integracao_servicos':
+      return {
+        heading: 'Integracao com Outros Servicos',
+        instructions:
+          '- Ligar o servico principal a servicos complementares.\n- Se houver related_services, usar apenas esses nomes e URLs.\n- Se nao houver, citar servicos naturalmente sem links.',
+      };
+    case 'contexto_local':
+      return {
+        heading: input.isMainPage
+          ? 'Zonas de Atendimento'
+          : `Contexto Local em ${input.baseCity ?? ''}`.trim(),
+        instructions:
+          '- Se for pagina principal, o heading deve ser exatamente "Zonas de Atendimento".\n- Para pagina principal, incluir Grande Lisboa, Margem Sul, Grande Porto, Braga e Algarve.\n- Para pagina principal, incluir links externos para Paginas Amarelas (https://www.pai.pt/) e Portal Autarquico (https://portalautarquico.dgal.gov.pt/).\n- Se for pagina local, o heading deve ser exatamente "Contexto Local em [Localidade]".\n- Para pagina local, criar contexto local forte com freguesias, bairros, ruas conhecidas, pracas, avenidas, pontos de referencia, zonas residenciais e comerciais, perfil do local, tipos de imoveis e necessidades provaveis do servico.\n- Para pagina local, incluir 2 backlinks externos locais relevantes apenas quando o URL for real e conhecido.\n- Nao misturar localidades.',
+      };
+    case 'contacte_empresa':
+      return {
+        heading: 'Contacte a Empresa',
+        instructions:
+          '- Criar CTA forte.\n- Repetir keyword e variacoes naturais.\n- Reforcar problemas resolvidos, tecnicos especializados, materiais, diagnostico, orcamento e servico 24H/7.',
+      };
+    case 'mais_sobre':
+      return {
+        heading: 'Mais Sobre o Servico',
+        instructions:
+          '- Fechamento SEO forte, explicativo e humano.\n- Falar sobre importancia do servico, pequenas avarias, agir cedo, manutencao e diagnostico.\n- Incluir Google.pt e ChatGPT.com apenas com URLs reais quando fizer sentido.',
+      };
+    case 'intro':
+    case 'perguntas_frequentes':
+      throw new Error(`Unexpected article section: ${sectionKey}`);
+  }
 }
 
 export function buildWhitelabelPageMetadataPrompt(input: {
@@ -200,7 +303,7 @@ ${input.dto.feedback ? `\nFeedback geral a aplicar:\n${input.dto.feedback}` : ''
 ${input.generatedSummary ? `\nResumo das secoes ja geradas para evitar repeticao:\n${input.generatedSummary}` : ''}
 
 Contrato de saida:
-${sectionContract(input.sectionKey)}`;
+${sectionContract(input.sectionKey, input)}`;
 
   return { system, user };
 }
@@ -232,7 +335,7 @@ ${geoRule(input)}
 - Nao uses markdown.
 
 Contrato de saida:
-${sectionContract(input.sectionKey)}`;
+${sectionContract(input.sectionKey, input)}`;
 
   return { system, user };
 }

@@ -3,19 +3,25 @@ import { SECTION_KEYS, SectionKey } from './service-templates.types';
 const EXCLUDED_KEYS = new Set(['atendemos_tambem']);
 
 const H2_MAP: Array<[RegExp, SectionKey | 'atendemos_tambem']> = [
-  [/Procura em Buscadores/i, 'procura_buscadores'],
-  [/Avarias Comuns/i, 'avarias_comuns'],
-  [/Servi[çc]os Especializados/i, 'servicos_especializados'], // must come before generic 'servicos'
-  [/Servi[çc]os de /i, 'servicos'],
-  [/Como Funciona/i, 'como_funciona'],
+  [/Assist[eê]ncia Especializada/i, 'assistencia_especializada'],
   [/Tipos de/i, 'tipos'],
-  [/Preven[çc][ãa]o/i, 'prevencao'],
-  [/Atendemos/i, 'atendemos_tambem'],
-  [/Sistemas e Interven/i, 'sistemas'],
+  [/Servi[cç]os Realizados/i, 'servicos'],
+  [/Servi[cç]os de /i, 'servicos'],
+  [/Principais Problemas/i, 'avarias_comuns'],
+  [/Avarias Comuns/i, 'avarias_comuns'],
+  [/Como Funciona/i, 'como_funciona'],
+  [/24H\/7/i, 'servico_24h'],
+  [/Manuten[cç][aã]o.*Preven/i, 'prevencao'],
+  [/Preven[cç][aã]o/i, 'prevencao'],
+  [/Reparar ou Substituir/i, 'reparar_ou_substituir'],
+  [/Por Que Escolher/i, 'por_que_escolher'],
+  [/Integra[cç][aã]o/i, 'integracao_servicos'],
+  [/Zonas de Atendimento/i, 'contexto_local'],
+  [/Contexto Local/i, 'contexto_local'],
   [/Perguntas Frequentes/i, 'perguntas_frequentes'],
-  [/Pesquisas Relacionadas/i, 'pesquisas_relacionadas'],
-  [/Conclus[ãa]o/i, 'conclusao'],
+  [/Contacte a Empresa/i, 'contacte_empresa'],
   [/Mais sobre/i, 'mais_sobre'],
+  [/Atendemos/i, 'atendemos_tambem'],
 ];
 
 function classifyH2(h2Text: string): SectionKey | 'atendemos_tambem' | null {
@@ -25,7 +31,7 @@ function classifyH2(h2Text: string): SectionKey | 'atendemos_tambem' | null {
   return null;
 }
 
-/** Normalises injected <img> blocks back to {{IMAGE_N}} placeholders (counter-based). */
+/** Normalises injected <img> blocks back to {{IMAGE_N}} placeholders. */
 function normaliseImages(html: string): string {
   let counter = 0;
   return html.replace(
@@ -46,16 +52,12 @@ export interface ParsedSections {
  */
 export function parseHtmlSections(html: string): ParsedSections {
   const normalised = normaliseImages(html);
-
-  // Split into chunks: [content before first H2, h2+content, h2+content, ...]
   const parts = normalised.split(/(?=<h2[\s>])/i);
 
   const sections = new Map<SectionKey, string>();
   let imageCounter = 0;
 
-  // First chunk = intro (H1 + paragraphs before first H2)
   if (parts[0] && parts[0].trim()) {
-    // Re-number {{IMAGE_N}} placeholders sequentially across all sections
     sections.set('intro', parts[0].trim());
     const matches = parts[0].match(/\{\{IMAGE_\d+\}\}/g);
     if (matches) imageCounter += matches.length;

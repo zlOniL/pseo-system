@@ -390,18 +390,20 @@ export class GenerationService {
   }> {
     const priority: SectionKey[] = [
       'intro',
-      'procura_buscadores',
       'avarias_comuns',
+      'assistencia_especializada',
       'prevencao',
-      'sistemas',
-      'servicos_especializados',
-      'perguntas_frequentes',
-      'conclusao',
-      'mais_sobre',
-      'servicos',
-      'como_funciona',
       'tipos',
-      'pesquisas_relacionadas',
+      'servicos',
+      'servico_24h',
+      'reparar_ou_substituir',
+      'por_que_escolher',
+      'integracao_servicos',
+      'contexto_local',
+      'perguntas_frequentes',
+      'contacte_empresa',
+      'mais_sobre',
+      'como_funciona',
     ];
 
     return priority
@@ -541,11 +543,18 @@ export class GenerationService {
     if (regex.test(html)) {
       return html.replace(regex, replacement);
     }
-    const pesquisasMatch = /<h2[^>]*>[^<]*Pesquisas Relacionadas/i;
-    if (pesquisasMatch.test(html)) {
+    const perguntasMatch = /<h2[^>]*>[^<]*Perguntas Frequentes/i;
+    if (perguntasMatch.test(html)) {
       return html.replace(
-        pesquisasMatch,
-        replacement + '\n\n<h2 style="color: #320000;">Pesquisas Relacionadas',
+        perguntasMatch,
+        replacement + '\n\n<h2 style="color: #320000;">Perguntas Frequentes',
+      );
+    }
+    const contacteMatch = /<h2[^>]*>[^<]*Contacte a Empresa/i;
+    if (contacteMatch.test(html)) {
+      return html.replace(
+        contacteMatch,
+        replacement + '\n\n<h2 style="color: #320000;">Contacte a Empresa',
       );
     }
     return html + '\n\n' + replacement;

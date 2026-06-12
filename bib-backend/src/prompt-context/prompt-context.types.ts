@@ -10,6 +10,7 @@ export interface ResolvePromptContextInput {
 }
 
 export const SERVICE_EXAMPLE_USAGE_RULE = `REGRA DE USO DO EXEMPLO DE SERVICO:
-- O prompt de exemplo abaixo e apenas referencia semantica para vocabulario, problemas, subservicos, entidades tecnicas, marcas, tom e profundidade.
-- Nao copies Markdown, numeracao de modulos, placeholders, titulos ou estrutura do exemplo.
+- O prompt de exemplo abaixo e referencia para vocabulario, problemas, subservicos, entidades tecnicas, marcas, tom, profundidade e distribuicao dos 15 modulos.
+- Mantem a estrutura de 15 modulos definida no prompt geral e refletida pelo exemplo do servico.
+- Nao copies Markdown bruto, placeholders ou texto literal do exemplo.
 - A saida final deve obedecer sempre ao contrato da integracao atual e ao formato pedido nesta chamada.`;

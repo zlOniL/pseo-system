@@ -24,10 +24,14 @@ export function buildWhitelabelPrompt(input: {
   const minWords = service.min_words ?? 5000;
   const geoRule = isMainPage
     ? `- Esta e uma pagina principal de servico, NAO e uma pagina local.
-- Nao uses "em [Nome da Cidade]", "em {{CITY}}", "em ${baseCity ?? 'Lisboa'}", nomes de cidades, localidades, bairros ou qualquer placeholder geografico em nenhum campo.
-- O h1, title, seo_title, hero.intro, article.blocks e FAQs devem falar apenas do servico em geral, sem segmentacao por cidade.
+- Nao uses "em [Nome da Cidade]", "em {{CITY}}", "em ${baseCity ?? 'Lisboa'}" nem placeholders geograficos.
+- Fora da section contexto_local, nao menciones nomes de cidades, localidades ou bairros.
+- Na section contexto_local, gera "Zonas de Atendimento" com Grande Lisboa, Margem Sul, Grande Porto, Braga e Algarve.
+- O h1, title, seo_title, hero.intro e FAQs devem falar apenas do servico em geral, sem segmentacao por cidade.
 - Se os blueprints tiverem placeholders de cidade, ignora-os para esta pagina principal.`
-    : `- Esta e uma pagina local. Usa a cidade base "${baseCity ?? ''}" nas secoes quando houver cidade; ela sera substituida pela library.`;
+    : `- Esta e uma pagina local. Usa a cidade base "${baseCity ?? ''}" nas secoes quando houver cidade; ela sera substituida pela library.
+- Fora da section contexto_local, evita bairros, ruas, monumentos ou locais especificos.
+- Na section contexto_local, gera exatamente "Contexto Local em ${baseCity}" com freguesias, bairros, ruas conhecidas, pracas, avenidas, pontos de referencia, zonas residenciais e comerciais.`;
 
   const system = `És um especialista em SEO programático e redação em português europeu.
 Gera apenas JSON válido, sem markdown e sem comentários.
@@ -103,6 +107,22 @@ ${geoRule}
 - Nao entregues conteudo abaixo de ${minWords} palavras. Se necessario, desenvolve mais paragrafos, listas, callouts e explicacoes praticas em cada section.
 - Cada section de artigo deve ter conteudo substancial, nao apenas um paragrafo curto. Distribui o volume por todas as sections.
 - Usa exatamente estas chaves de sections: ${SECTION_KEYS.join(', ')}.
+- As chaves seguem obrigatoriamente os 15 modulos da pasta prompts, nesta ordem:
+  1. intro = H1 / Topo da Pagina
+  2. assistencia_especializada = Assistencia Especializada
+  3. tipos = Tipos do Servico
+  4. servicos = Servicos Realizados
+  5. avarias_comuns = Principais Problemas / Avarias
+  6. como_funciona = Como Funciona o Nosso Servico
+  7. servico_24h = Servico 24H/7
+  8. prevencao = Manutencao / Prevencao
+  9. reparar_ou_substituir = Reparar ou Substituir
+  10. por_que_escolher = Por Que Escolher a Empresa
+  11. integracao_servicos = Integracao com Outros Servicos
+  12. contexto_local = se is_main_page=true, heading exatamente "Zonas de Atendimento" e incluir Grande Lisboa, Margem Sul, Grande Porto, Braga, Algarve, Paginas Amarelas e Portal Autarquico; se for pagina local, heading exatamente "Contexto Local em ${baseCity}" com contexto local forte e backlinks locais reais
+  13. perguntas_frequentes = Perguntas Frequentes
+  14. contacte_empresa = Contacte a Empresa
+  15. mais_sobre = Mais Sobre o Servico
 - Cada seção de artigo deve começar com bloco {"type":"heading","text":"..."}.
 - Usa blocos suportados: heading, paragraph, callout, list, faq_list.
 - Para list, usa {"type":"list","items":["..."]}.

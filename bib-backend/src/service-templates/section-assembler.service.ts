@@ -96,9 +96,9 @@ export class SectionAssemblerService {
       wpBase,
     );
 
-    // Insert after "prevencao" section
-    const prevencaoIdx = SECTION_KEYS.indexOf('prevencao');
-    parts.splice(prevencaoIdx + 1, 0, atendemosTambem);
+    // Insert after the local coverage/context module.
+    const contextoLocalIdx = SECTION_KEYS.indexOf('contexto_local');
+    parts.splice(contextoLocalIdx + 1, 0, atendemosTambem);
 
     let html = parts.join('\n');
     html = injectImages(

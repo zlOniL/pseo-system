@@ -1,14 +1,14 @@
-// Structural anchor patterns: inject images BEFORE these section headers
-// Ordered to match the 8 template positions (IMAGE_1 … IMAGE_8).
+// Structural anchor patterns: inject images BEFORE these section headers.
+// Ordered to match the 8 template positions used by the 15-module prompt.
 const STRUCTURAL_ANCHORS = [
-  /(<h2[^>]*>[^<]*Procura\s+em\s+Buscadores)/i,
-  /(<h2[^>]*>[^<]*Avarias\s+Comuns)/i,
-  /(<h2[^>]*>(?!.*Especializados)[^<]*Serviços\s+de\s)/i,
-  /(<h2[^>]*>[^<]*Como\s+Funciona)/i,
-  /(<h2[^>]*>[^<]*Prevenção)/i,
-  /(<h2[^>]*>[^<]*Sistemas\s+e\s+Intervenções)/i,
-  /(<h2[^>]*>[^<]*Integração\s+com)/i,
-  /(<h2[^>]*>[^<]*Pesquisas\s+Relacionadas)/i,
+  /(<h2[^>]*>[^<]*Assist[eê]ncia\s+Especializada)/i,
+  /(<h2[^>]*>[^<]*Tipos\s+de\s)/i,
+  /(<h2[^>]*>[^<]*Servi[cç]os\s+Realizados)/i,
+  /(<h2[^>]*>[^<]*Manuten[cç][aã]o\s+e\s+Preven)/i,
+  /(<h2[^>]*>[^<]*Reparar\s+ou\s+Substituir)/i,
+  /(<h2[^>]*>[^<]*Integra[cç][aã]o\s+com)/i,
+  /(<h2[^>]*>[^<]*(?:Zonas\s+de\s+Atendimento|Contexto\s+Local))/i,
+  /(<h2[^>]*>[^<]*Perguntas\s+Frequentes)/i,
 ];
 
 export function injectImages(
@@ -18,23 +18,20 @@ export function injectImages(
   service: string,
   city: string,
 ): string {
+  const location = city ? ` em ${city}` : '';
   const alts = [
     keyword,
-    `${service} profissional em ${city}`,
-    `serviços de ${service} em ${city}`,
-    `como funciona ${service} em ${city}`,
-    `tipos de ${service} em ${city}`,
-    `prevenção de avarias ${service} em ${city}`,
-    `${service} perto de mim em ${city}`,
-    `${service} urgente 24h em ${city}`,
+    `${service} profissional${location}`,
+    `servicos de ${service}${location}`,
+    `manutencao de ${service}${location}`,
+    `reparar ou substituir ${service}${location}`,
+    `servicos relacionados com ${service}${location}`,
+    `atendimento de ${service}${location}`,
+    `${service} urgente 24h${location}`,
   ];
 
   const injected = new Set<number>();
 
-  // Pass 1 — placeholder-based injection.
-  // Uses a regex (not a literal string) to tolerate minor AI variations:
-  //   {{ IMAGE_3 }}, {{image_3}}, {{IMAGE_3 }}, etc.
-  // Also handles the case where the AI wrapped the placeholder in a <p> tag.
   for (let i = 0; i < 8; i++) {
     const src = images[i]?.trim();
     const imgHtml = src ? buildImgHtml(src, alts[i] ?? keyword) : '';
@@ -55,8 +52,6 @@ export function injectImages(
     }
   }
 
-  // Pass 2 — structural fallback for images not injected in Pass 1.
-  // Injects the image immediately before the known section anchor.
   for (let i = 0; i < 8; i++) {
     if (injected.has(i)) continue;
     const src = images[i]?.trim();
@@ -71,8 +66,6 @@ export function injectImages(
     }
   }
 
-  // Pass 3 — clean up any remaining {{IMAGE_N}} the AI may have duplicated
-  // or placed in positions we could not structurally anchor.
   html = html.replace(/<p[^>]*>\s*\{\{\s*IMAGE_\d+\s*\}\}\s*<\/p>/gi, '');
   html = html.replace(/\{\{\s*IMAGE_\d+\s*\}\}/gi, '');
 

@@ -437,18 +437,20 @@ export class WhitelabelContentService {
   }> {
     const priority: SectionKey[] = [
       'intro',
-      'procura_buscadores',
       'avarias_comuns',
+      'assistencia_especializada',
       'prevencao',
-      'sistemas',
-      'servicos_especializados',
-      'perguntas_frequentes',
-      'conclusao',
-      'mais_sobre',
-      'servicos',
-      'como_funciona',
       'tipos',
-      'pesquisas_relacionadas',
+      'servicos',
+      'servico_24h',
+      'reparar_ou_substituir',
+      'por_que_escolher',
+      'integracao_servicos',
+      'contexto_local',
+      'perguntas_frequentes',
+      'contacte_empresa',
+      'mais_sobre',
+      'como_funciona',
     ];
 
     return priority

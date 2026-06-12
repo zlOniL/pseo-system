@@ -678,5 +678,14 @@ ${JSON.stringify(
 
   user += `\n\n${REINFORCEMENT}`;
 
-  return { system: SYSTEM_PROMPT, user };
+  const system = promptContext?.guardrailPrompt
+    ? `# SYSTEM PROMPT - FONTE DE VERDADE DA PASTA prompts
+
+Segue a instrucao geral abaixo como contrato principal e ignora qualquer estrutura antiga que conflite com ela.
+Mantem exatamente os 15 modulos definidos na instrucao geral.
+
+${promptContext.guardrailPrompt}`
+    : SYSTEM_PROMPT;
+
+  return { system, user };
 }

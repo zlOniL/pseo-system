@@ -2,19 +2,21 @@ import { Injectable } from '@nestjs/common';
 import { parse } from 'node-html-parser';
 import { ValidationResult } from './validation.types';
 
-const REQUIRED_H2S = [
-  'Procura em Buscadores',
-  'Principais Problemas',
-  'Serviços',
-  'Como Funciona',
+const REQUIRED_H2S: Array<string | string[]> = [
+  'Assistencia Especializada',
   'Tipos de',
-  'Prevenção e Manutenção',
-  'Atendemos Também',
-  'Sistemas e Intervenções',
-  'Serviços Especializados',
+  'Servicos Realizados',
+  'Principais Problemas',
+  'Como Funciona',
+  '24H/7',
+  'Manutencao',
+  'Reparar ou Substituir',
+  'Por Que Escolher',
+  'Integracao',
+  ['Contexto Local', 'Zonas de Atendimento'],
   'Perguntas Frequentes',
-  'Pesquisas Relacionadas',
-  'Conclusão',
+  'Contacte a Empresa',
+  'Mais Sobre',
 ];
 
 @Injectable()
@@ -27,7 +29,6 @@ export class ValidationService {
     const root = parse(html);
     const issues: string[] = [];
 
-    // ── Structure checks (30 pts) ─────────────────────────────────────
     let structure = 0;
 
     const h1 = root.querySelector('h1');
@@ -38,45 +39,45 @@ export class ValidationService {
       structure += 10;
     } else {
       if (!h1) issues.push('H1 ausente');
-      else issues.push('H1 não é o primeiro heading da página');
+      else issues.push('H1 nao e o primeiro heading da pagina');
     }
 
     const h2Texts = root.querySelectorAll('h2').map((el) => el.text.trim());
+    const normalizedH2Texts = h2Texts.map(normalizeText);
     const presentH2s = REQUIRED_H2S.filter((req) =>
-      h2Texts.some((t) => t.toLowerCase().includes(req.toLowerCase())),
+      normalizedH2Texts.some((text) =>
+        requiredOptions(req).some((option) => text.includes(normalizeText(option))),
+      ),
     );
     const missingH2s = REQUIRED_H2S.filter(
       (req) =>
-        !h2Texts.some((t) => t.toLowerCase().includes(req.toLowerCase())),
+        !normalizedH2Texts.some((text) =>
+          requiredOptions(req).some((option) => text.includes(normalizeText(option))),
+        ),
     );
 
     const h2Score = Math.round((presentH2s.length / REQUIRED_H2S.length) * 10);
     structure += h2Score;
     if (missingH2s.length > 0) {
-      issues.push(`H2s em falta: ${missingH2s.join(', ')}`);
+      issues.push(
+        `H2s em falta: ${missingH2s.map(requiredLabel).join(', ')}`,
+      );
     }
 
-    // Check order: first present required H2 should come before last present required H2
-    // Simple check: all required H2s appear in the correct relative order
     const h2Order = presentH2s.every((req, i) => {
-      const posReq = h2Texts.findIndex((t) =>
-        t.toLowerCase().includes(req.toLowerCase()),
-      );
+      const posReq = findRequiredPosition(normalizedH2Texts, req);
       if (i === 0) return true;
       const prevReq = presentH2s[i - 1];
-      const posPrev = h2Texts.findIndex((t) =>
-        t.toLowerCase().includes(prevReq.toLowerCase()),
-      );
+      const posPrev = findRequiredPosition(normalizedH2Texts, prevReq);
       return posReq > posPrev;
     });
 
     if (h2Order) {
       structure += 10;
     } else {
-      issues.push('Ordem dos H2 não corresponde ao template');
+      issues.push('Ordem dos H2 nao corresponde ao template');
     }
 
-    // ── SEO checks (40 pts) ───────────────────────────────────────────
     let seo = 0;
     const kwLower = mainKeyword.toLowerCase();
     const h1Text = h1?.text.toLowerCase() ?? '';
@@ -87,14 +88,16 @@ export class ValidationService {
       issues.push(`Palavra-chave "${mainKeyword}" ausente no H1`);
     }
 
-    const h2WithKw = h2Texts.filter((t) => t.toLowerCase().includes(kwLower));
+    const h2WithKw = h2Texts.filter((text) =>
+      text.toLowerCase().includes(kwLower),
+    );
     if (h2WithKw.length >= 2) {
       seo += 10;
     } else if (h2WithKw.length === 1) {
       seo += 5;
-      issues.push(`Palavra-chave presente em apenas 1 H2 (mínimo: 2)`);
+      issues.push('Palavra-chave presente em apenas 1 H2 (minimo: 2)');
     } else {
-      issues.push(`Palavra-chave ausente nos H2s`);
+      issues.push('Palavra-chave ausente nos H2s');
     }
 
     const bodyText = root.text.toLowerCase();
@@ -110,22 +113,21 @@ export class ValidationService {
       seo += 10;
     } else if (density < 1.0) {
       issues.push(
-        `Densidade da keyword baixa (${density.toFixed(2)}% — mínimo 1.0%)`,
+        `Densidade da keyword baixa (${density.toFixed(2)}% - minimo 1.0%)`,
       );
     } else {
       issues.push(
-        `Densidade da keyword alta (${density.toFixed(2)}% — máximo 2.5%)`,
+        `Densidade da keyword alta (${density.toFixed(2)}% - maximo 2.5%)`,
       );
     }
 
-    // ── Content checks (30 pts) ───────────────────────────────────────
     let content = 0;
 
     if (wordCount >= minWords) {
       content += 20;
     } else {
       issues.push(
-        `Contagem de palavras insuficiente (${wordCount} — mínimo ${minWords})`,
+        `Contagem de palavras insuficiente (${wordCount} - minimo ${minWords})`,
       );
     }
 
@@ -133,7 +135,7 @@ export class ValidationService {
     if (!hasUnfilledPlaceholders) {
       content += 10;
     } else {
-      issues.push('Existem placeholders {{...}} não preenchidos');
+      issues.push('Existem placeholders {{...}} nao preenchidos');
     }
 
     const score = Math.min(100, structure + seo + content);
@@ -144,4 +146,30 @@ export class ValidationService {
       breakdown: { structure, seo, content },
     };
   }
+}
+
+function normalizeText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function requiredOptions(value: string | string[]): string[] {
+  return Array.isArray(value) ? value : [value];
+}
+
+function requiredLabel(value: string | string[]): string {
+  return Array.isArray(value) ? value.join(' ou ') : value;
+}
+
+function findRequiredPosition(
+  normalizedH2Texts: string[],
+  required: string | string[],
+): number {
+  return normalizedH2Texts.findIndex((text) =>
+    requiredOptions(required).some((option) =>
+      text.includes(normalizeText(option)),
+    ),
+  );
 }

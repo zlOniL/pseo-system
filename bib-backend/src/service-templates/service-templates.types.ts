@@ -16,17 +16,19 @@ export interface ServiceTemplate {
 
 export const SECTION_KEYS = [
   'intro',
-  'procura_buscadores',
-  'avarias_comuns',
-  'servicos',
-  'como_funciona',
+  'assistencia_especializada',
   'tipos',
+  'servicos',
+  'avarias_comuns',
+  'como_funciona',
+  'servico_24h',
   'prevencao',
-  'sistemas',
-  'servicos_especializados',
+  'reparar_ou_substituir',
+  'por_que_escolher',
+  'integracao_servicos',
+  'contexto_local',
   'perguntas_frequentes',
-  'pesquisas_relacionadas',
-  'conclusao',
+  'contacte_empresa',
   'mais_sobre',
 ] as const;
 

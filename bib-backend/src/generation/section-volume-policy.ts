@@ -1,19 +1,21 @@
 import { SectionKey } from '../service-templates/service-templates.types';
 
 const SECTION_WORD_WEIGHTS: Record<SectionKey, number> = {
-  intro: 0.12,
-  procura_buscadores: 0.12,
+  intro: 0.11,
+  assistencia_especializada: 0.08,
+  tipos: 0.08,
+  servicos: 0.09,
   avarias_comuns: 0.1,
-  servicos: 0.08,
-  como_funciona: 0.05,
-  tipos: 0.05,
-  prevencao: 0.1,
-  sistemas: 0.1,
-  servicos_especializados: 0.08,
-  perguntas_frequentes: 0.08,
-  pesquisas_relacionadas: 0.02,
-  conclusao: 0.07,
-  mais_sobre: 0.03,
+  como_funciona: 0.06,
+  servico_24h: 0.06,
+  prevencao: 0.08,
+  reparar_ou_substituir: 0.06,
+  por_que_escolher: 0.06,
+  integracao_servicos: 0.06,
+  contexto_local: 0.07,
+  perguntas_frequentes: 0.06,
+  contacte_empresa: 0.05,
+  mais_sobre: 0.08,
 };
 
 export interface SectionVolumeConfig {
