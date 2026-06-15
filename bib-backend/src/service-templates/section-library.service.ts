@@ -6,6 +6,7 @@ import {
   SectionLibraryRow,
   SectionLibrarySummary,
   SECTION_KEYS,
+  WHITELABEL_SECTION_KEYS,
 } from './service-templates.types';
 
 @Injectable()
@@ -100,7 +101,7 @@ export class SectionLibraryService {
       counts.set(row.section_key, (counts.get(row.section_key) ?? 0) + 1);
     }
 
-    return SECTION_KEYS.map((key) => ({
+    return this.keysForFormat(outputFormat).map((key) => ({
       section_key: key,
       version_count: counts.get(key) ?? 0,
     }));
@@ -130,7 +131,7 @@ export class SectionLibraryService {
     const missing: string[] = [];
     const result = new Map<SectionKey, SectionLibraryRow>();
 
-    for (const key of SECTION_KEYS) {
+    for (const key of this.keysForFormat(outputFormat)) {
       const versions = grouped.get(key);
       if (!versions || versions.length === 0) {
         missing.push(key);
@@ -146,6 +147,14 @@ export class SectionLibraryService {
     }
 
     return result;
+  }
+
+  private keysForFormat(
+    outputFormat: 'html' | 'whitelabel_json' = 'html',
+  ): readonly SectionKey[] {
+    return outputFormat === 'whitelabel_json'
+      ? WHITELABEL_SECTION_KEYS
+      : SECTION_KEYS;
   }
 
   private async nextVersion(

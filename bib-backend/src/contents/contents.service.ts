@@ -150,6 +150,52 @@ export class ContentsService {
     return data as Content;
   }
 
+  async updateWhitelabel(
+    id: string,
+    contentJson: unknown,
+    validation: ValidationResult,
+    input?: Partial<
+      Pick<GenerateDto, 'video_url' | 'images' | 'related_services'>
+    > & {
+      external_page_type?: GenerateDto['external_page_type'];
+      external_slug?: string;
+    },
+    metaDescription?: string,
+  ): Promise<Content> {
+    const { data, error } = (await this.supabase
+      .getClient()
+      .from('contents')
+      .update({
+        html: null,
+        output_format: 'whitelabel_json',
+        content_json: contentJson,
+        score: validation.score,
+        score_issues: validation.issues,
+        status: 'draft',
+        ...(input?.video_url !== undefined && { video_url: input.video_url }),
+        ...(input?.images !== undefined && { images: input.images }),
+        ...(input?.related_services !== undefined && {
+          related_services: input.related_services,
+        }),
+        ...(input?.external_page_type !== undefined && {
+          external_page_type: input.external_page_type,
+        }),
+        ...(input?.external_slug !== undefined && {
+          external_slug: input.external_slug,
+        }),
+        ...(metaDescription !== undefined && {
+          meta_description: metaDescription,
+        }),
+      })
+      .eq('id', id)
+      .select()
+      .single()) as DbResult<Content>;
+
+    if (error) this.throwFriendlyContentError(error);
+    this.invalidateCache();
+    return data as Content;
+  }
+
   async findAll(dto: ListContentsDto = {}): Promise<{
     data: Omit<Content, 'html'>[];
     total: number;

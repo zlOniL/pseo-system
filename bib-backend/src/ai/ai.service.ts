@@ -10,10 +10,17 @@ class TransientAiError extends Error {}
 
 type OpenRouterResponse = {
   choices?: Array<{
+    finish_reason?: string;
+    native_finish_reason?: string;
     message?: {
       content?: string;
     };
   }>;
+};
+
+type OpenRouterProviderRouting = {
+  order: string[];
+  allow_fallbacks: boolean;
 };
 
 @Injectable()
@@ -40,6 +47,17 @@ export class AiService {
     return Number.isFinite(value) && value > 0 ? value : 65536;
   }
 
+  private getProviderRouting(model: string): OpenRouterProviderRouting | null {
+    if (!model.toLowerCase().startsWith('deepseek/')) {
+      return null;
+    }
+
+    return {
+      order: ['deepseek', 'deepinfra'],
+      allow_fallbacks: true,
+    };
+  }
+
   private isExhausted(model: string): boolean {
     const until = this.exhaustedUntil.get(model);
     return until !== undefined && Date.now() < until;
@@ -56,7 +74,10 @@ export class AiService {
     );
   }
 
-  async generateText(systemPrompt: string, userPrompt: string): Promise<string> {
+  async generateText(
+    systemPrompt: string,
+    userPrompt: string,
+  ): Promise<string> {
     if (!process.env.OPENROUTER_KEY) {
       throw new ServiceUnavailableException(
         'OPENROUTER_KEY nao configurada no backend',
@@ -107,6 +128,7 @@ export class AiService {
     userPrompt: string,
   ): Promise<string> {
     this.logger.log(`Calling OpenRouter model: ${model}`);
+    const provider = this.getProviderRouting(model);
 
     const response = await this.fetchWithTransientRetry(
       this.openRouterUrl,
@@ -123,6 +145,7 @@ export class AiService {
             { role: 'user', content: userPrompt },
           ],
           max_tokens: this.getMaxTokens(),
+          ...(provider ? { provider } : {}),
         }),
       },
       model,
@@ -153,10 +176,17 @@ export class AiService {
     }
 
     const data = (await response.json()) as OpenRouterResponse;
-    const content = data.choices?.[0]?.message?.content ?? '';
+    const choice = data.choices?.[0];
+    const content = choice?.message?.content ?? '';
 
     if (!content.trim()) {
       throw new BadRequestException('OpenRouter retornou uma resposta vazia');
+    }
+
+    if (choice?.finish_reason === 'length') {
+      this.logger.warn(
+        `OpenRouter truncated output for ${model}: finish_reason=length native_finish_reason=${choice.native_finish_reason ?? 'unknown'}`,
+      );
     }
 
     return this.stripMarkdown(content);

@@ -81,10 +81,15 @@ export class GenerationService {
   }
 
   async regenerate(dto: RegenerateDto): Promise<Content> {
-    if (!dto.site_id) {
-      const existing = await this.contents.findById(dto.content_id);
-      dto.site_id = existing.site_id ?? undefined;
+    const existing = await this.contents.findById(dto.content_id);
+    dto.site_id = dto.site_id ?? existing.site_id ?? undefined;
+    dto.service_id = dto.service_id ?? existing.service_id ?? undefined;
+
+    const site = dto.site_id ? await this.sites.findById(dto.site_id) : null;
+    if (site?.integration_type === 'whitelabel_api') {
+      return this.regenerateWhitelabel(dto, site);
     }
+
     const { html, metaDescription } = await this.buildHtml(dto, dto.feedback);
     const minWords = dto.min_words ?? 5000;
     const result = this.validation.validate(
@@ -511,6 +516,46 @@ export class GenerationService {
     );
     await this.persistJsonSections(content.id, generated.sections);
     return content;
+  }
+
+  private async regenerateWhitelabel(
+    dto: RegenerateDto,
+    site: Awaited<ReturnType<SitesService['findById']>>,
+  ): Promise<Content> {
+    const service = this.buildSyntheticService(dto);
+    const baseCity = dto.city || null;
+    const generated = await this.whitelabelContent.generateTemplate({
+      service,
+      site,
+      dto: {
+        base_city: baseCity ?? undefined,
+        service_notes: dto.service_notes,
+        related_services: dto.related_services,
+        feedback: dto.feedback,
+      },
+      baseCity,
+      isMainPage: !baseCity,
+    });
+
+    const validationResult = {
+      score: 100,
+      issues: [],
+      breakdown: { structure: 30, seo: 40, content: 30 },
+    };
+
+    return this.contents.updateWhitelabel(
+      dto.content_id,
+      generated.contentJson,
+      validationResult,
+      {
+        video_url: dto.video_url,
+        images: dto.images,
+        related_services: dto.related_services,
+        external_page_type: baseCity ? 'service_location' : 'service',
+        external_slug: buildExternalSlug(dto.service, baseCity ?? undefined),
+      },
+      generated.generated.page.seo_description,
+    );
   }
 
   private buildSyntheticService(dto: GenerateDto): Service {

@@ -9,8 +9,15 @@ function text(value: unknown): string {
 
 function Block({ block }: { block: Record<string, unknown> }) {
   const type = String(block.type ?? 'paragraph');
-  if (type === 'heading') {
-    return <h3 className="text-base font-semibold text-gray-900 mt-5">{text(block.text)}</h3>;
+  if (['heading', 'subheading', 'minor_heading'].includes(type)) {
+    const level = Number(block.level ?? (type === 'subheading' ? 3 : type === 'minor_heading' ? 4 : 2));
+    const className =
+      level === 4
+        ? 'text-sm font-semibold text-gray-900 mt-3'
+        : level === 3
+          ? 'text-base font-semibold text-gray-900 mt-4'
+          : 'text-lg font-semibold text-gray-900 mt-5';
+    return <h3 className={className}>{text(block.text)}</h3>;
   }
   if (type === 'list' && Array.isArray(block.items)) {
     return (
@@ -21,6 +28,22 @@ function Block({ block }: { block: Record<string, unknown> }) {
   }
   if (type === 'callout') {
     return <p className="text-sm text-gray-700 bg-amber-50 border border-amber-100 rounded-lg p-3">{text(block.text)}</p>;
+  }
+  if (type === 'faq_list' && Array.isArray(block.items)) {
+    return (
+      <div className="space-y-3">
+        {!block.hide_title && Boolean(block.title) && <h3 className="text-base font-semibold text-gray-900 mt-5">{text(block.title)}</h3>}
+        {block.items.map((faq, idx) => {
+          const item = faq as Record<string, unknown>;
+          return (
+            <div key={idx} className="border-t border-gray-100 pt-3">
+              <h4 className="text-sm font-semibold text-gray-900">{text(item.question)}</h4>
+              <p className="text-sm leading-6 text-gray-700 mt-1">{text(item.answer)}</p>
+            </div>
+          );
+        })}
+      </div>
+    );
   }
   return <p className="text-sm leading-6 text-gray-700">{text(block.text ?? block)}</p>;
 }
@@ -61,17 +84,6 @@ export function WhitelabelTextPreview({ content }: { content: WhitelabelContentJ
         {article.map((block, idx) => <Block key={idx} block={block} />)}
       </section>
 
-      {content.faqs && content.faqs.length > 0 && (
-        <section className="space-y-3">
-          <p className="text-xs uppercase tracking-wide text-gray-400">FAQs</p>
-          {content.faqs.map((faq, idx) => (
-            <div key={idx} className="border-t border-gray-100 pt-3">
-              <h3 className="text-sm font-semibold text-gray-900">{faq.question}</h3>
-              <p className="text-sm leading-6 text-gray-700 mt-1">{faq.answer}</p>
-            </div>
-          ))}
-        </section>
-      )}
     </div>
   );
 }

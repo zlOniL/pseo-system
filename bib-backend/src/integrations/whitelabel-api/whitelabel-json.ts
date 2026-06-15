@@ -1,16 +1,21 @@
 import { BadRequestException } from '@nestjs/common';
 import { slugify } from '../../common/slug';
 import {
-  SECTION_KEYS,
   SectionKey,
+  WHITELABEL_MODULES,
+  WHITELABEL_SECTION_KEYS,
 } from '../../service-templates/service-templates.types';
 import {
   WhitelabelContentJson,
   WhitelabelGeneratedPage,
 } from './whitelabel.types';
 
-const ARTICLE_SECTION_KEYS = SECTION_KEYS.filter(
-  (key) => key !== 'intro' && key !== 'perguntas_frequentes',
+const WHITELABEL_ARTICLE_SECTION_KEYS = WHITELABEL_SECTION_KEYS.filter(
+  (key) => key !== 'intro',
+);
+
+const WHITELABEL_MODULE_DISPLAY_TITLE_BY_KEY = new Map<string, string>(
+  WHITELABEL_MODULES.map((module) => [module.key, module.display_title]),
 );
 
 function isFaqItem(
@@ -24,6 +29,20 @@ function isFaqItem(
   );
 }
 
+function isFaqListBlock(block: Record<string, unknown>): block is Record<
+  string,
+  unknown
+> & {
+  type: 'faq_list';
+  items: Array<{ question: string; answer: string }>;
+} {
+  return (
+    block.type === 'faq_list' &&
+    Array.isArray(block.items) &&
+    block.items.every(isFaqItem)
+  );
+}
+
 export function stripJsonMarkdown(raw: string): string {
   return raw
     .replace(/^```(?:json)?\s*/i, '')
@@ -33,15 +52,7 @@ export function stripJsonMarkdown(raw: string): string {
 }
 
 export function parseGeneratedPage(raw: string): WhitelabelGeneratedPage {
-  const cleaned = extractJsonPayload(stripJsonMarkdown(raw));
-  let parsed: WhitelabelGeneratedPage;
-  try {
-    parsed = JSON.parse(cleaned) as WhitelabelGeneratedPage;
-  } catch {
-    throw new BadRequestException(
-      `A IA retornou JSON invalido para a integracao whitelabel. Trecho recebido: ${cleaned.slice(0, 500)}`,
-    );
-  }
+  const parsed = parseJsonPayload<WhitelabelGeneratedPage>(raw, 'pagina');
   if (!parsed.page || !parsed.sections) {
     throw new BadRequestException(
       'Resposta da IA sem os campos obrigatorios page/sections.',
@@ -50,12 +61,80 @@ export function parseGeneratedPage(raw: string): WhitelabelGeneratedPage {
   return parsed;
 }
 
+export function parseGeneratedShell(raw: string): {
+  page: WhitelabelGeneratedPage['page'];
+  intro: unknown;
+} {
+  const parsed = parseJsonPayload<{
+    page?: WhitelabelGeneratedPage['page'];
+    intro?: unknown;
+  }>(raw, 'base da pagina');
+
+  if (!parsed.page || !parsed.intro) {
+    throw new BadRequestException(
+      'Resposta da IA sem os campos obrigatorios page/intro.',
+    );
+  }
+
+  return { page: parsed.page, intro: parsed.intro };
+}
+
+export function parseGeneratedModuleBlocks(
+  raw: string,
+  moduleTitle: string,
+): Array<Record<string, unknown>> {
+  const parsed = parseJsonPayload<unknown>(raw, moduleTitle);
+  const blocks = Array.isArray(parsed)
+    ? parsed
+    : parsed && typeof parsed === 'object'
+      ? ((parsed as Record<string, unknown>).blocks ??
+        (parsed as Record<string, unknown>).items)
+      : null;
+
+  if (!Array.isArray(blocks)) {
+    throw new BadRequestException(
+      `Resposta da IA para ${moduleTitle} nao e um array de blocos.`,
+    );
+  }
+
+  return blocks.filter(
+    (block): block is Record<string, unknown> =>
+      Boolean(block) && typeof block === 'object' && !Array.isArray(block),
+  );
+}
+
+function parseJsonPayload<T>(raw: string, label: string): T {
+  const cleaned = extractJsonPayload(stripJsonMarkdown(raw));
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch {
+    throw new BadRequestException(
+      `A IA retornou JSON invalido para ${label}. Trecho recebido: ${cleaned.slice(0, 500)}`,
+    );
+  }
+}
+
 function extractJsonPayload(raw: string): string {
   const trimmed = raw.trim();
-  if (trimmed.startsWith('{')) return trimmed;
-  const first = trimmed.indexOf('{');
-  const last = trimmed.lastIndexOf('}');
-  if (first >= 0 && last > first) return trimmed.slice(first, last + 1);
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) return trimmed;
+
+  const firstArray = trimmed.indexOf('[');
+  const lastArray = trimmed.lastIndexOf(']');
+  const firstObject = trimmed.indexOf('{');
+  const lastObject = trimmed.lastIndexOf('}');
+
+  if (
+    firstArray >= 0 &&
+    lastArray > firstArray &&
+    (firstObject < 0 || firstArray < firstObject)
+  ) {
+    return trimmed.slice(firstArray, lastArray + 1);
+  }
+
+  if (firstObject >= 0 && lastObject > firstObject) {
+    return trimmed.slice(firstObject, lastObject + 1);
+  }
+
   return trimmed;
 }
 
@@ -69,33 +148,230 @@ export function generatedToContentJson(
   };
 
   const articleBlocks: Array<Record<string, unknown>> = [];
-  for (const key of ARTICLE_SECTION_KEYS) {
+  const legacyFaqs = getLegacyFaqs(page.sections);
+  const missing: string[] = [];
+
+  for (const key of WHITELABEL_ARTICLE_SECTION_KEYS) {
     const section = page.sections[key];
-    if (!section) continue;
-    if (Array.isArray(section)) {
-      articleBlocks.push(...(section as Array<Record<string, unknown>>));
-    } else if (typeof section === 'object') {
-      articleBlocks.push(section as Record<string, unknown>);
+    if (!section) {
+      if (key === 'modulo_13_perguntas_frequentes' && legacyFaqs.length > 0) {
+        articleBlocks.push(...buildFaqModuleFromLegacy(legacyFaqs));
+        continue;
+      }
+      missing.push(key);
+      continue;
     }
+
+    const blocks = normalizeModuleBlocks(key, section);
+    if (key === 'modulo_13_perguntas_frequentes') {
+      const withFaq = ensureFaqListInModule(blocks, legacyFaqs);
+      articleBlocks.push(...withFaq);
+      continue;
+    }
+    articleBlocks.push(...blocks);
   }
 
-  const faqsSection = page.sections.perguntas_frequentes;
-  const faqs = Array.isArray(faqsSection) ? faqsSection.filter(isFaqItem) : [];
+  if (missing.length > 0) {
+    throw new BadRequestException(
+      `Resposta whitelabel sem os modulos obrigatorios: ${missing.join(', ')}. Regenerar com a blueprint de 15 modulos.`,
+    );
+  }
+
+  validateUnexpectedLegacySections(page.sections);
+  const faqs = extractFaqsFromArticleBlocks(articleBlocks);
 
   return {
     topbar: intro.topbar,
     hero: intro.hero,
     form: intro.form,
     article: { blocks: articleBlocks },
+    // Mirror for FAQPage schema only. Visual order is controlled by article.blocks.
     faqs,
   };
+}
+
+function normalizeModuleBlocks(
+  key: string,
+  section: unknown,
+): Array<Record<string, unknown>> {
+  const blocks = Array.isArray(section)
+    ? [...(section as Array<Record<string, unknown>>)]
+    : typeof section === 'object' && section
+      ? [section as Record<string, unknown>]
+      : [];
+
+  const expectedTitle = WHITELABEL_MODULE_DISPLAY_TITLE_BY_KEY.get(key);
+  if (!expectedTitle) return blocks;
+
+  const first = blocks[0];
+  const hasOpeningHeading =
+    first?.type === 'heading' && typeof first.text === 'string';
+
+  if (hasOpeningHeading) {
+    return validateVisibleModuleBlocks(key, [
+      {
+        ...first,
+        level: normalizeHeadingLevel(first.level, 2),
+        text: cleanVisibleModuleTitle(String(first.text), expectedTitle),
+      },
+      ...blocks.slice(1).map(cleanVisibleModuleText),
+    ]);
+  }
+
+  return validateVisibleModuleBlocks(key, [
+    { type: 'heading', level: 2, text: expectedTitle },
+    ...blocks
+      .filter((block) => block && typeof block === 'object')
+      .map(cleanVisibleModuleText),
+  ]);
+}
+
+function validateVisibleModuleBlocks(
+  key: string,
+  blocks: Array<Record<string, unknown>>,
+): Array<Record<string, unknown>> {
+  if (key === 'modulo_13_perguntas_frequentes') return blocks;
+
+  const hasFaqList = blocks.some((block) => block.type === 'faq_list');
+  const headingTexts = blocks
+    .filter((block) =>
+      ['heading', 'subheading', 'minor_heading'].includes(
+        String(block.type ?? ''),
+      ),
+    )
+    .map((block) => String(block.text ?? block.title ?? '').trim())
+    .filter(Boolean);
+  const hasFaqHeading = headingTexts.some((text) =>
+    /perguntas\s+frequentes|faq/i.test(text),
+  );
+  const questionHeadings = headingTexts.filter((text) => /\?\s*$/.test(text));
+
+  if (hasFaqList || hasFaqHeading || questionHeadings.length >= 2) {
+    throw new BadRequestException(
+      `FAQ detectado fora do Modulo 13 na secao ${key}. Regere o template para manter a ordem dos 15 modulos.`,
+    );
+  }
+
+  return blocks;
+}
+
+function cleanVisibleModuleText(
+  block: Record<string, unknown>,
+): Record<string, unknown> {
+  if (typeof block.text === 'string') {
+    return {
+      ...block,
+      text: stripModulePrefix(block.text),
+    };
+  }
+
+  if (typeof block.title === 'string') {
+    return {
+      ...block,
+      title: stripModulePrefix(block.title),
+    };
+  }
+
+  return block;
+}
+
+function cleanVisibleModuleTitle(value: string, fallback: string): string {
+  const cleaned = stripModulePrefix(value).trim();
+  return cleaned || fallback;
+}
+
+function stripModulePrefix(value: string): string {
+  return value
+    .replace(/^\s*m[oó]dulo\s+\d+\s*[-–—:|]\s*/i, '')
+    .replace(/^\s*module\s+\d+\s*[-–—:|]\s*/i, '')
+    .trim();
+}
+
+function normalizeHeadingLevel(value: unknown, fallback: number): number {
+  const level = Number(value);
+  return [2, 3, 4].includes(level) ? level : fallback;
+}
+
+function getLegacyFaqs(
+  sections: WhitelabelGeneratedPage['sections'],
+): Array<{ question: string; answer: string }> {
+  const legacySection = (sections as Record<string, unknown>)
+    .perguntas_frequentes;
+  return Array.isArray(legacySection) ? legacySection.filter(isFaqItem) : [];
+}
+
+function ensureFaqListInModule(
+  blocks: Array<Record<string, unknown>>,
+  legacyFaqs: Array<{ question: string; answer: string }>,
+): Array<Record<string, unknown>> {
+  if (blocks.some(isFaqListBlock)) return blocks;
+  const inlineFaqs = blocks.filter(isFaqItem);
+  const items = inlineFaqs.length > 0 ? inlineFaqs : legacyFaqs;
+
+  if (items.length === 0) {
+    throw new BadRequestException(
+      'Modulo 13 recebido sem bloco faq_list e sem perguntas validas. O FAQ deve ficar dentro de article.blocks na posicao do Modulo 13.',
+    );
+  }
+
+  return [
+    ...blocks.filter((block) => !isFaqItem(block)),
+    {
+      type: 'faq_list',
+      hide_title: true,
+      items,
+    },
+  ];
+}
+
+function buildFaqModuleFromLegacy(
+  items: Array<{ question: string; answer: string }>,
+): Array<Record<string, unknown>> {
+  return [
+    {
+      type: 'heading',
+      level: 2,
+      text: 'Perguntas Frequentes',
+    },
+    {
+      type: 'faq_list',
+      hide_title: true,
+      items,
+    },
+  ];
+}
+
+function validateUnexpectedLegacySections(
+  sections: WhitelabelGeneratedPage['sections'],
+): void {
+  const unexpected = Object.keys(sections).filter(
+    (key) =>
+      !WHITELABEL_SECTION_KEYS.includes(
+        key as (typeof WHITELABEL_SECTION_KEYS)[number],
+      ) && key !== 'perguntas_frequentes',
+  );
+
+  if (unexpected.length > 0) {
+    throw new BadRequestException(
+      `Resposta whitelabel trouxe secoes fora da blueprint de 15 modulos: ${unexpected.join(', ')}. Isto pode deslocar blocos visualmente; regenerar com o contrato novo.`,
+    );
+  }
+}
+
+function extractFaqsFromArticleBlocks(
+  blocks: Array<Record<string, unknown>>,
+): Array<{ question: string; answer: string }> {
+  return blocks
+    .filter(isFaqListBlock)
+    .flatMap((block) => block.items)
+    .filter(isFaqItem);
 }
 
 export function extractSectionMap(
   page: WhitelabelGeneratedPage,
 ): Map<SectionKey, unknown> {
   const result = new Map<SectionKey, unknown>();
-  for (const key of SECTION_KEYS) {
+  for (const key of WHITELABEL_SECTION_KEYS) {
     const section = page.sections[key];
     if (section !== undefined) result.set(key, section);
   }
@@ -168,7 +444,9 @@ function cleanMainPageText(value: string): string {
 
 export function countTextWords(value: unknown): number {
   if (typeof value === 'string') {
-    return value.match(/[\p{L}\p{N}]+(?:[.'’-][\p{L}\p{N}]+)*/gu)?.length ?? 0;
+    return (
+      value.match(/[\p{L}\p{N}]+(?:[.'\u2019-][\p{L}\p{N}]+)*/gu)?.length ?? 0
+    );
   }
   if (Array.isArray(value)) {
     const items: unknown[] = value;
