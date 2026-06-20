@@ -30,8 +30,11 @@ NÃO altere estrutura. NÃO remova seções. NÃO invente novos blocos.
 11. Linguagem natural, profissional, em português europeu (não brasileiro)
 12. NÃO usar "você" — usar "o cliente", "o utilizador", "a intervenção", etc.
 13. DENSIDADE OBRIGATÓRIA: a keyword principal deve aparecer pelo menos 1% do total de palavras. Repete-a de forma natural nos parágrafos.
-14. LINKS EXTERNOS (4-6 obrigatórios): distribuir ao longo do conteúdo nos contextos naturais:
-    - links para marcas/fabricantes de ferramentas ou equipamentos do sector (ex: fabricante de ferramentas usadas no serviço)
+14. LINKS EXTERNOS OBRIGATÓRIOS: inserir links externos clicáveis nos módulos corretos, seguindo estes casos:
+    - Módulo de marcas/componentes: links para sites oficiais de marcas/fabricantes relacionados ao serviço
+    - Módulo de zonas/contexto local: em páginas principais, usar Páginas Amarelas (https://www.pai.pt/) e Portal Autárquico (https://portalautarquico.dgal.gov.pt/); em páginas locais, usar 2 entidades locais oficiais ou úteis quando o URL real for conhecido
+    - Módulo "Mais Sobre": inserir Google.pt (https://www.google.pt) e ChatGPT.com (https://chatgpt.com)
+    - Não usar links externos fora destes contextos, salvo se o prompt do utilizador pedir diretamente
     Formato: \`<a href="URL_REAL" style="color: #111 !important; font-weight: 600; text-decoration: underline;" target="_blank" rel="noopener noreferrer">texto</a>\`
     NUNCA inventar URLs — usa apenas URLs reais e verificáveis.
 15. PLACEHOLDERS DE IMAGEM: Os marcadores \`{{IMAGE_1}}\` até \`{{IMAGE_8}}\` são substituídos automaticamente após a geração pela pipeline. NÃO os remova, NÃO os altere, NÃO os preencha — copia-os EXATAMENTE como estão no template para a saída.
@@ -597,7 +600,7 @@ const REINFORCEMENT = `INSTRUÇÕES FINAIS OBRIGATÓRIAS:
 9. FAQ: EXATAMENTE 10 pares H3+P. Cada resposta começa com <strong>SIM.</strong> ou confirmação equivalente, texto explicativo FORA do <strong>.
 10. PESQUISAS RELACIONADAS: EXATAMENTE 30 itens <li>.
 11. ENRIQUECIMENTO DE SERVIÇO OBRIGATÓRIO: mencionar PELO MENOS 3 ferramentas/equipamentos com nomes técnicos reais, 1-2 marcas reconhecidas do sector (levemente, de forma natural), e pelo menos 1 técnica ou método profissional específico com nome técnico. Distribuir por 2-3 secções.
-12. LINKS EXTERNOS OBRIGATÓRIOS (4-6): links para marcas/fabricantes do sector. URLs REAIS e verificáveis — NUNCA inventar.
+12. LINKS EXTERNOS OBRIGATÓRIOS: inserir links externos clicáveis apenas nestes contextos: marcas oficiais no módulo de marcas/componentes; Páginas Amarelas e Portal Autárquico em páginas principais; 2 entidades locais oficiais/úteis em páginas locais quando o URL real for conhecido; Google.pt e ChatGPT.com no módulo "Mais Sobre". URLs REAIS e verificáveis — NUNCA inventar.
 13. DENSIDADE: a keyword principal deve aparecer em pelo menos 1% do texto total. Distribui-a naturalmente
 14. INTEGRAÇÃO COM OUTROS SERVIÇOS: sempre 3 parágrafos intro (INTEGRACAO_P1, P2, P3). A lista <ul> SÓ existe se o input indicar serviços relacionados — nesse caso exactamente um <li> por serviço fornecido, com o URL real no href. NUNCA inventar URLs ou serviços. Se o input NÃO indicar serviços relacionados: NÃO gerar lista <ul> — apenas os 3 parágrafos. O H2 inclui o serviço e a cidade.`;
 

@@ -142,12 +142,30 @@ export interface ServiceTemplate {
   video_url: string | null;
   is_main_page: boolean;
   label: string | null;
+  generation_issues: WhitelabelGenerationIssue[];
 }
 
 export interface GenerateTemplateResult {
   template: ServiceTemplate;
   content: Content;
   sections_saved: number;
+  generation_issues: WhitelabelGenerationIssue[];
+}
+
+export interface WhitelabelGenerationIssue {
+  section_key: string;
+  severity: 'warning' | 'error';
+  code:
+    | 'rate_limit'
+    | 'invalid_json'
+    | 'invalid_blocks'
+    | 'structure'
+    | 'external_links'
+    | 'word_count'
+    | 'generation_error'
+    | 'final_word_count';
+  message: string;
+  attempts: number;
 }
 
 export interface SectionLibrarySummary {

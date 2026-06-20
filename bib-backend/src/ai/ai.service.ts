@@ -26,6 +26,7 @@ type OpenRouterProviderRouting = {
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
+  private callSequence = 0;
   private readonly openRouterUrl =
     'https://openrouter.ai/api/v1/chat/completions';
   private readonly exhaustedUntil = new Map<string, number>();
@@ -78,7 +79,15 @@ export class AiService {
     systemPrompt: string,
     userPrompt: string,
   ): Promise<string> {
+    const callId = ++this.callSequence;
+    const startedAt = Date.now();
+    this.logger.log(
+      `[PERF] ai_call_start id=${callId} models=${this.getModels().join(',')}`,
+    );
     if (!process.env.OPENROUTER_KEY) {
+      this.logger.error(
+        `[PERF] ai_call_failed id=${callId} duration_ms=${Date.now() - startedAt} reason=missing_key`,
+      );
       throw new ServiceUnavailableException(
         'OPENROUTER_KEY nao configurada no backend',
       );
@@ -87,16 +96,26 @@ export class AiService {
     const available = this.getModels().filter((m) => !this.isExhausted(m));
 
     if (available.length === 0) {
+      this.logger.error(
+        `[PERF] ai_call_failed id=${callId} duration_ms=${Date.now() - startedAt} reason=all_models_exhausted`,
+      );
       throw new ServiceUnavailableException(
-        'Todos os modelos de IA esgotados para hoje',
+        'OpenRouter 429: todos os modelos de IA estao temporariamente esgotados',
       );
     }
 
+    let sawRateLimit = false;
+
     for (const model of available) {
       try {
-        return await this.tryModel(model, systemPrompt, userPrompt);
+        const result = await this.tryModel(model, systemPrompt, userPrompt);
+        this.logger.log(
+          `[PERF] ai_call_done id=${callId} model=${model} duration_ms=${Date.now() - startedAt} output_chars=${result.length}`,
+        );
+        return result;
       } catch (err) {
         if (err instanceof RateLimitError) {
+          sawRateLimit = true;
           this.markExhausted(model);
           continue;
         }
@@ -106,12 +125,20 @@ export class AiService {
           );
           continue;
         }
+        this.logger.error(
+          `[PERF] ai_call_failed id=${callId} model=${model} duration_ms=${Date.now() - startedAt} reason=${this.compactError((err as Error).message)}`,
+        );
         throw err;
       }
     }
 
+    this.logger.error(
+      `[PERF] ai_call_failed id=${callId} duration_ms=${Date.now() - startedAt} reason=${sawRateLimit ? 'rate_limit' : 'transient_models_failed'}`,
+    );
     throw new ServiceUnavailableException(
-      'Todos os modelos de IA disponiveis falharam temporariamente',
+      sawRateLimit
+        ? 'OpenRouter 429: todos os modelos de IA atingiram o limite'
+        : 'Todos os modelos de IA disponiveis falharam temporariamente',
     );
   }
 
@@ -199,7 +226,11 @@ export class AiService {
   ): Promise<Response> {
     const maxAttempts = 3;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      const attemptStartedAt = Date.now();
       const response = await fetch(url, init);
+      this.logger.log(
+        `[PERF] ai_http_attempt model=${model} attempt=${attempt}/${maxAttempts} status=${response.status} duration_ms=${Date.now() - attemptStartedAt}`,
+      );
       if (
         ![408, 500, 502, 503, 504].includes(response.status) ||
         attempt === maxAttempts

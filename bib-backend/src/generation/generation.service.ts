@@ -13,11 +13,13 @@ import { RegenerateDto } from './dto/regenerate.dto';
 import { SitesService } from '../sites/sites.service';
 import { WhitelabelContentService } from '../integrations/whitelabel-api/whitelabel-content.service';
 import { buildExternalSlug } from '../integrations/whitelabel-api/whitelabel-json';
+import { formatWhitelabelGenerationIssue } from '../integrations/whitelabel-api/whitelabel.types';
 import { Service } from '../services/services.service';
 import { PromptContextService } from '../prompt-context/prompt-context.service';
 import { PromptContext } from '../prompt-context/prompt-context.types';
 import { runWithConcurrency } from '../common/run-with-concurrency';
 import {
+  HtmlSectionKey,
   SECTION_KEYS,
   SectionKey,
 } from '../service-templates/service-templates.types';
@@ -50,6 +52,10 @@ export class GenerationService {
   ) {}
 
   async generate(dto: GenerateDto): Promise<Content> {
+    const totalStartedAt = Date.now();
+    this.logger.log(
+      `[PERF] page_generation_start service=${dto.service} city=${dto.city ?? 'main'}`,
+    );
     const site = dto.site_id ? await this.sites.findById(dto.site_id) : null;
     if (!site) {
       throw new BadRequestException(
@@ -60,10 +66,18 @@ export class GenerationService {
       `Generate route using site ${site.name} (${site.integration_type})`,
     );
     if (site.integration_type === 'whitelabel_api') {
-      return this.generateWhitelabel(dto, site);
+      const content = await this.generateWhitelabel(dto, site);
+      this.logger.log(
+        `[PERF] page_generation_done format=whitelabel_json service=${dto.service} city=${dto.city ?? 'main'} duration_ms=${Date.now() - totalStartedAt}`,
+      );
+      return content;
     }
 
+    const htmlStartedAt = Date.now();
     const { html, metaDescription } = await this.buildHtml(dto);
+    this.logger.log(
+      `[PERF] page_html_ready service=${dto.service} duration_ms=${Date.now() - htmlStartedAt}`,
+    );
     const minWords = dto.min_words ?? 5000;
     const result = this.validation.validate(
       html,
@@ -77,10 +91,14 @@ export class GenerationService {
       metaDescription,
     );
     await this.persistHtmlSections(content.id, html);
+    this.logger.log(
+      `[PERF] page_generation_done format=html service=${dto.service} city=${dto.city ?? 'main'} duration_ms=${Date.now() - totalStartedAt}`,
+    );
     return content;
   }
 
   async regenerate(dto: RegenerateDto): Promise<Content> {
+    const totalStartedAt = Date.now();
     const existing = await this.contents.findById(dto.content_id);
     dto.site_id = dto.site_id ?? existing.site_id ?? undefined;
     dto.service_id = dto.service_id ?? existing.service_id ?? undefined;
@@ -109,6 +127,9 @@ export class GenerationService {
       metaDescription,
     );
     await this.persistHtmlSections(content.id, html);
+    this.logger.log(
+      `[PERF] page_generation_done format=html service=${dto.service} city=${dto.city ?? 'main'} duration_ms=${Date.now() - totalStartedAt}`,
+    );
     return content;
   }
 
@@ -187,10 +208,13 @@ export class GenerationService {
     dto: GenerateDto,
     feedback?: string,
   ): Promise<string> {
+    const totalStartedAt = Date.now();
     const minWords = dto.min_words ?? 5000;
-    this.logger.log(`Generating WordPress HTML by sections for ${dto.service}`);
+    this.logger.log(
+      `[PERF] html_sections_start service=${dto.service} sections=${SECTION_KEYS.length} concurrency=${getSectionVolumeConfig().sectionConcurrency}`,
+    );
 
-    const sections = {} as Partial<Record<SectionKey, string>>;
+    const sections = {} as Partial<Record<HtmlSectionKey, string>>;
     const promptContext = this.promptContext.resolve({ service: dto.service });
     const config = getSectionVolumeConfig();
 
@@ -219,6 +243,10 @@ export class GenerationService {
       },
     );
 
+    this.logger.log(
+      `[PERF] html_initial_sections_done service=${dto.service} duration_ms=${Date.now() - totalStartedAt}`,
+    );
+    const expansionStartedAt = Date.now();
     const expanded = await this.expandWpShortSectionsIfNeeded(
       dto,
       sections,
@@ -226,6 +254,9 @@ export class GenerationService {
       feedback,
     );
 
+    this.logger.log(
+      `[PERF] html_expansion_done service=${dto.service} duration_ms=${Date.now() - expansionStartedAt}`,
+    );
     const html = SECTION_KEYS.map((key) => expanded[key])
       .filter(Boolean)
       .join('\n\n');
@@ -243,13 +274,16 @@ export class GenerationService {
       );
     }
 
+    this.logger.log(
+      `[PERF] html_sections_done service=${dto.service} words=${finalWords} duration_ms=${Date.now() - totalStartedAt}`,
+    );
     return html;
   }
 
   private async generateWpSection(input: {
     dto: GenerateDto;
     feedback?: string;
-    sectionKey: SectionKey;
+    sectionKey: HtmlSectionKey;
     targetWords: number;
     minimumWords: number;
     maximumWords: number;
@@ -264,7 +298,7 @@ export class GenerationService {
   private async generateWpSectionWithRepair(input: {
     dto: GenerateDto;
     feedback?: string;
-    sectionKey: SectionKey;
+    sectionKey: HtmlSectionKey;
     targetWords: number;
     minimumWords: number;
     maximumWords: number;
@@ -281,6 +315,7 @@ export class GenerationService {
       words < minimumWords && attempt <= config.repairAttempts;
       attempt += 1
     ) {
+      const repairStartedAt = Date.now();
       this.logger.warn(
         `WP section ${input.sectionKey} below target (${words}/${minimumWords}); repair attempt ${attempt}/${config.repairAttempts}`,
       );
@@ -292,6 +327,9 @@ export class GenerationService {
       const raw = await this.ai.generateText(system, user);
       html = this.cleanSectionHtml(raw, input.sectionKey);
       words = this.countVisibleWords(html);
+      this.logger.log(
+        `[PERF] html_section_repair section=${input.sectionKey} attempt=${attempt}/${config.repairAttempts} words=${words}/${minimumWords} duration_ms=${Date.now() - repairStartedAt}`,
+      );
     }
 
     return html;
@@ -299,16 +337,17 @@ export class GenerationService {
 
   private async expandWpShortSectionsIfNeeded(
     dto: GenerateDto,
-    sections: Partial<Record<SectionKey, string>>,
+    sections: Partial<Record<HtmlSectionKey, string>>,
     minWords: number,
     feedback?: string,
-  ): Promise<Partial<Record<SectionKey, string>>> {
+  ): Promise<Partial<Record<HtmlSectionKey, string>>> {
     const config = getSectionVolumeConfig();
     const maxRounds = config.finalExpansionRounds;
     const maxSectionsPerRound = config.maxSectionsPerExpansionRound;
     let current = { ...sections };
 
     for (let round = 1; round <= maxRounds; round += 1) {
+      const roundStartedAt = Date.now();
       const totalWords = this.countVisibleWords(
         SECTION_KEYS.map((key) => current[key]).join('\n\n'),
       );
@@ -367,12 +406,15 @@ export class GenerationService {
       for (const expansion of expansions) {
         current[expansion.sectionKey] = expansion.expanded;
       }
+      this.logger.log(
+        `[PERF] html_expansion_round round=${round}/${maxRounds} sections=${expansions.length} duration_ms=${Date.now() - roundStartedAt}`,
+      );
     }
 
     return current;
   }
 
-  private parallelSectionSummary(sectionKey: SectionKey): string {
+  private parallelSectionSummary(sectionKey: HtmlSectionKey): string {
     const otherSections = SECTION_KEYS.filter((key) => key !== sectionKey);
     return [
       'As secoes desta pagina sao geradas em paralelo.',
@@ -382,18 +424,18 @@ export class GenerationService {
   }
 
   private expansionCandidates(
-    sections: Partial<Record<SectionKey, string>>,
+    sections: Partial<Record<HtmlSectionKey, string>>,
     minWords: number,
     deficit: number,
     maxSectionsPerRound: number,
   ): Array<{
-    sectionKey: SectionKey;
+    sectionKey: HtmlSectionKey;
     currentWords: number;
     targetWords: number;
     deficit: number;
     priority: number;
   }> {
-    const priority: SectionKey[] = [
+    const priority: HtmlSectionKey[] = [
       'intro',
       'avarias_comuns',
       'assistencia_especializada',
@@ -430,7 +472,7 @@ export class GenerationService {
       .sort((a, b) => b.deficit - a.deficit || a.priority - b.priority);
   }
 
-  private cleanSectionHtml(raw: string, sectionKey: SectionKey): string {
+  private cleanSectionHtml(raw: string, sectionKey: HtmlSectionKey): string {
     let html = raw
       .replace(/^```[a-z0-9_-]*\s*/i, '')
       .replace(/\s*```\s*$/i, '')
@@ -496,7 +538,7 @@ export class GenerationService {
 
     const validationResult = {
       score: 100,
-      issues: [],
+      issues: generated.issues.map(formatWhitelabelGenerationIssue),
       breakdown: { structure: 30, seo: 40, content: 30 },
     };
     const content = await this.contents.save(
@@ -539,7 +581,7 @@ export class GenerationService {
 
     const validationResult = {
       score: 100,
-      issues: [],
+      issues: generated.issues.map(formatWhitelabelGenerationIssue),
       breakdown: { structure: 30, seo: 40, content: 30 },
     };
 

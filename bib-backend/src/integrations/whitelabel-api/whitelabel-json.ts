@@ -9,6 +9,7 @@ import {
   WhitelabelContentJson,
   WhitelabelGeneratedPage,
 } from './whitelabel.types';
+import { normalizeWhitelabelContentLinks } from './whitelabel-link-rules';
 
 const WHITELABEL_ARTICLE_SECTION_KEYS = WHITELABEL_SECTION_KEYS.filter(
   (key) => key !== 'intro',
@@ -140,6 +141,7 @@ function extractJsonPayload(raw: string): string {
 
 export function generatedToContentJson(
   page: WhitelabelGeneratedPage,
+  options: { tolerant?: boolean } = {},
 ): WhitelabelContentJson {
   const intro = (page.sections.intro ?? {}) as {
     topbar?: { left?: string[] };
@@ -162,37 +164,42 @@ export function generatedToContentJson(
       continue;
     }
 
-    const blocks = normalizeModuleBlocks(key, section);
+    const blocks = normalizeModuleBlocks(key, section, options.tolerant);
     if (key === 'modulo_13_perguntas_frequentes') {
-      const withFaq = ensureFaqListInModule(blocks, legacyFaqs);
+      const withFaq = ensureFaqListInModule(
+        blocks,
+        legacyFaqs,
+        options.tolerant,
+      );
       articleBlocks.push(...withFaq);
       continue;
     }
     articleBlocks.push(...blocks);
   }
 
-  if (missing.length > 0) {
+  if (missing.length > 0 && !options.tolerant) {
     throw new BadRequestException(
       `Resposta whitelabel sem os modulos obrigatorios: ${missing.join(', ')}. Regenerar com a blueprint de 15 modulos.`,
     );
   }
 
-  validateUnexpectedLegacySections(page.sections);
+  if (!options.tolerant) validateUnexpectedLegacySections(page.sections);
   const faqs = extractFaqsFromArticleBlocks(articleBlocks);
 
-  return {
+  return normalizeWhitelabelContentLinks({
     topbar: intro.topbar,
     hero: intro.hero,
     form: intro.form,
     article: { blocks: articleBlocks },
     // Mirror for FAQPage schema only. Visual order is controlled by article.blocks.
     faqs,
-  };
+  });
 }
 
 function normalizeModuleBlocks(
   key: string,
   section: unknown,
+  tolerant = false,
 ): Array<Record<string, unknown>> {
   const blocks = Array.isArray(section)
     ? [...(section as Array<Record<string, unknown>>)]
@@ -215,7 +222,7 @@ function normalizeModuleBlocks(
         text: cleanVisibleModuleTitle(String(first.text), expectedTitle),
       },
       ...blocks.slice(1).map(cleanVisibleModuleText),
-    ]);
+    ], tolerant);
   }
 
   return validateVisibleModuleBlocks(key, [
@@ -223,12 +230,13 @@ function normalizeModuleBlocks(
     ...blocks
       .filter((block) => block && typeof block === 'object')
       .map(cleanVisibleModuleText),
-  ]);
+  ], tolerant);
 }
 
 function validateVisibleModuleBlocks(
   key: string,
   blocks: Array<Record<string, unknown>>,
+  tolerant = false,
 ): Array<Record<string, unknown>> {
   if (key === 'modulo_13_perguntas_frequentes') return blocks;
 
@@ -236,17 +244,19 @@ function validateVisibleModuleBlocks(
   const headingTexts = blocks
     .filter((block) =>
       ['heading', 'subheading', 'minor_heading'].includes(
-        String(block.type ?? ''),
+        typeof block.type === 'string' ? block.type : '',
       ),
     )
-    .map((block) => String(block.text ?? block.title ?? '').trim())
+    .map((block) => {
+      if (typeof block.text === 'string') return block.text.trim();
+      if (typeof block.title === 'string') return block.title.trim();
+      return '';
+    })
     .filter(Boolean);
   const hasFaqHeading = headingTexts.some((text) =>
     /perguntas\s+frequentes|faq/i.test(text),
   );
-  const questionHeadings = headingTexts.filter((text) => /\?\s*$/.test(text));
-
-  if (hasFaqList || hasFaqHeading || questionHeadings.length >= 2) {
+  if ((hasFaqList || hasFaqHeading) && !tolerant) {
     throw new BadRequestException(
       `FAQ detectado fora do Modulo 13 na secao ${key}. Regere o template para manter a ordem dos 15 modulos.`,
     );
@@ -303,12 +313,14 @@ function getLegacyFaqs(
 function ensureFaqListInModule(
   blocks: Array<Record<string, unknown>>,
   legacyFaqs: Array<{ question: string; answer: string }>,
+  tolerant = false,
 ): Array<Record<string, unknown>> {
   if (blocks.some(isFaqListBlock)) return blocks;
   const inlineFaqs = blocks.filter(isFaqItem);
   const items = inlineFaqs.length > 0 ? inlineFaqs : legacyFaqs;
 
   if (items.length === 0) {
+    if (tolerant) return blocks;
     throw new BadRequestException(
       'Modulo 13 recebido sem bloco faq_list e sem perguntas validas. O FAQ deve ficar dentro de article.blocks na posicao do Modulo 13.',
     );

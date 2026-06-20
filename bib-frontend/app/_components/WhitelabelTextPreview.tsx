@@ -1,10 +1,11 @@
 import { WhitelabelContentJson } from '@/lib/types';
+import {
+  WhitelabelInlineText,
+  whitelabelPlainText,
+} from '@/app/_components/WhitelabelInlineText';
 
 function text(value: unknown): string {
-  if (typeof value === 'string') return value;
-  if (Array.isArray(value)) return value.map(text).filter(Boolean).join(', ');
-  if (value && typeof value === 'object') return JSON.stringify(value, null, 2);
-  return '';
+  return whitelabelPlainText(value);
 }
 
 function Block({ block }: { block: Record<string, unknown> }) {
@@ -22,12 +23,20 @@ function Block({ block }: { block: Record<string, unknown> }) {
   if (type === 'list' && Array.isArray(block.items)) {
     return (
       <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
-        {block.items.map((item, idx) => <li key={idx}>{text(item)}</li>)}
+        {block.items.map((item, idx) => (
+          <li key={idx}>
+            <WhitelabelInlineText value={item} />
+          </li>
+        ))}
       </ul>
     );
   }
   if (type === 'callout') {
-    return <p className="text-sm text-gray-700 bg-amber-50 border border-amber-100 rounded-lg p-3">{text(block.text)}</p>;
+    return (
+      <p className="text-sm text-gray-700 bg-amber-50 border border-amber-100 rounded-lg p-3">
+        <WhitelabelInlineText value={block.text} />
+      </p>
+    );
   }
   if (type === 'faq_list' && Array.isArray(block.items)) {
     return (
@@ -38,14 +47,20 @@ function Block({ block }: { block: Record<string, unknown> }) {
           return (
             <div key={idx} className="border-t border-gray-100 pt-3">
               <h4 className="text-sm font-semibold text-gray-900">{text(item.question)}</h4>
-              <p className="text-sm leading-6 text-gray-700 mt-1">{text(item.answer)}</p>
+              <p className="text-sm leading-6 text-gray-700 mt-1">
+                <WhitelabelInlineText value={item.answer} />
+              </p>
             </div>
           );
         })}
       </div>
     );
   }
-  return <p className="text-sm leading-6 text-gray-700">{text(block.text ?? block)}</p>;
+  return (
+    <p className="text-sm leading-6 text-gray-700">
+      <WhitelabelInlineText value={block.text ?? block} />
+    </p>
+  );
 }
 
 export function WhitelabelTextPreview({ content }: { content: WhitelabelContentJson | null }) {
@@ -65,7 +80,9 @@ export function WhitelabelTextPreview({ content }: { content: WhitelabelContentJ
         <p className="text-xs uppercase tracking-wide text-gray-400">Hero</p>
         {Boolean(hero.badge) && <p className="text-xs font-medium text-gray-500">{text(hero.badge)}</p>}
         <h1 className="text-2xl font-semibold text-gray-950">{text(hero.h1)}</h1>
-        <p className="text-sm leading-6 text-gray-700">{text(hero.intro)}</p>
+        <p className="text-sm leading-6 text-gray-700">
+          <WhitelabelInlineText value={hero.intro} />
+        </p>
         {Array.isArray(hero.bullets) && (
           <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
             {hero.bullets.map((item, idx) => <li key={idx}>{text(item)}</li>)}

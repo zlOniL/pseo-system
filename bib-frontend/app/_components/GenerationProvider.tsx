@@ -73,13 +73,21 @@ export function GenerationProvider({ children }: { children: React.ReactNode }) 
       .then((result) => {
         processingRef.current = null;
         setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, status: "done", result } : j)));
-        toast.success(`"${label}" gerada com sucesso!`, {
+        const issues = result.score_issues ?? [];
+        const notify = issues.length > 0 ? toast.warning : toast.success;
+        notify(
+          issues.length > 0
+            ? `"${label}" gerada com ${issues.length} aviso${issues.length === 1 ? '' : 's'}.`
+            : `"${label}" gerada com sucesso!`,
+          {
+          ...(issues.length > 0 && { description: issues.join('\n') }),
           action: {
             label: "Ver resultado →",
             onClick: () => router.push(`/contents/${result.id}`),
           },
           duration: 10000,
-        });
+          },
+        );
       })
       .catch((err) => {
         processingRef.current = null;

@@ -12,6 +12,13 @@ export interface ServiceTemplate {
   video_url: string | null;
   is_main_page: boolean;
   label: string | null;
+  generation_issues: Array<{
+    section_key: string;
+    severity: 'warning' | 'error';
+    code: string;
+    message: string;
+    attempts: number;
+  }>;
 }
 
 export const SECTION_KEYS = [

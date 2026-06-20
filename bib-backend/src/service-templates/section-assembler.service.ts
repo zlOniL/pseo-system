@@ -42,7 +42,11 @@ export class SectionAssemblerService {
         'whitelabel_json',
       );
       const { contentJson, externalSlug } =
-        this.whitelabelContent.assembleFromLibrary({ service, city, rows });
+        await this.whitelabelContent.assembleFromLibrary({
+          service,
+          city,
+          rows,
+        });
       const validationResult = {
         score: 100,
         issues: [],

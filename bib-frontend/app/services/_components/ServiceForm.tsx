@@ -5,7 +5,13 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
-import { Service, CreateServiceInput, RelatedService, WpCategory, Site } from '@/lib/types';
+import {
+  Service,
+  CreateServiceInput,
+  RelatedService,
+  WpCategory,
+  Site,
+} from '@/lib/types';
 import MediaPickerModal from '@/app/_components/MediaPickerModal';
 
 interface ServiceFormProps {

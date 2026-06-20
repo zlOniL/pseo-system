@@ -4,7 +4,14 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
-import { Content, Service, ServiceTemplate, GenerateTemplateInput, SectionLibrarySummary, RelatedService } from '@/lib/types';
+import {
+  Content,
+  Service,
+  ServiceTemplate,
+  GenerateTemplateInput,
+  SectionLibrarySummary,
+  RelatedService,
+} from '@/lib/types';
 import { PreviewPane, buildPreviewHtml } from '@/app/generate/_components/PreviewPane';
 import { WhitelabelTextPreview } from '@/app/_components/WhitelabelTextPreview';
 
@@ -298,6 +305,147 @@ function QueueModal({ jobs, onClose }: { jobs: ActiveJob[]; onClose: () => void 
   );
 }
 
+// ── Generation warnings ───────────────────────────────────────────────────────────
+
+function issueSectionLabel(sectionKey: string): string {
+  if (sectionKey === 'page') return 'Página completa';
+  if (sectionKey === 'intro') return 'Introdução';
+  if (sectionKey === 'blueprints') return 'Blueprints';
+  if (sectionKey === 'external_link_research') return 'Links externos';
+  return sectionKey
+    .replace(/^modulo_\d+_/, '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function TemplateIssuesBanner({
+  template,
+  onViewMore,
+}: {
+  template: ServiceTemplate | null;
+  onViewMore: () => void;
+}) {
+  const issues = template?.generation_issues ?? [];
+  if (!template || issues.length === 0) return null;
+
+  const failed = issues.filter((issue) => issue.severity === 'error').length;
+  const firstIssue = issues[0];
+  const needsModal = issues.length > 1 || firstIssue.message.length > 115;
+  const danger = failed > 0;
+
+  return (
+    <div
+      className={`rounded-lg border px-3 py-2.5 text-xs ${
+        danger
+          ? 'border-red-200 bg-red-50 text-red-800'
+          : 'border-amber-200 bg-amber-50 text-amber-800'
+      }`}
+      role="status"
+    >
+      <div className="flex items-start gap-2">
+        <span className="mt-0.5 font-bold" aria-hidden="true">
+          {danger ? '✕' : '!'}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-medium">
+            Template #{template.version} concluído com {issues.length}{' '}
+            {issues.length === 1 ? 'aviso' : 'avisos'}
+            {failed > 0
+              ? ` · ${failed} ${failed === 1 ? 'secção falhou' : 'secções falharam'}`
+              : ''}
+          </p>
+          <p className="mt-0.5 truncate opacity-80">
+            {issueSectionLabel(firstIssue.section_key)}: {firstIssue.message}
+          </p>
+        </div>
+        {needsModal && (
+          <button
+            type="button"
+            onClick={onViewMore}
+            className="shrink-0 font-medium underline underline-offset-2 hover:no-underline"
+          >
+            Ver mais
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TemplateIssuesModal({
+  template,
+  onClose,
+}: {
+  template: ServiceTemplate;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[80vh] w-full max-w-xl overflow-hidden rounded-xl bg-white shadow-xl"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="template-issues-title"
+      >
+        <div className="flex items-start justify-between border-b border-gray-100 px-5 py-4">
+          <div>
+            <h2 id="template-issues-title" className="text-sm font-semibold text-gray-900">
+              Avisos do Template #{template.version}
+            </h2>
+            <p className="mt-0.5 text-xs text-gray-500">
+              Resultado das validações feitas durante a geração.
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700">
+            ✕
+          </button>
+        </div>
+        <div className="max-h-[62vh] space-y-3 overflow-y-auto p-5">
+          {template.generation_issues.map((issue, index) => (
+            <div
+              key={`${issue.section_key}-${issue.code}-${index}`}
+              className={`rounded-lg border p-3 ${
+                issue.severity === 'error'
+                  ? 'border-red-200 bg-red-50'
+                  : 'border-amber-200 bg-amber-50'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold text-gray-900">
+                  {issueSectionLabel(issue.section_key)}
+                </p>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase ${
+                    issue.severity === 'error'
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-amber-100 text-amber-700'
+                  }`}
+                >
+                  {issue.severity === 'error' ? 'Secção falhada' : 'Aviso'}
+                </span>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-gray-700">{issue.message}</p>
+              <p className="mt-2 text-[11px] text-gray-500">
+                Motivo: {issue.code} · {issue.attempts}{' '}
+                {issue.attempts === 1 ? 'tentativa' : 'tentativas'}
+              </p>
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end border-t border-gray-100 px-5 py-3">
+          <button type="button" onClick={onClose} className="bib-btn bib-btn-secondary text-xs">
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── GeneratingBanner ──────────────────────────────────────────────────────────
 
 function GeneratingBanner({ jobs, onOpenQueue }: { jobs: ActiveJob[]; onOpenQueue: () => void }) {
@@ -348,6 +496,7 @@ export default function TemplatePageClient({ service }: Props) {
   const [mainActionLoading, setMainActionLoading] = useState(false);
   const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
   const [showQueueModal, setShowQueueModal] = useState(false);
+  const [showIssuesModal, setShowIssuesModal] = useState(false);
 
   async function reload() {
     const [tpls, sum, main] = await Promise.all([
@@ -360,6 +509,11 @@ export default function TemplatePageClient({ service }: Props) {
       setSummary(sum);
       setMainContent(main);
     }
+  }
+
+  function handlePreviewTemplate(template: ServiceTemplate) {
+    setShowIssuesModal(false);
+    setPreviewTemplate(template);
   }
 
   useEffect(() => {
@@ -384,7 +538,22 @@ export default function TemplatePageClient({ service }: Props) {
 
     promise
       .then((res) => {
-        toast.success(`Template #${res.template.version} guardado com ${res.sections_saved} secções extraídas.`);
+        if (res.generation_issues.length > 0) {
+          const failed = res.generation_issues.filter(
+            (issue) => issue.severity === 'error',
+          ).length;
+          toast.warning(
+            `Template #${res.template.version} concluído com ${res.generation_issues.length} aviso${res.generation_issues.length === 1 ? '' : 's'}${failed ? ` e ${failed} secção${failed === 1 ? '' : 'ões'} falhada${failed === 1 ? '' : 's'}` : ''}.`,
+            {
+              description: res.generation_issues
+                .map((issue) => `${issue.section_key}: ${issue.message}`)
+                .join('\n'),
+              duration: 20000,
+            },
+          );
+        } else {
+          toast.success(`Template #${res.template.version} guardado com ${res.sections_saved} secções extraídas.`);
+        }
         if (mountedRef.current) {
           setPreviewTemplate(res.template);
           if (res.template.is_main_page) setMainContent(res.content);
@@ -507,6 +676,11 @@ export default function TemplatePageClient({ service }: Props) {
                 </button>
               </div>
             </div>
+
+            <TemplateIssuesBanner
+              template={previewTemplate}
+              onViewMore={() => setShowIssuesModal(true)}
+            />
           </div>
 
           <div className="px-5 py-5 space-y-4 pb-10">
@@ -536,7 +710,7 @@ export default function TemplatePageClient({ service }: Props) {
                     service={service}
                     onRegenerate={(tpl) => { setEditingTemplate(tpl); setShowForm(false); }}
                     onDelete={handleDelete}
-                    onPreview={setPreviewTemplate}
+                    onPreview={handlePreviewTemplate}
                     onRename={handleRename}
                   />
                 ))}
@@ -698,6 +872,12 @@ export default function TemplatePageClient({ service }: Props) {
       {/* ── Modal de fila ── */}
       {showQueueModal && (
         <QueueModal jobs={activeJobs} onClose={() => setShowQueueModal(false)} />
+      )}
+      {showIssuesModal && previewTemplate && (
+        <TemplateIssuesModal
+          template={previewTemplate}
+          onClose={() => setShowIssuesModal(false)}
+        />
       )}
     </div>
   );

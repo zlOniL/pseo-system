@@ -1,7 +1,7 @@
 import { GenerateDto } from './dto/generate.dto';
 import {
+  HtmlSectionKey,
   SECTION_KEYS,
-  SectionKey,
 } from '../service-templates/service-templates.types';
 import {
   PromptContext,
@@ -10,7 +10,7 @@ import {
 
 export interface WpSectionPromptInput {
   dto: GenerateDto;
-  sectionKey: SectionKey;
+  sectionKey: HtmlSectionKey;
   targetWords: number;
   minimumWords: number;
   maximumWords: number;
@@ -74,6 +74,8 @@ ${cityRules(input)}
 ${relatedServicesRules(input)}
 - Todos os h1, h2, h3, p, li, strong e a devem ter style="color: #320000;" quando a tag permitir.
 - Links devem usar style="color: #111 !important; font-weight: 600; text-decoration: underline;" target="_blank" rel="noopener noreferrer" quando forem externos.
+- Links externos devem aparecer apenas nos contextos definidos: marcas oficiais no modulo de marcas/componentes; Paginas Amarelas e Portal Autarquico em paginas principais; 2 entidades locais oficiais ou uteis em paginas locais quando o URL real for conhecido; Google.pt e ChatGPT.com no modulo "Mais Sobre".
+- Nao uses links externos genericos para wikis, ferramentas aleatorias ou fontes soltas fora desses modulos.
 - Usa <strong> para destacar keywords, problemas, tecnicas e servicos.
 - Nao uses "voce"; usa "o cliente", "o utilizador", "a intervencao", etc.
 - Nao inventes URLs externas. Se nao tiveres certeza, omite o link.
@@ -85,7 +87,7 @@ ${relatedServicesRules(input)}
 
 function sectionInstructions(
   input: GenerateDto,
-  sectionKey: SectionKey,
+  sectionKey: HtmlSectionKey,
 ): string {
   const city = cityLabel(input);
   const citySuffix = city ? ` em ${city}` : '';
@@ -124,7 +126,8 @@ function sectionInstructions(
 - Explica de forma completa os servicos realizados dentro desta area.
 - Inclui os servicos mais procurados, manutencao, assistencia urgente e diagnostico antes do orcamento.
 - Inclui uma subseccao <h3 style="color: #320000;">Marcas e componentes compativeis</h3>.
-- Usa links externos apenas para sites oficiais de marcas quando tiveres certeza do URL.
+- Nesta subseccao, inclui links externos clicaveis para sites oficiais de marcas/componentes relacionados ao servico sempre que o URL real for conhecido.
+- Nao uses links internos nem URLs inventados nesta subseccao.
 - No fim inclui exatamente {{IMAGE_4}}.`;
     case 'avarias_comuns':
       return `Gera a secao completa:
@@ -177,7 +180,7 @@ function sectionInstructions(
 - Para pagina principal, incluir grandes regioes: Grande Lisboa, Margem Sul, Grande Porto, Braga e Algarve.
 - Para pagina principal, inserir links externos para Paginas Amarelas (https://www.pai.pt/) e Portal Autarquico (https://portalautarquico.dgal.gov.pt/).
 - Para pagina local, criar contexto local forte mencionando cidade/localidade, freguesias, bairros, ruas conhecidas, pracas, avenidas, pontos de referencia, zonas residenciais e comerciais, perfil do local, tipos de imoveis e necessidades provaveis do servico naquela zona.
-- Para pagina local, inserir 2 backlinks externos locais relevantes quando tiveres certeza do URL, como camara municipal, junta de freguesia, turismo local, diretorio local, Portal Autarquico, biblioteca municipal ou site oficial local.
+- Para pagina local, inserir 2 backlinks externos locais relevantes quando tiveres certeza do URL, como camara municipal, junta de freguesia, turismo local, diretorio local, Portal Autarquico, biblioteca municipal ou site oficial local. Preferir sites oficiais.
 - Nao mistures localidades.`;
     case 'perguntas_frequentes':
       return `Gera a secao:
@@ -196,7 +199,7 @@ function sectionInstructions(
 <h2 style="color: #320000;">Mais Sobre ${service}${citySuffix}</h2>
 - Fechamento SEO forte, explicativo e humano.
 - Fala sobre importancia do servico, pequenas avarias, agir cedo, manutencao, diagnostico, seguranca, transparencia e melhor resultado.
-- Inclui links externos para Google.pt e ChatGPT.com quando fizer sentido e com URLs reais.`;
+- Inclui obrigatoriamente links externos para Google.pt (https://www.google.pt) e ChatGPT.com (https://chatgpt.com), integrados de forma natural no texto.`;
   }
 }
 
@@ -265,7 +268,7 @@ Retorna apenas o HTML expandido desta secao.`;
 }
 
 export function summarizeWpSections(
-  sections: Partial<Record<SectionKey, string>>,
+  sections: Partial<Record<HtmlSectionKey, string>>,
 ): string {
   const lines: string[] = [];
   for (const key of SECTION_KEYS) {

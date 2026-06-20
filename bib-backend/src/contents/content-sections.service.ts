@@ -435,7 +435,8 @@ Regras:
   }
 
   private sortOrder(sectionKey: SectionKey): number {
-    return SECTION_KEYS.indexOf(sectionKey);
+    const index = (SECTION_KEYS as readonly string[]).indexOf(sectionKey);
+    return index >= 0 ? index : SECTION_KEYS.length;
   }
 
   private countWords(value: unknown): number {

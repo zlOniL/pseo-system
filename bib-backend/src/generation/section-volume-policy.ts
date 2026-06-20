@@ -1,6 +1,6 @@
 import { SectionKey } from '../service-templates/service-templates.types';
 
-const SECTION_WORD_WEIGHTS: Record<SectionKey, number> = {
+const SECTION_WORD_WEIGHTS: Partial<Record<SectionKey, number>> = {
   intro: 0.11,
   assistencia_especializada: 0.08,
   tipos: 0.08,
@@ -48,9 +48,10 @@ export function sectionTargetWords(
   minWords: number,
   config = getSectionVolumeConfig(),
 ): number {
+  const sectionWeight = SECTION_WORD_WEIGHTS[sectionKey] ?? 0.07;
   return Math.max(
     120,
-    Math.ceil(minWords * config.targetMultiplier * SECTION_WORD_WEIGHTS[sectionKey]),
+    Math.ceil(minWords * config.targetMultiplier * sectionWeight),
   );
 }
 

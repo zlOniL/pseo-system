@@ -6,6 +6,7 @@ import {
 import { SupabaseService } from '../common/supabase.service';
 import { DbError, DbResult } from '../common/supabase.types';
 import { ServiceTemplate } from './service-templates.types';
+import type { WhitelabelGenerationIssue } from '../integrations/whitelabel-api/whitelabel.types';
 
 @Injectable()
 export class ServiceTemplatesService {
@@ -51,6 +52,7 @@ export class ServiceTemplatesService {
       siteId?: string | null;
       outputFormat?: 'html' | 'whitelabel_json';
       contentJson?: unknown;
+      generationIssues?: WhitelabelGenerationIssue[];
     },
   ): Promise<ServiceTemplate> {
     const nextVersion = await this.nextVersion(serviceId);
@@ -70,6 +72,7 @@ export class ServiceTemplatesService {
         video_url: videoUrl,
         is_main_page: isMainPage,
         label: label ?? null,
+        generation_issues: options?.generationIssues ?? [],
       })
       .select()
       .single()) as DbResult<ServiceTemplate>;
@@ -89,6 +92,7 @@ export class ServiceTemplatesService {
     options?: {
       outputFormat?: 'html' | 'whitelabel_json';
       contentJson?: unknown;
+      generationIssues?: WhitelabelGenerationIssue[];
     },
   ): Promise<ServiceTemplate> {
     const { data, error } = (await this.supabase
@@ -103,6 +107,7 @@ export class ServiceTemplatesService {
         video_url: videoUrl,
         is_main_page: isMainPage,
         label: label ?? null,
+        generation_issues: options?.generationIssues ?? [],
       })
       .eq('id', id)
       .select()
@@ -156,6 +161,11 @@ export class ServiceTemplatesService {
 
   private throwFriendlyTemplateError(error: DbError): never {
     if (error.code === '42703') {
+      if (error.message.includes('generation_issues')) {
+        throw new BadRequestException(
+          'Coluna generation_issues ausente em service_templates. Execute supabase-migration-template-generation-issues.sql.',
+        );
+      }
       throw new BadRequestException(
         `Coluna ausente em service_templates: ${error.message}. Execute a migration multi-site atualizada.`,
       );

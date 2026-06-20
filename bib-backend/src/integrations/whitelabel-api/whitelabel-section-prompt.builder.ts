@@ -1,14 +1,15 @@
 import { GenerateTemplateDto } from '../../services/dto/generate-template.dto';
 import { Service } from '../../services/services.service';
 import {
+  HtmlSectionKey,
   SECTION_KEYS,
-  SectionKey,
 } from '../../service-templates/service-templates.types';
 import { buildExternalSlug } from './whitelabel-json';
 import {
   PromptContext,
   SERVICE_EXAMPLE_USAGE_RULE,
 } from '../../prompt-context/prompt-context.types';
+import { WHITELABEL_INLINE_LINK_RULES } from './whitelabel-link-rules';
 
 export interface WhitelabelSectionPromptInput {
   service: Service;
@@ -16,7 +17,7 @@ export interface WhitelabelSectionPromptInput {
   isMainPage: boolean;
   blueprints: Record<string, unknown>;
   dto: GenerateTemplateDto;
-  sectionKey: SectionKey;
+  sectionKey: HtmlSectionKey;
   targetWords: number;
   minimumWords: number;
   maximumWords: number;
@@ -77,7 +78,7 @@ function sharedInput(input: {
 }
 
 function sectionContract(
-  sectionKey: SectionKey,
+  sectionKey: HtmlSectionKey,
   input: WhitelabelSectionPromptInput,
 ): string {
   if (sectionKey === 'intro') {
@@ -130,7 +131,7 @@ ${spec.instructions}`;
 }
 
 function articleSectionSpec(
-  sectionKey: SectionKey,
+  sectionKey: HtmlSectionKey,
   input: WhitelabelSectionPromptInput,
 ): {
   heading: string;
@@ -299,6 +300,7 @@ ${geoRule(input)}
 - Evita repeticoes com secoes ja geradas.
 - Nao inventes URLs.
 - Nao uses markdown.
+${WHITELABEL_INLINE_LINK_RULES}
 ${input.dto.feedback ? `\nFeedback geral a aplicar:\n${input.dto.feedback}` : ''}
 ${input.generatedSummary ? `\nResumo das secoes ja geradas para evitar repeticao:\n${input.generatedSummary}` : ''}
 
@@ -333,6 +335,7 @@ ${geoRule(input)}
 - Evita repeticoes obvias.
 - Nao inventes URLs.
 - Nao uses markdown.
+${WHITELABEL_INLINE_LINK_RULES}
 
 Contrato de saida:
 ${sectionContract(input.sectionKey, input)}`;
@@ -341,7 +344,7 @@ ${sectionContract(input.sectionKey, input)}`;
 }
 
 export function summarizeGeneratedSections(
-  sections: Partial<Record<SectionKey, unknown>>,
+  sections: Partial<Record<HtmlSectionKey, unknown>>,
 ): string {
   const lines: string[] = [];
   for (const key of SECTION_KEYS) {

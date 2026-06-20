@@ -71,6 +71,10 @@ export class QueueWorker implements OnModuleInit {
 
   private async processItem(item: QueueItem): Promise<void> {
     const mode = item.mode ?? 'ai';
+    const startedAt = Date.now();
+    this.logger.log(
+      `[PERF] queue_item_start id=${item.id} mode=${mode} city=${item.city}`,
+    );
     try {
       const service = await this.services.findById(item.service_id);
       const mainKeyword = `${service.name} em ${item.city}`;
@@ -100,11 +104,15 @@ export class QueueWorker implements OnModuleInit {
       );
 
       await this.queue.markDone(item.id, content.id);
-      this.logger.log(`Done: ${mainKeyword} → content ${content.id}`);
+      this.logger.log(
+        `[PERF] queue_item_done id=${item.id} mode=${mode} city=${item.city} content=${content.id} duration_ms=${Date.now() - startedAt}`,
+      );
     } catch (err) {
       const msg = (err as Error).message;
       await this.queue.markFailed(item.id, msg);
-      this.logger.error(`Failed [${item.city}]: ${msg}`);
+      this.logger.error(
+        `[PERF] queue_item_failed id=${item.id} mode=${mode} city=${item.city} duration_ms=${Date.now() - startedAt} error=${msg}`,
+      );
     }
   }
 

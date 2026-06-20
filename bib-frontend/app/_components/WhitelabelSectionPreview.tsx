@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { Content, ContentSection } from '@/lib/types';
 import { WhitelabelTextPreview } from '@/app/_components/WhitelabelTextPreview';
+import {
+  WhitelabelInlineText,
+  whitelabelPlainText,
+} from '@/app/_components/WhitelabelInlineText';
 
 function text(value: unknown): string {
-  if (typeof value === 'string') return value;
-  if (Array.isArray(value)) return value.map(text).filter(Boolean).join(', ');
-  if (value && typeof value === 'object') return JSON.stringify(value, null, 2);
-  return '';
+  return whitelabelPlainText(value);
 }
 
 function sectionLabel(key: string): string {
@@ -29,7 +30,9 @@ function Block({ block }: { block: Record<string, unknown> }) {
     return (
       <ul className="list-disc space-y-1 pl-5 text-sm leading-6 text-gray-700">
         {block.items.map((item, index) => (
-          <li key={index}>{text(item)}</li>
+          <li key={index}>
+            <WhitelabelInlineText value={item} />
+          </li>
         ))}
       </ul>
     );
@@ -37,27 +40,32 @@ function Block({ block }: { block: Record<string, unknown> }) {
   if (type === 'callout') {
     return (
       <p className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-sm leading-6 text-gray-700">
-        {text(block.text)}
+        <WhitelabelInlineText value={block.text} />
       </p>
     );
   }
   if (type === 'faq_list' && Array.isArray(block.items)) {
     return (
-      <div className="space-y-2">
-        {block.items.map((item, index) => (
-          <pre
-            key={index}
-            className="whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-xs text-gray-600"
-          >
-            {text(item)}
-          </pre>
-        ))}
+      <div className="space-y-3">
+        {block.items.map((faq, index) => {
+          const item = faq as Record<string, unknown>;
+          return (
+            <div key={index} className="border-t border-gray-100 pt-3">
+              <h4 className="text-sm font-semibold text-gray-900">
+                {text(item.question)}
+              </h4>
+              <p className="mt-1 text-sm leading-6 text-gray-700">
+                <WhitelabelInlineText value={item.answer} />
+              </p>
+            </div>
+          );
+        })}
       </div>
     );
   }
   return (
     <p className="text-sm leading-6 text-gray-700">
-      {text(block.text ?? block)}
+      <WhitelabelInlineText value={block.text ?? block} />
     </p>
   );
 }
@@ -76,7 +84,9 @@ function IntroSection({ value }: { value: Record<string, unknown> }) {
         </h1>
       )}
       {Boolean(hero.intro) && (
-        <p className="text-sm leading-6 text-gray-700">{text(hero.intro)}</p>
+        <p className="text-sm leading-6 text-gray-700">
+          <WhitelabelInlineText value={hero.intro} />
+        </p>
       )}
       {Array.isArray(hero.bullets) && (
         <ul className="list-disc space-y-1 pl-5 text-sm leading-6 text-gray-700">
@@ -121,7 +131,7 @@ function SectionContent({ section }: { section: ContentSection }) {
                 {text(item.question)}
               </h3>
               <p className="mt-1 text-sm leading-6 text-gray-700">
-                {text(item.answer)}
+                <WhitelabelInlineText value={item.answer} />
               </p>
             </div>
           );
@@ -138,7 +148,7 @@ function SectionContent({ section }: { section: ContentSection }) {
             <Block key={index} block={block as Record<string, unknown>} />
           ) : (
             <p key={index} className="text-sm leading-6 text-gray-700">
-              {text(block)}
+              <WhitelabelInlineText value={block} />
             </p>
           ),
         )}

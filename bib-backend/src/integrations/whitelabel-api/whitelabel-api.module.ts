@@ -8,6 +8,8 @@ import { WhitelabelApiController } from './whitelabel-api.controller';
 import { WhitelabelContentService } from './whitelabel-content.service';
 import { WhitelabelPublisherService } from './whitelabel-publisher.service';
 import { PromptContextModule } from '../../prompt-context/prompt-context.module';
+import { SupabaseModule } from '../../common/supabase.module';
+import { ExternalLinkResearchService } from './external-link-research.service';
 
 @Module({
   imports: [
@@ -16,12 +18,14 @@ import { PromptContextModule } from '../../prompt-context/prompt-context.module'
     forwardRef(() => ServicesModule),
     SitesModule,
     PromptContextModule,
+    SupabaseModule,
   ],
   controllers: [WhitelabelApiController],
   providers: [
     WhitelabelApiClient,
     WhitelabelContentService,
     WhitelabelPublisherService,
+    ExternalLinkResearchService,
   ],
   exports: [
     WhitelabelApiClient,

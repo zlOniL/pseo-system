@@ -27,6 +27,7 @@ import { slugify } from '../common/slug';
 import { buildMainPageCityLinksHtml } from '../template-engine/utils/main-page-city-links-builder';
 import { GenerateTemplateDto } from '../services/dto/generate-template.dto';
 import { buildExternalSlug } from '../integrations/whitelabel-api/whitelabel-json';
+import { formatWhitelabelGenerationIssue } from '../integrations/whitelabel-api/whitelabel.types';
 import { SectionKey, ServiceTemplate } from './service-templates.types';
 
 @Controller('services/:serviceId/templates')
@@ -228,6 +229,7 @@ export class ServiceTemplatesController {
         )
       : htmlWithImages;
 
+    const templateSaveStartedAt = Date.now();
     let template: ServiceTemplate;
     if (existingTemplateId) {
       template = await this.templates.update(
@@ -253,6 +255,9 @@ export class ServiceTemplatesController {
     }
 
     // 3. Extract sections only for regular templates (not main page)
+    this.logger.log(
+      `[PERF] template_record_saved template=${template.id} duration_ms=${Date.now() - templateSaveStartedAt}`,
+    );
     let sectionsSaved = 0;
     if (!isMainPage) {
       const { sections } = parseHtmlSections(rawHtml);
@@ -308,7 +313,12 @@ export class ServiceTemplatesController {
       );
     }
 
-    return { template, content, sections_saved: sectionsSaved };
+    return {
+      template,
+      content,
+      sections_saved: sectionsSaved,
+      generation_issues: [],
+    };
   }
 
   private async generateAndSaveWhitelabel(
@@ -316,6 +326,7 @@ export class ServiceTemplatesController {
     dto: GenerateTemplateDto,
     existingTemplateId?: string,
   ) {
+    const totalStartedAt = Date.now();
     const service = await this.services.findById(serviceId);
     if (!service.site_id)
       throw new BadRequestException('Servico whitelabel sem site associado.');
@@ -326,6 +337,7 @@ export class ServiceTemplatesController {
       ? service.name
       : `${service.name} em ${baseCity}`;
 
+    const generationStartedAt = Date.now();
     const generated = await this.whitelabelContent.generateTemplate({
       service,
       site,
@@ -333,7 +345,11 @@ export class ServiceTemplatesController {
       baseCity,
       isMainPage,
     });
+    this.logger.log(
+      `[PERF] template_content_generated service=${service.name} city=${baseCity ?? 'main'} duration_ms=${Date.now() - generationStartedAt}`,
+    );
 
+    const templateSaveStartedAt = Date.now();
     let template: ServiceTemplate;
     if (existingTemplateId) {
       template = await this.templates.update(
@@ -344,7 +360,11 @@ export class ServiceTemplatesController {
         null,
         isMainPage,
         dto.label,
-        { outputFormat: 'whitelabel_json', contentJson: generated.contentJson },
+        {
+          outputFormat: 'whitelabel_json',
+          contentJson: generated.contentJson,
+          generationIssues: generated.issues,
+        },
       );
     } else {
       template = await this.templates.create(
@@ -359,10 +379,14 @@ export class ServiceTemplatesController {
           siteId: service.site_id,
           outputFormat: 'whitelabel_json',
           contentJson: generated.contentJson,
+          generationIssues: generated.issues,
         },
       );
     }
 
+    this.logger.log(
+      `[PERF] template_record_saved template=${template.id} duration_ms=${Date.now() - templateSaveStartedAt}`,
+    );
     let sectionsSaved = 0;
     if (!isMainPage) {
       await this.library.saveAllJson(
@@ -375,9 +399,12 @@ export class ServiceTemplatesController {
       sectionsSaved = generated.sections.size;
     }
 
+    this.logger.log(
+      `[PERF] template_library_saved template=${template.id} sections=${sectionsSaved} duration_ms=${Date.now() - templateSaveStartedAt}`,
+    );
     const validationResult = {
       score: 100,
-      issues: [],
+      issues: generated.issues.map(formatWhitelabelGenerationIssue),
       breakdown: { structure: 30, seo: 40, content: 30 },
     };
     const content = await this.contents.save(
@@ -404,8 +431,16 @@ export class ServiceTemplatesController {
       'ai',
     );
     await this.persistJsonSections(content.id, generated.sections);
+    this.logger.log(
+      `[PERF] template_generation_done template=${template.id} content=${content.id} service=${service.name} duration_ms=${Date.now() - totalStartedAt}`,
+    );
 
-    return { template, content, sections_saved: sectionsSaved };
+    return {
+      template,
+      content,
+      sections_saved: sectionsSaved,
+      generation_issues: generated.issues,
+    };
   }
 
   private async persistHtmlSections(

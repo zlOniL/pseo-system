@@ -5,6 +5,8 @@ import {
   WHITELABEL_SECTION_KEYS,
 } from '../../service-templates/service-templates.types';
 import { buildExternalSlug } from './whitelabel-json';
+import { WHITELABEL_INLINE_LINK_RULES } from './whitelabel-link-rules';
+import { VerifiedExternalReference } from './external-link.types';
 
 type WhitelabelPromptInput = {
   service: Service;
@@ -12,6 +14,7 @@ type WhitelabelPromptInput = {
   isMainPage: boolean;
   blueprints: Record<string, unknown>;
   dto: GenerateTemplateDto;
+  externalReferences?: VerifiedExternalReference[];
 };
 
 export function buildWhitelabelPrompt(input: WhitelabelPromptInput): {
@@ -122,15 +125,15 @@ ${fixedOutline}
 - A palavra "Modulo" e os numeros dos modulos sao apenas instrucoes internas. Nao os escrevas em nenhum heading, titulo, paragrafo, callout, lista ou FAQ.
 - Nao uses "perguntas_frequentes", "faqs" ou qualquer campo separado para posicionar o FAQ. O sistema pode espelhar FAQs para schema, mas a posicao visual correta e sempre article.blocks no Modulo 13.
 - Depois do Modulo 13, gera obrigatoriamente o Modulo 14 e o Modulo 15; nunca termines a pagina no FAQ.
-- Nao inserir links internos de dominio proprio, salvo pedido direto.
-- Links externos apenas nos casos permitidos pelos blueprints.
+- Usa links internos somente quando vierem de related_services ou quando o blueprint/instrucoes do servico pedirem.
+- Links externos/backlinks devem respeitar os casos permitidos pelos blueprints e pelas instrucoes de servico.
 - Menciona diagnostico antes do orcamento, orcamento justo e antecipado, materiais de qualidade e profissionais especializados, honestos e qualificados.
 - Usa blocos suportados: heading, subheading, minor_heading, paragraph, callout, list, faq_list.
 - Para list, usa {"type":"list","items":["..."]}.
 - Para subtopicos dentro de modulo, usa {"type":"subheading","level":3,"text":"..."} ou {"type":"minor_heading","level":4,"text":"..."}.
 - Gera texto natural, util e especifico do servico.
-- Nao uses HTML, exceto se o blueprint explicitamente permitir pequenos trechos inline.
 - Nao inventes URLs.
+${WHITELABEL_INLINE_LINK_RULES}
 ${dto.feedback ? `\nFeedback a aplicar:\n${dto.feedback}` : ''}`;
 
   return { system, user };
@@ -205,9 +208,9 @@ ${geoRule}
 - O hero representa o Modulo 1 - H1 / Topo da Pagina.
 - O form e conversao e nao conta como modulo SEO numerado.
 - Menciona diagnostico antes do orcamento, orcamento justo e antecipado, materiais de qualidade e profissionais especializados, honestos e qualificados.
-- Nao inserir links internos de dominio proprio, salvo pedido direto.
-- Links externos apenas nos casos permitidos pelos blueprints.
-- Nao uses HTML, exceto se o blueprint explicitamente permitir pequenos trechos inline.
+- Usa links internos somente quando vierem de related_services ou quando o blueprint/instrucoes do servico pedirem.
+- Links externos/backlinks devem respeitar os casos permitidos pelos blueprints e pelas instrucoes de servico.
+${WHITELABEL_INLINE_LINK_RULES}
 ${dto.feedback ? `\nFeedback a aplicar:\n${dto.feedback}` : ''}`;
 
   return { system, user };
@@ -223,6 +226,9 @@ export function buildWhitelabelModulePrompt(
   },
 ): { system: string; user: string } {
   const { service, baseCity, isMainPage, blueprints, dto, module } = input;
+  const moduleReferences = (input.externalReferences ?? []).filter(
+    (reference) => reference.target_module === module.key,
+  );
   const mainKeyword = isMainPage
     ? service.name
     : `${service.name} em ${baseCity}`;
@@ -291,14 +297,39 @@ ${faqBoundaryRule}
 - Para subtopicos, usa {"type":"subheading","level":3,"text":"..."} ou {"type":"minor_heading","level":4,"text":"..."}.
 - Usa blocos suportados: heading, subheading, minor_heading, paragraph, callout, list, faq_list.
 - Para list, usa {"type":"list","items":["..."]}.
-- Nao inserir links internos de dominio proprio, salvo pedido direto.
-- Links externos apenas nos casos permitidos pelos blueprints.
+- Usa links internos somente quando vierem de related_services ou quando o blueprint/instrucoes do servico pedirem.
+- Para links externos, usa SOMENTE as referencias verificadas fornecidas abaixo. Nao cries, completes nem alteres URLs.
+- Se existirem referencias verificadas para este modulo, integra naturalmente todas elas em campos de texto que permitem links.
+- Nao confundas referencias externas com related_services: related_services contem apenas links internos do proprio site.
 - Menciona diagnostico antes do orcamento, orcamento justo e antecipado, materiais de qualidade e profissionais especializados, honestos e qualificados quando fizer sentido neste modulo.
 - Nao inventes URLs.
+- Nao uses HTML fora dos campos permitidos.
+${WHITELABEL_INLINE_LINK_RULES}
+${externalReferencesRules(moduleReferences)}
 - Nao geres outros modulos.
 ${dto.feedback ? `\nFeedback geral a aplicar, sem alterar o modulo pedido:\n${dto.feedback}` : ''}`;
 
   return { system, user };
+}
+
+function externalReferencesRules(
+  references: VerifiedExternalReference[],
+): string {
+  if (!references.length) {
+    return `Referencias externas verificadas para este modulo: nenhuma.
+- Nao insiras qualquer URL externa neste modulo.`;
+  }
+
+  return `Referencias externas verificadas e obrigatorias para este modulo:
+${references
+  .map(
+    (reference, index) =>
+      `${index + 1}. ${reference.entity} | ${reference.final_url} | tipo: ${reference.type}`,
+  )
+  .join('\n')}
+- Insere exatamente um link contextual para cada referencia acima.
+- Usa o URL exatamente como fornecido, com ancora descritiva e natural.
+- A frase deve explicar por que a entidade, marca ou fonte e relevante; nao cries uma lista solta de links.`;
 }
 
 function buildGeoRule(baseCity: string | null, isMainPage: boolean): string {
