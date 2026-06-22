@@ -88,13 +88,6 @@ export class QueueWorker implements OnModuleInit {
         service.id,
         item.city,
       );
-      for (const old of existing) {
-        await this.contents.forceDelete(old.id);
-        this.logger.log(
-          `Deleted old content ${old.id} for ${item.city} (status: ${old.status})`,
-        );
-      }
-
       const content = await this.generateContentForItem(
         item,
         mode,
@@ -102,6 +95,13 @@ export class QueueWorker implements OnModuleInit {
         mainKeyword,
         site?.integration_type === 'whitelabel_api',
       );
+
+      for (const old of existing) {
+        await this.contents.forceDelete(old.id);
+        this.logger.log(
+          `Deleted old content ${old.id} for ${item.city} (status: ${old.status})`,
+        );
+      }
 
       await this.queue.markDone(item.id, content.id);
       this.logger.log(
@@ -121,9 +121,9 @@ export class QueueWorker implements OnModuleInit {
     mode: 'ai' | 'template' | 'library',
     service: Service,
     mainKeyword: string,
-    useWhitelabelLibrary: boolean,
+    isWhitelabelApiSite: boolean,
   ): Promise<Content> {
-    if (useWhitelabelLibrary || mode === 'library') {
+    if (mode === 'library' || (mode === 'template' && isWhitelabelApiSite)) {
       return this.assembler.assemble({
         service,
         city: item.city,
