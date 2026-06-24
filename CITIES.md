@@ -33,7 +33,7 @@ Loures - Bucelas - Camarate - Unhos - Apelação - Fanhões - Lousa - Moscavide 
 
 Margem Sul 
 
-Margem Sul - Almada - Caparica - Trafaria - Charneca da Caparica - Costa da Caparica - Cova da Piedade - Laranjeiro - Pragal - Sobreda - Alcácer do Sal - Comporta - Torrão - Barreiro - Lavradio - Palhais - Coina - Santo António da Charneca - Alhos Vedros - Baixa da Banheira - Vale da Amoreira - Gaio - Rosário - Sarilhos Pequenos - Moita - Atalaia - Alto Estanqueiro - Jardia - Canha - Montijo - Afonsoeiro - Pegões - Sarilhos Grandes - Palmela - Pinhal Novo - Poceirão - Marateca - Quinta do Anjo - Amora - Corroios - Fernão Ferro - Seixal - Arrentela - Aldeia de Paio Pires - Quinta do Conde - Azeitão - Gâmbia - Pontes - Alto da Guerra - Sado - São Sebastião - Setúbal - Monte da Caparica - Feijó - Verderena - Penalva - Brejos de Azeitão - Vila Nogueira de Azeitão - Fogueteiro - Cruz de Pau - Amora Centro - Corroios Centro
+Margem Sul - Almada - Caparica - Trafaria - Charneca da Caparica - Costa da Caparica - Cova da Piedade - Laranjeiro - Pragal - Sobreda - Alcácer do Sal - Comporta - Torrão - Barreiro - Lavradio - Palhais - Coina - Santo António da Charneca - Alhos Vedros - Baixa da Banheira - Vale da Amoreira - Gaio - Rosário - Sarilhos Pequenos - Moita - Atalaia - Alto Estanqueiro - Jardia - Canha - Montijo - Alcochete - Afonsoeiro - Pegões - Sarilhos Grandes - Palmela - Pinhal Novo - Poceirão - Marateca - Quinta do Anjo - Amora - Corroios - Fernão Ferro - Seixal - Arrentela - Aldeia de Paio Pires - Quinta do Conde - Azeitão - Gâmbia - Pontes - Alto da Guerra - Sado - São Sebastião - Setúbal - Monte da Caparica - Feijó - Verderena - Penalva - Brejos de Azeitão - Vila Nogueira de Azeitão - Fogueteiro - Cruz de Pau - Amora Centro - Corroios Centro
 
 Porto
 

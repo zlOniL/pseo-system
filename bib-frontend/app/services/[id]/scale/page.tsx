@@ -10,6 +10,47 @@ import { QueueItem, QueueStats, RegionWithCities, Service, ServiceTemplate, Sect
 type CityStatus = 'done' | 'processing' | 'pending' | 'failed' | 'free';
 type StatusFilter = 'all' | 'free' | 'failed' | 'done';
 
+const MAIN_LOCALITIES = [
+  'Lisboa',
+  'Cascais',
+  'Oeiras',
+  'Loures',
+  'Sintra',
+  'Amadora',
+  'Odivelas',
+  'Vila Franca de Xira',
+  'Margem Sul',
+  'Setúbal',
+  'Montijo',
+  'Alcochete',
+  'Barreiro',
+  'Seixal',
+  'Almada',
+  'Quinta do Conde',
+  'Palmela',
+  'Pinhal Novo',
+  'Porto',
+  'Vila Nova de Gaia',
+  'Maia',
+  'Matosinhos',
+  'Valongo',
+  'Gondomar',
+  'Espinho',
+  'Braga',
+  'Guimarães',
+  'Barcelos',
+  'Algarve',
+  'Lagos',
+  'Portimão',
+  'Loulé',
+  'Quarteira',
+  'Albufeira',
+  'Vilamoura',
+  'Faro',
+  'Olhão',
+  'Almancil',
+];
+
 function getCityStatus(city: string, itemMap: Map<string, QueueItem>): CityStatus {
   const item = itemMap.get(city);
   if (!item) return 'free';
@@ -161,6 +202,30 @@ export default function ScalePage() {
     });
   }
 
+  function selectMainLocalities() {
+    const availableCityNames = new Set(regions.flatMap((region) => region.cities));
+    const availableMainLocalities = MAIN_LOCALITIES.filter((city) => {
+      const status = getCityStatus(city, itemMap);
+      return availableCityNames.has(city) && isSelectable(status);
+    });
+
+    const selectedMainLocalities = new Set(availableMainLocalities);
+
+    const regionNames = regions
+      .filter((region) => region.cities.some((city) => selectedMainLocalities.has(city)))
+      .map((region) => region.region);
+
+    setSelectedCities(selectedMainLocalities);
+    setExpandedRegions(new Set(regionNames));
+
+    if (availableMainLocalities.length === 0) {
+      toast.info('Nenhuma localidade principal disponível para selecionar.');
+      return;
+    }
+
+    toast.success(`${availableMainLocalities.length} localidades principais selecionadas.`);
+  }
+
   async function handleEnqueue() {
     if (selectedCities.size === 0) return;
     const count = selectedCities.size;
@@ -246,6 +311,13 @@ export default function ScalePage() {
                   </button>
                 ))}
               </div>
+
+              <button
+                onClick={selectMainLocalities}
+                className="bib-btn bib-btn-secondary w-full justify-center text-xs mb-3"
+              >
+                Selecionar principais localidades ({MAIN_LOCALITIES.length})
+              </button>
 
               {/* Lista de regiões */}
               <div className="space-y-3 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
