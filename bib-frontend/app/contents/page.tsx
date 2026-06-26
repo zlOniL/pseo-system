@@ -1,6 +1,5 @@
 import { api } from "@/lib/api";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import ContentsClient from "./_components/ContentsClient";
 
 export const dynamic = "force-dynamic";
@@ -12,11 +11,6 @@ export default async function ContentsPage({
 }) {
   const resolvedSearchParams = await searchParams;
   const siteId = resolvedSearchParams?.site_id;
-
-  if (!siteId) {
-    const sites = await api.listSites().catch(() => []);
-    if (sites[0]?.id) redirect(`/contents?site_id=${sites[0].id}`);
-  }
 
   const [services, site] = await Promise.all([
     siteId ? api.listServices(siteId).catch(() => []) : Promise.resolve([]),

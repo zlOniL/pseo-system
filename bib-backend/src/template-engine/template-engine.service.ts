@@ -1,14 +1,12 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
-import { CitiesService } from '../cities/cities.service';
 import { ContentsService, Content } from '../contents/contents.service';
 import { ValidationService } from '../validation/validation.service';
 import { Service } from '../services/services.service';
 import { slugify } from '../common/slug';
 import { replaceKeyword } from './utils/keyword-replacer';
-import { buildBacklinksHtml } from './utils/backlinks-builder';
-import { SitesService } from '../sites/sites.service';
+import { stripLocalityBacklinksSection } from '../common/locality-backlinks-stripper';
 
 export interface TemplateGenerateInput {
   service: Service;
@@ -21,10 +19,8 @@ export class TemplateEngineService {
   private readonly logger = new Logger(TemplateEngineService.name);
 
   constructor(
-    private readonly cities: CitiesService,
     private readonly contents: ContentsService,
     private readonly validation: ValidationService,
-    private readonly sites: SitesService,
   ) {}
 
   async generate(input: TemplateGenerateInput): Promise<Content> {
@@ -55,25 +51,9 @@ export class TemplateEngineService {
     this.logger.log(`Template base city: "${baseCity}" → target: "${city}"`);
 
     // 3. Replace all occurrences of the base city with the target city
-    let html = replaceKeyword(rawHtml, baseCity, city);
-
-    // 4. Build and inject the "Atendemos Também" backlinks block
-    const region = this.cities.findRegion(city);
-    const localities = region ? this.cities.getLocalities(region, city) : [];
-    const site = service.site_id
-      ? await this.sites.findById(service.site_id).catch(() => null)
-      : null;
-    const wpBase =
-      site?.integration_type === 'wordpress'
-        ? this.sites.wordpressBase(site)
-        : (process.env.WP_BASE_URL ?? '').replace(/\/$/, '');
-    const linksHtml = buildBacklinksHtml(
-      localities,
-      serviceSlug,
-      service.name,
-      wpBase,
+    let html = stripLocalityBacklinksSection(
+      replaceKeyword(rawHtml, baseCity, city),
     );
-    html = this.injectBacklinks(html, linksHtml);
 
     // 5. Validate (score + issues)
     const mainKeyword = `${service.name} em ${city}`;

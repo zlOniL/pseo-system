@@ -18,13 +18,12 @@ import { ServicesService } from '../services/services.service';
 import { ContentsService } from '../contents/contents.service';
 import { ContentSectionsService } from '../contents/content-sections.service';
 import { ValidationService } from '../validation/validation.service';
-import { CitiesService } from '../cities/cities.service';
 import { SitesService } from '../sites/sites.service';
 import { WhitelabelContentService } from '../integrations/whitelabel-api/whitelabel-content.service';
 import { parseHtmlSections } from './html-section-parser';
 import { injectImages } from '../common/image-injector';
+import { stripLocalityBacklinksSection } from '../common/locality-backlinks-stripper';
 import { slugify } from '../common/slug';
-import { buildMainPageCityLinksHtml } from '../template-engine/utils/main-page-city-links-builder';
 import { GenerateTemplateDto } from '../services/dto/generate-template.dto';
 import { buildExternalSlug } from '../integrations/whitelabel-api/whitelabel-json';
 import { formatWhitelabelGenerationIssue } from '../integrations/whitelabel-api/whitelabel.types';
@@ -42,7 +41,6 @@ export class ServiceTemplatesController {
     private readonly contents: ContentsService,
     private readonly contentSections: ContentSectionsService,
     private readonly validation: ValidationService,
-    private readonly cities: CitiesService,
     private readonly sites: SitesService,
     private readonly whitelabelContent: WhitelabelContentService,
   ) {}
@@ -186,8 +184,6 @@ export class ServiceTemplatesController {
       : (service.related_services ?? []);
 
     // 1. Generate raw HTML (before image injection)
-    // For main page: skip_backlinks removes the AI's placeholder "Atendemos" block;
-    // we'll replace it with a city-list section instead.
     const { html: rawHtml, metaDescription } =
       await this.generation.buildHtmlRaw(
         {
@@ -208,7 +204,7 @@ export class ServiceTemplatesController {
         dto.feedback,
       );
 
-    // 2. Inject images; then, for main page, append the city-list backlinks section
+    // 2. Inject images and keep locality backlink sections out of new templates.
     const htmlWithImages = injectImages(
       rawHtml,
       images,
@@ -216,18 +212,7 @@ export class ServiceTemplatesController {
       service.name,
       baseCity ?? '',
     );
-    const finalHtml = isMainPage
-      ? htmlWithImages +
-        '\n\n' +
-        buildMainPageCityLinksHtml(
-          this.cities.getCityNames(),
-          slugify(service.name),
-          service.name,
-          site?.integration_type === 'wordpress'
-            ? this.sites.wordpressBase(site)
-            : (process.env.WP_BASE_URL ?? '').replace(/\/$/, ''),
-        )
-      : htmlWithImages;
+    const finalHtml = stripLocalityBacklinksSection(htmlWithImages);
 
     const templateSaveStartedAt = Date.now();
     let template: ServiceTemplate;

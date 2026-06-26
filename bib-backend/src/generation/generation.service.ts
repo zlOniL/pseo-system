@@ -3,10 +3,10 @@ import { AiService } from '../ai/ai.service';
 import { ValidationService } from '../validation/validation.service';
 import { ContentsService, Content } from '../contents/contents.service';
 import { ContentSectionsService } from '../contents/content-sections.service';
-import { CitiesService } from '../cities/cities.service';
 import { buildPrompt } from './prompt.builder';
 import { slugify } from '../common/slug';
 import { injectImages } from '../common/image-injector';
+import { stripLocalityBacklinksSection } from '../common/locality-backlinks-stripper';
 import { parseHtmlSections } from '../service-templates/html-section-parser';
 import { GenerateDto } from './dto/generate.dto';
 import { RegenerateDto } from './dto/regenerate.dto';
@@ -45,7 +45,6 @@ export class GenerationService {
     private readonly validation: ValidationService,
     private readonly contents: ContentsService,
     private readonly contentSections: ContentSectionsService,
-    private readonly cities: CitiesService,
     private readonly sites: SitesService,
     private readonly whitelabelContent: WhitelabelContentService,
     private readonly promptContext: PromptContextService,
@@ -153,27 +152,7 @@ export class GenerationService {
         .replace(/\{\{CITY\}\}/gi, '');
     }
 
-    if (dto.skip_backlinks) {
-      html = html
-        .replace(/<h2[^>]*>[^<]*Atendemos[^<]*<\/h2>[\s\S]*$/i, '')
-        .trimEnd();
-    } else {
-      const serviceSlug = slugify(dto.service);
-      const site = dto.site_id
-        ? await this.sites.findById(dto.site_id).catch(() => null)
-        : null;
-      const wpBase =
-        site?.integration_type === 'wordpress'
-          ? this.sites.wordpressBase(site)
-          : (process.env.WP_BASE_URL ?? '').replace(/\/$/, '');
-      const atendemosTambemHtml = this.cities.buildAtendemosTambem(
-        dto.city ?? '',
-        dto.service,
-        serviceSlug,
-        wpBase,
-      );
-      html = this.replaceAtendemosTambem(html, atendemosTambemHtml);
-    }
+    html = stripLocalityBacklinksSection(html);
 
     return { html, metaDescription };
   }

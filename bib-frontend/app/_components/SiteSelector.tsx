@@ -46,6 +46,9 @@ export default function SiteSelector() {
         }
 
         window.localStorage.setItem(STORAGE_KEY, nextSiteId);
+        window.dispatchEvent(
+          new CustomEvent('bib-site-selected', { detail: { siteId: nextSiteId } }),
+        );
 
         if (pathSupportsSiteFilter(pathname) && currentSiteId !== nextSiteId) {
           const next = new URLSearchParams(searchParamsString);

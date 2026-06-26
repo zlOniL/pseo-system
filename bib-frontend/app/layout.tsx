@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Geist } from "next/font/google";
-import Link from "next/link";
 import { Toaster } from "sonner";
 import LogoutButton from "./_components/LogoutButton";
 import { GenerationProvider } from "./_components/GenerationProvider";
 import { FloatingGenerationStatus } from "./_components/FloatingGenerationStatus";
 import SiteSelector from "./_components/SiteSelector";
+import SiteAwareNavLinks from "./_components/SiteAwareNavLinks";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -24,32 +24,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <span className="font-semibold text-gray-900 text-sm tracking-tight">BIB SEO Engine</span>
           <Suspense fallback={null}>
             <SiteSelector />
+            <SiteAwareNavLinks />
           </Suspense>
-          <div className="h-4 w-px bg-gray-200" />
-          <Link
-            href="/sites"
-            className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
-          >
-            Sites
-          </Link>
-          <Link
-            href="/services"
-            className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
-          >
-            Serviços
-          </Link>
-          <Link
-            href="/contents"
-            className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
-          >
-            Conteúdos
-          </Link>
-          <Link
-            href="/generate"
-            className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
-          >
-            Gerar página
-          </Link>
           <LogoutButton />
         </nav>
         <GenerationProvider>

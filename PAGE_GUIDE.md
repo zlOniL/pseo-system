@@ -144,13 +144,6 @@ Você receberá:
 <h2>{{SERVICE}} em {{CITY}}</h2>
 <p>{{CONTEXTO_LOCAL}}</p>
 
-<h2>Atendemos Também</h2>
-<ul>
-  <li>{{LOCAL_1}}</li>
-  <li>{{LOCAL_2}}</li>
-  <li>{{LOCAL_3}}</li>
-</ul>
-
 <h2>Pesquisas Relacionadas</h2>
 <ul>
   <li>{{LSI_1}}</li>

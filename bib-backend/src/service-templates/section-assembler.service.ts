@@ -1,14 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { SectionLibraryService } from './section-library.service';
-import { CitiesService } from '../cities/cities.service';
 import { ValidationService } from '../validation/validation.service';
 import { ContentsService, Content } from '../contents/contents.service';
 import { Service } from '../services/services.service';
 import { SECTION_KEYS } from './service-templates.types';
 import { replaceKeyword } from '../template-engine/utils/keyword-replacer';
 import { injectImages } from '../common/image-injector';
-import { slugify } from '../common/slug';
-import { buildBacklinksHtml } from '../template-engine/utils/backlinks-builder';
+import { stripLocalityBacklinksSection } from '../common/locality-backlinks-stripper';
 import { SitesService } from '../sites/sites.service';
 import { WhitelabelContentService } from '../integrations/whitelabel-api/whitelabel-content.service';
 
@@ -22,7 +20,6 @@ export interface AssembleInput {
 export class SectionAssemblerService {
   constructor(
     private readonly library: SectionLibraryService,
-    private readonly cities: CitiesService,
     private readonly validation: ValidationService,
     private readonly contents: ContentsService,
     private readonly sites: SitesService,
@@ -85,26 +82,7 @@ export class SectionAssemblerService {
       parts.push(replaceKeyword(section.html ?? '', section.base_city, city));
     }
 
-    // Build "Atendemos Também" dynamically
-    const serviceSlug = slugify(service.name);
-    const wpBase =
-      site?.integration_type === 'wordpress'
-        ? this.sites.wordpressBase(site)
-        : (process.env.WP_BASE_URL ?? '').replace(/\/$/, '');
-    const region = this.cities.findRegion(city);
-    const localities = region ? this.cities.getLocalities(region, city) : [];
-    const atendemosTambem = buildBacklinksHtml(
-      localities,
-      serviceSlug,
-      service.name,
-      wpBase,
-    );
-
-    // Insert after the local coverage/context module.
-    const contextoLocalIdx = SECTION_KEYS.indexOf('contexto_local');
-    parts.splice(contextoLocalIdx + 1, 0, atendemosTambem);
-
-    let html = parts.join('\n');
+    let html = stripLocalityBacklinksSection(parts.join('\n'));
     html = injectImages(
       html,
       service.images ?? [],
