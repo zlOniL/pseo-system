@@ -168,6 +168,6 @@ export class QueueWorker implements OnModuleInit {
   }
 
   private isEnabled(): boolean {
-    return process.env.QUEUE_WORKER_ENABLED === 'true';
+    return process.env.QUEUE_WORKER_ENABLED !== 'false';
   }
 }
