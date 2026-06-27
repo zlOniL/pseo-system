@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { Content } from "@/lib/types";
+import { scaleReviewHrefForContent } from "@/lib/routes";
 import { RegenerateForm } from "./RegenerateForm";
 import { ScoreCard } from "@/app/generate/_components/ScoreCard";
 
@@ -49,7 +50,7 @@ export function ActionBar({ content }: { content: Content }) {
     try {
       await api.deleteContent(content.id);
       toast.success("Página apagada.");
-      router.push("/contents");
+      router.push(scaleReviewHrefForContent(content));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao apagar");
       setLoading(false);

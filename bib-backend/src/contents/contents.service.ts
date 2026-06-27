@@ -54,7 +54,7 @@ export class ContentsService {
   constructor(private readonly supabase: SupabaseService) {}
 
   private buildCacheKey(dto: ListContentsDto): string {
-    return `${dto.site_id ?? ''}|${dto.status ?? ''}|${dto.service ?? ''}|${dto.city ?? ''}|${dto.limit ?? DEFAULT_LIMIT}`;
+    return `${dto.site_id ?? ''}|${dto.status ?? ''}|${dto.service ?? ''}|${dto.service_id ?? ''}|${dto.city ?? ''}|${dto.cities ?? ''}|${dto.from ?? ''}|${dto.to ?? ''}|${dto.limit ?? DEFAULT_LIMIT}`;
   }
 
   private async countFiltered(dto: ListContentsDto): Promise<number> {
@@ -62,13 +62,30 @@ export class ContentsService {
       .getClient()
       .from('contents')
       .select('*', { count: 'exact', head: true });
-    if (dto.status) query = query.eq('status', dto.status);
+    query = this.applyStatusFilter(query, dto.status);
     if (dto.service) query = query.eq('service', dto.service);
+    if (dto.service_id) query = query.eq('service_id', dto.service_id);
     if (dto.city) query = query.ilike('city', `%${dto.city}%`);
+    if (dto.cities) {
+      const cities = dto.cities.split(',').filter(Boolean);
+      if (cities.length > 0) query = query.in('city', cities);
+    }
     if (dto.site_id) query = query.eq('site_id', dto.site_id);
+    if (dto.from) query = query.gte('created_at', dto.from);
+    if (dto.to) query = query.lte('created_at', dto.to);
     const { count, error } = (await query) as DbCountResult<null>;
     if (error) this.throwFriendlyContentError(error);
     return count ?? 0;
+  }
+
+  private applyStatusFilter<T>(query: T, status?: string): T {
+    if (!status) return query;
+    const statuses = status.split(',').filter(Boolean);
+    if (statuses.length === 0) return query;
+
+    return (statuses.length > 1
+      ? (query as any).in('status', statuses)
+      : (query as any).eq('status', statuses[0])) as T;
   }
 
   private invalidateCache(): void {
@@ -220,18 +237,29 @@ export class ContentsService {
       this.listCache.delete(key);
     }
 
+    if (offset >= total) {
+      return { data: [], total, page, limit };
+    }
+
     let query = this.supabase
       .getClient()
       .from('contents')
       .select(
-        'id, created_at, site_id, main_keyword, service, city, score, score_issues, status, wp_post_url, external_page_url, output_format, external_page_type',
+        'id, created_at, site_id, service_id, main_keyword, service, city, score, score_issues, status, wp_post_url, external_page_url, output_format, external_page_type',
       )
       .order('created_at', { ascending: false });
 
-    if (dto.status) query = query.eq('status', dto.status);
+    query = this.applyStatusFilter(query, dto.status);
     if (dto.service) query = query.eq('service', dto.service);
+    if (dto.service_id) query = query.eq('service_id', dto.service_id);
     if (dto.city) query = query.ilike('city', `%${dto.city}%`);
+    if (dto.cities) {
+      const cities = dto.cities.split(',').filter(Boolean);
+      if (cities.length > 0) query = query.in('city', cities);
+    }
     if (dto.site_id) query = query.eq('site_id', dto.site_id);
+    if (dto.from) query = query.gte('created_at', dto.from);
+    if (dto.to) query = query.lte('created_at', dto.to);
     const { data, error } = (await query.range(
       offset,
       offset + limit - 1,

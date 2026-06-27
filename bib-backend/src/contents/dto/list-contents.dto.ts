@@ -1,6 +1,5 @@
 import {
   IsOptional,
-  IsIn,
   IsString,
   IsInt,
   Min,
@@ -10,20 +9,36 @@ import { Type } from 'class-transformer';
 
 export class ListContentsDto {
   @IsOptional()
-  @IsIn(['draft', 'approved', 'published'])
-  status?: 'draft' | 'approved' | 'published';
+  @IsString()
+  status?: string;
 
   @IsOptional()
   @IsString()
   service?: string;
 
   @IsOptional()
+  @IsUUID()
+  service_id?: string;
+
+  @IsOptional()
   @IsString()
   city?: string;
 
   @IsOptional()
+  @IsString()
+  cities?: string;
+
+  @IsOptional()
   @IsUUID()
   site_id?: string;
+
+  @IsOptional()
+  @IsString()
+  from?: string;
+
+  @IsOptional()
+  @IsString()
+  to?: string;
 
   @IsOptional()
   @Type(() => Number)

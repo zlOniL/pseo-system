@@ -8,7 +8,11 @@ import { Site } from '@/lib/types';
 const STORAGE_KEY = 'bib-selected-site-id';
 
 function pathSupportsSiteFilter(pathname: string): boolean {
-  return pathname === '/services' || pathname === '/contents' || pathname === '/services/new';
+  return (
+    pathname === '/services' ||
+    pathname === '/services/new' ||
+    pathname === '/scale'
+  );
 }
 
 export default function SiteSelector() {

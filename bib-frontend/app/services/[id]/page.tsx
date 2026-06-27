@@ -23,13 +23,13 @@ export default async function ServiceDetailPage({ params }: Props) {
 
         {/* CTA Escala */}
         <Link
-          href={`/services/${id}/scale`}
+          href={`/scale?service_id=${encodeURIComponent(id)}`}
           className="flex items-center justify-between w-full bg-gray-900 text-white rounded-xl px-5 py-4 mb-6 hover:bg-gray-800 transition-colors group"
         >
           <div>
             <p className="text-sm font-semibold">Gerar Páginas por Cidade</p>
             <p className="text-xs text-gray-400 mt-0.5">
-              Seleciona regiões e cidades para geração em massa
+              Abre a central de produção com este serviço selecionado
             </p>
           </div>
           <svg

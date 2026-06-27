@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { Content, GenerateInput, RegenerateInput } from "@/lib/types";
+import { scaleReviewHrefForContent } from "@/lib/routes";
 
 export type JobType = "generate" | "regenerate";
 export type JobStatus = "pending" | "generating" | "done" | "error";
@@ -83,7 +84,7 @@ export function GenerationProvider({ children }: { children: React.ReactNode }) 
           ...(issues.length > 0 && { description: issues.join('\n') }),
           action: {
             label: "Ver resultado →",
-            onClick: () => router.push(`/contents/${result.id}`),
+            onClick: () => router.push(scaleReviewHrefForContent(result)),
           },
           duration: 10000,
           },

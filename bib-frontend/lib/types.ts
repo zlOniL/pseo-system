@@ -16,6 +16,7 @@ export interface Content {
   images: string[] | null;
   related_services: RelatedService[] | null;
   meta_description: string | null;
+  service_id: string | null;
   generation_mode: 'ai' | 'template' | 'library';
   wordpress_category: string | null;
   output_format: 'html' | 'whitelabel_json';
@@ -178,6 +179,7 @@ export interface SectionLibrarySummary {
 export interface QueueItem {
   id: string;
   created_at: string;
+  site_id: string | null;
   service_id: string;
   city: string;
   status: 'pending' | 'processing' | 'done' | 'failed';
@@ -188,6 +190,11 @@ export interface QueueItem {
   started_at: string | null;
   finished_at: string | null;
   attempts: number;
+  service?: {
+    id: string;
+    name: string;
+    site_id: string | null;
+  } | null;
 }
 
 export interface WpCategory {
@@ -202,6 +209,27 @@ export interface QueueStats {
   processing: number;
   done: number;
   failed: number;
+}
+
+export interface QueueFilters {
+  status?: string;
+  site_id?: string;
+  service_id?: string;
+  mode?: string;
+  city?: string;
+  cities?: string[];
+  from?: string;
+  to?: string;
+  has_error?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginatedQueueItems {
+  data: QueueItem[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 // ── Cities ────────────────────────────────────────────────────────────────────

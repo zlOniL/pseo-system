@@ -5,6 +5,7 @@ import { DbCountResult, DbResult } from '../common/supabase.types';
 export interface QueueItem {
   id: string;
   created_at: string;
+  site_id: string | null;
   service_id: string;
   city: string;
   status: 'pending' | 'processing' | 'done' | 'failed';
@@ -17,12 +18,44 @@ export interface QueueItem {
   attempts: number;
 }
 
+export interface QueueItemWithService extends QueueItem {
+  service: {
+    id: string;
+    name: string;
+    site_id: string | null;
+  } | null;
+}
+
 export interface QueueStats {
   pending: number;
   processing: number;
   done: number;
   failed: number;
 }
+
+export interface QueueFilters {
+  status?: string;
+  site_id?: string;
+  service_id?: string;
+  mode?: string;
+  city?: string;
+  cities?: string;
+  from?: string;
+  to?: string;
+  has_error?: boolean;
+  service_ids?: string[];
+}
+
+export interface PaginatedQueueItems {
+  data: QueueItemWithService[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+const VALID_PAGE_LIMITS = [50, 100, 250, 500, 1000];
+const DEFAULT_PAGE_LIMIT = 50;
+const EMPTY_UUID = '00000000-0000-0000-0000-000000000000';
 
 @Injectable()
 export class QueueService {
@@ -34,6 +67,15 @@ export class QueueService {
     mode: 'ai' | 'template' | 'library' = 'ai',
     templateId?: string,
   ): Promise<QueueItem[]> {
+    const { data: service, error: serviceError } = (await this.supabase
+      .getClient()
+      .from('services')
+      .select('site_id')
+      .eq('id', serviceId)
+      .single()) as DbResult<{ site_id: string | null }>;
+
+    if (serviceError) throw new Error(serviceError.message);
+
     // Remove failed and done items so they can be re-queued fresh
     await this.supabase
       .getClient()
@@ -45,6 +87,7 @@ export class QueueService {
 
     const rows = cities.map((city) => ({
       service_id: serviceId,
+      site_id: service?.site_id ?? null,
       city,
       status: 'pending',
       mode,
@@ -192,31 +235,78 @@ export class QueueService {
   }
 
   async findAll(
-    filters: { status?: string; service_id?: string } = {},
-  ): Promise<QueueItem[]> {
+    filters: QueueFilters = {},
+    pagination: { page?: number; limit?: number } = {},
+  ): Promise<PaginatedQueueItems> {
+    const resolvedFilters = await this.resolveSiteFilter(filters);
+    const page = Math.max(1, pagination.page ?? 1);
+    const requestedLimit = Number(pagination.limit);
+    const limit = VALID_PAGE_LIMITS.includes(requestedLimit)
+      ? requestedLimit
+      : DEFAULT_PAGE_LIMIT;
+    const fromIndex = (page - 1) * limit;
+    const toIndex = fromIndex + limit - 1;
+
+    let countQuery = this.supabase
+      .getClient()
+      .from('queue')
+      .select('*', { count: 'exact', head: true });
+
+    countQuery = this.applyFilters(countQuery, resolvedFilters);
+
+    const { count, error: countError } = (await countQuery) as DbCountResult<null>;
+    if (countError) throw new Error(countError.message);
+
+    const total = count ?? 0;
+    if (fromIndex >= total) {
+      return { data: [], total, page, limit };
+    }
+
     let query = this.supabase
       .getClient()
       .from('queue')
-      .select()
-      .order('created_at', { ascending: false });
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(fromIndex, toIndex);
 
-    if (filters.status) query = query.eq('status', filters.status);
-    if (filters.service_id) query = query.eq('service_id', filters.service_id);
+    query = this.applyFilters(query, resolvedFilters);
 
     const { data, error } = (await query) as DbResult<QueueItem[]>;
     if (error) throw new Error(error.message);
-    return data as QueueItem[];
+
+    return {
+      data: await this.attachServices(data ?? []),
+      total,
+      page,
+      limit,
+    };
   }
 
-  async getStats(): Promise<QueueStats> {
+  async getStats(filters: QueueFilters = {}): Promise<QueueStats> {
+    const resolvedFilters = await this.resolveSiteFilter(filters);
     const statuses = ['pending', 'processing', 'done', 'failed'] as const;
+    const requestedStatuses = resolvedFilters.status
+      ? resolvedFilters.status.split(',').filter(Boolean)
+      : [];
     const counts = await Promise.all(
       statuses.map(async (s) => {
-        const { count } = (await this.supabase
+        if (
+          requestedStatuses.length > 0 &&
+          !requestedStatuses.includes(s)
+        ) {
+          return [s, 0] as const;
+        }
+
+        let query = this.supabase
           .getClient()
           .from('queue')
           .select('id', { count: 'exact', head: true })
-          .eq('status', s)) as DbCountResult<null>;
+          .eq('status', s);
+
+        const { status: _status, ...filterWithoutStatus } = resolvedFilters;
+        query = this.applyFilters(query, filterWithoutStatus, s);
+
+        const { count } = (await query) as DbCountResult<null>;
         return [s, count ?? 0] as const;
       }),
     );
@@ -233,11 +323,58 @@ export class QueueService {
 
     if (error || !data)
       throw new NotFoundException(`Queue item ${id} not found`);
-    if (data.status !== 'pending') {
-      throw new Error('Only pending items can be removed');
+    if (!['pending', 'failed'].includes(data.status)) {
+      throw new Error('Only pending or failed items can be removed');
     }
 
     await this.supabase.getClient().from('queue').delete().eq('id', id);
+  }
+
+  async bulkRemove(ids: string[]): Promise<{ deleted: number; skipped: number }> {
+    const { data, error } = (await this.supabase
+      .getClient()
+      .from('queue')
+      .select('id, status')
+      .in('id', ids)) as DbResult<Array<{ id: string; status: QueueItem['status'] }>>;
+
+    if (error) throw new Error(error.message);
+
+    const deletableIds = (data ?? [])
+      .filter((item) => ['pending', 'failed'].includes(item.status))
+      .map((item) => item.id);
+
+    if (deletableIds.length > 0) {
+      const { error: deleteError } = await this.supabase
+        .getClient()
+        .from('queue')
+        .delete()
+        .in('id', deletableIds);
+
+      if (deleteError) throw new Error(deleteError.message);
+    }
+
+    return {
+      deleted: deletableIds.length,
+      skipped: ids.length - deletableIds.length,
+    };
+  }
+
+  async bulkRetry(ids: string[]): Promise<QueueItem[]> {
+    const { data, error } = (await this.supabase
+      .getClient()
+      .from('queue')
+      .update({
+        status: 'pending',
+        error: null,
+        started_at: null,
+        finished_at: null,
+      })
+      .in('id', ids)
+      .eq('status', 'failed')
+      .select()) as DbResult<QueueItem[]>;
+
+    if (error) throw new Error(error.message);
+    return data ?? [];
   }
 
   async retry(id: string): Promise<QueueItem> {
@@ -258,5 +395,94 @@ export class QueueService {
     if (error || !data)
       throw new NotFoundException(`Queue item ${id} not found or not failed`);
     return data;
+  }
+
+  private applyFilters<T>(
+    query: T,
+    filters: QueueFilters,
+    effectiveStatus?: QueueItem['status'],
+  ): T {
+    let next = query as any;
+
+    if (filters.status) {
+      const statuses = filters.status.split(',').filter(Boolean);
+      next =
+        statuses.length > 1
+          ? next.in('status', statuses)
+          : next.eq('status', filters.status);
+    }
+    if (filters.service_ids) {
+      if (filters.service_ids.length === 0) next = next.eq('service_id', EMPTY_UUID);
+      else next = next.in('service_id', filters.service_ids);
+    }
+    if (filters.service_id) next = next.eq('service_id', filters.service_id);
+    if (filters.mode) {
+      const modes = filters.mode.split(',').filter(Boolean);
+      next =
+        modes.length > 1 ? next.in('mode', modes) : next.eq('mode', filters.mode);
+    }
+    if (filters.cities) {
+      const cities = filters.cities.split(',').filter(Boolean);
+      if (cities.length > 0) next = next.in('city', cities);
+    }
+    if (filters.city) next = next.ilike('city', `%${filters.city}%`);
+    const dateColumn = this.getDateColumn(effectiveStatus ?? filters.status);
+    if (filters.from) next = next.gte(dateColumn, filters.from);
+    if (filters.to) next = next.lte(dateColumn, filters.to);
+    if (filters.has_error === true) next = next.not('error', 'is', null);
+    if (filters.has_error === false) next = next.is('error', null);
+
+    return next as T;
+  }
+
+  private getDateColumn(status?: string): 'created_at' | 'started_at' | 'finished_at' {
+    if (status === 'processing') return 'started_at';
+    if (status === 'done' || status === 'failed') return 'finished_at';
+    return 'created_at';
+  }
+
+  private async resolveSiteFilter(filters: QueueFilters): Promise<QueueFilters> {
+    if (!filters.site_id) return filters;
+
+    let serviceQuery = this.supabase
+      .getClient()
+      .from('services')
+      .select('id')
+      .eq('site_id', filters.site_id);
+
+    if (filters.service_id) serviceQuery = serviceQuery.eq('id', filters.service_id);
+
+    const { data, error } = (await serviceQuery) as DbResult<Array<{ id: string }>>;
+    if (error) throw new Error(error.message);
+
+    const { site_id: _siteId, service_id, ...rest } = filters;
+    return {
+      ...rest,
+      service_id,
+      service_ids: (data ?? []).map((service) => service.id),
+    };
+  }
+
+  private async attachServices(
+    items: QueueItem[],
+  ): Promise<QueueItemWithService[]> {
+    const serviceIds = Array.from(new Set(items.map((item) => item.service_id)));
+    if (serviceIds.length === 0) return [];
+
+    const { data, error } = (await this.supabase
+      .getClient()
+      .from('services')
+      .select('id,name,site_id')
+      .in('id', serviceIds)) as DbResult<
+      Array<{ id: string; name: string; site_id: string | null }>
+    >;
+
+    if (error) throw new Error(error.message);
+
+    const services = new Map((data ?? []).map((service) => [service.id, service]));
+    return items.map((item) => ({
+      ...item,
+      service: services.get(item.service_id) ?? null,
+    }));
   }
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useGeneration, GenerationJob } from "./GenerationProvider";
+import { scaleReviewHrefForContent } from "@/lib/routes";
 
 function Spinner() {
   return (
@@ -36,7 +37,7 @@ function JobRow({ job, onDismiss }: { job: GenerationJob; onDismiss: () => void 
           <span className="font-medium">{job.label}</span> pronta
         </span>
         <Link
-          href={`/contents/${job.result.id}`}
+          href={scaleReviewHrefForContent(job.result)}
           onClick={onDismiss}
           className="text-blue-600 hover:underline shrink-0 ml-1"
         >

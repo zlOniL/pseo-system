@@ -7,7 +7,8 @@ import { useSearchParams } from 'next/navigation';
 const STORAGE_KEY = 'bib-selected-site-id';
 
 function withSiteId(path: string, siteId: string): string {
-  if (!siteId || (path !== '/services' && path !== '/contents')) return path;
+  if (!siteId || (path !== '/services' && path !== '/scale'))
+    return path;
   return `${path}?site_id=${encodeURIComponent(siteId)}`;
 }
 
@@ -61,10 +62,10 @@ export default function SiteAwareNavLinks() {
         Serviços
       </Link>
       <Link
-        href={withSiteId('/contents', siteId)}
+        href={withSiteId('/scale', siteId)}
         className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
       >
-        Conteúdos
+        Producao
       </Link>
       <Link
         href="/generate"

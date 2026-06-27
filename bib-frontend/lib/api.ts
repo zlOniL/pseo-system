@@ -14,6 +14,8 @@ import {
   SectionLibrarySummary,
   QueueItem,
   QueueStats,
+  QueueFilters,
+  PaginatedQueueItems,
   RegionWithCities,
   MediaResponse,
   MediaAsset,
@@ -86,16 +88,24 @@ export const api = {
   listContents: (params?: {
     status?: string;
     service?: string;
+    service_id?: string;
     city?: string;
+    cities?: string[];
     page?: number;
     limit?: number;
     site_id?: string;
+    from?: string;
+    to?: string;
   }) => {
     const qs = new URLSearchParams();
     if (params?.status) qs.set('status', params.status);
     if (params?.service) qs.set('service', params.service);
+    if (params?.service_id) qs.set('service_id', params.service_id);
     if (params?.city) qs.set('city', params.city);
+    if (params?.cities?.length) qs.set('cities', params.cities.join(','));
     if (params?.site_id) qs.set('site_id', params.site_id);
+    if (params?.from) qs.set('from', params.from);
+    if (params?.to) qs.set('to', params.to);
     if (params?.page && params.page > 1) qs.set('page', String(params.page));
     if (params?.limit) qs.set('limit', String(params.limit));
     const q = qs.toString();
@@ -284,13 +294,65 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
+  listQueue: (params?: QueueFilters) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.site_id) qs.set('site_id', params.site_id);
+    if (params?.service_id) qs.set('service_id', params.service_id);
+    if (params?.mode) qs.set('mode', params.mode);
+    if (params?.city) qs.set('city', params.city);
+    if (params?.cities?.length) qs.set('cities', params.cities.join(','));
+    if (params?.from) qs.set('from', params.from);
+    if (params?.to) qs.set('to', params.to);
+    if (params?.has_error !== undefined)
+      qs.set('has_error', String(params.has_error));
+    if (params?.page && params.page > 1) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    const q = qs.toString();
+    return request<PaginatedQueueItems>(`/queue${q ? `?${q}` : ''}`);
+  },
+
   getQueueForService: (serviceId: string) =>
     request<QueueItem[]>(`/queue/service/${serviceId}`),
 
-  getQueueStats: () => request<QueueStats>('/queue/stats'),
+  getQueueStats: (params?: Omit<QueueFilters, 'page' | 'limit'>) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.site_id) qs.set('site_id', params.site_id);
+    if (params?.service_id) qs.set('service_id', params.service_id);
+    if (params?.mode) qs.set('mode', params.mode);
+    if (params?.city) qs.set('city', params.city);
+    if (params?.cities?.length) qs.set('cities', params.cities.join(','));
+    if (params?.from) qs.set('from', params.from);
+    if (params?.to) qs.set('to', params.to);
+    if (params?.has_error !== undefined)
+      qs.set('has_error', String(params.has_error));
+    const q = qs.toString();
+    return request<QueueStats>(`/queue/stats${q ? `?${q}` : ''}`);
+  },
 
   retryQueueItem: (id: string) =>
     request<QueueItem>(`/queue/${id}/retry`, { method: 'POST' }),
+
+  deleteQueueItem: async (id: string): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/queue/${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`API error ${res.status}: ${body}`);
+    }
+  },
+
+  bulkDeleteQueue: (ids: string[]) =>
+    request<{ deleted: number; skipped: number }>('/queue/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }),
+
+  bulkRetryQueue: (ids: string[]) =>
+    request<QueueItem[]>('/queue/bulk-retry', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }),
 
   // ── WordPress Media ─────────────────────────────────────────────────────────
 

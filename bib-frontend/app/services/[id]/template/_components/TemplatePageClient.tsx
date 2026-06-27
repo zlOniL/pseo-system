@@ -12,6 +12,7 @@ import {
   SectionLibrarySummary,
   RelatedService,
 } from '@/lib/types';
+import { scaleReviewHref } from '@/lib/routes';
 import { PreviewPane, buildPreviewHtml } from '@/app/generate/_components/PreviewPane';
 import { WhitelabelTextPreview } from '@/app/_components/WhitelabelTextPreview';
 
@@ -642,7 +643,14 @@ export default function TemplatePageClient({ service }: Props) {
               <Link href={`/services/${service.id}`} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
                 ← Voltar ao serviço
               </Link>
-              <Link href="/contents" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+              <Link
+                href={scaleReviewHref({
+                  siteId: service.site_id,
+                  serviceId: service.id,
+                  status: 'draft',
+                })}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
                 Ver Conteúdos
               </Link>
             </div>

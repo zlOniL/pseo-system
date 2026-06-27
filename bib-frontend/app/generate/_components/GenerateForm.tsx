@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { ScoreCard } from "./ScoreCard";
 import { Content, RelatedService } from "@/lib/types";
 import { CITIES_DATA } from "@/lib/cities";
+import { scaleReviewHrefForContent } from "@/lib/routes";
 
 const IMAGE_PLACEHOLDERS = [
   "Imagem 1 — antes de Procura em Buscadores",
@@ -300,7 +301,7 @@ export function GenerateForm() {
         <div className="space-y-3">
           <ScoreCard content={result} />
           <button
-            onClick={() => router.push(`/contents/${result.id}`)}
+            onClick={() => router.push(scaleReviewHrefForContent(result))}
             className="w-full bg-gray-800 text-white rounded px-4 py-2 text-sm font-medium hover:bg-gray-900"
           >
             Ver página gerada →

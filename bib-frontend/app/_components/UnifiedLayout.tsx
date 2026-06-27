@@ -21,6 +21,7 @@ import {
   PreviewPane,
   buildPreviewHtml,
 } from '@/app/generate/_components/PreviewPane';
+import { scaleReviewHrefForContent } from '@/lib/routes';
 
 function initImages(stored: string[] | null): string[] {
   const base = stored ?? [];
@@ -440,7 +441,7 @@ export function UnifiedLayout({ initialContent }: Props) {
     try {
       await api.deleteContent(content.id);
       toast.success('Página apagada.');
-      router.push('/contents');
+      router.push(scaleReviewHrefForContent(content));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao apagar';
       setError(message);
@@ -457,7 +458,7 @@ export function UnifiedLayout({ initialContent }: Props) {
           <div className="flex h-12 shrink-0 items-center justify-between border-b border-gray-200 px-5">
             <div className="flex items-center gap-2">
               <Link
-                href="/contents"
+                href={content ? scaleReviewHrefForContent(content) : '/scale?view=review'}
                 className="flex items-center gap-0.5 text-xs text-gray-400 transition-colors hover:text-gray-700"
               >
                 ← Conteúdos

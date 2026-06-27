@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { Content, RelatedService, WpCategory } from "@/lib/types";
 import { ScoreCard } from "./ScoreCard";
 import { PreviewPane } from "./PreviewPane";
+import { scaleReviewHrefForContent } from "@/lib/routes";
 
 const IMAGE_HINTS = [
   "Antes de Procura em Buscadores",
@@ -279,7 +280,7 @@ export function GenerateLayout() {
                   <ScoreCard content={result} />
                   <button
                     type="button"
-                    onClick={() => router.push(`/contents/${result.id}`)}
+                    onClick={() => router.push(scaleReviewHrefForContent(result))}
                     className="w-full bg-white border border-gray-200 text-gray-700 rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors"
                   >
                     Abrir página gerada →
