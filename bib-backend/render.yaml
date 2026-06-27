@@ -14,6 +14,8 @@ services:
         sync: false
       - key: OPENROUTER_MODELS
         value: openrouter/owl-alpha
+      - key: QUEUE_WORKER_ENABLED
+        value: true
       - key: WP_BASE_URL
         sync: false
       - key: WP_SECRET

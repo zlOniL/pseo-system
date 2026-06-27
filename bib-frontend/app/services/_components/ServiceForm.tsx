@@ -19,6 +19,32 @@ interface ServiceFormProps {
   siteId?: string;
 }
 
+interface RelatedServiceDraft {
+  name: string;
+  url: string;
+  serviceId: string;
+  useService: boolean;
+}
+
+function initRelatedServices(stored: RelatedService[] | null | undefined): RelatedServiceDraft[] {
+  return (stored ?? []).map((item) => ({
+    name: item.name,
+    url: item.url,
+    serviceId: '',
+    useService: false,
+  }));
+}
+
+function normalizeBaseUrl(site: Site | null): string {
+  if (!site) return '';
+  return (site.wordpress_base_url?.trim() || `https://${site.domain}`).replace(/\/+$/, '');
+}
+
+function buildServiceUrl(site: Site | null, service: Service | null): string {
+  if (!site || !service) return '';
+  return `${normalizeBaseUrl(site)}/${service.slug}/`;
+}
+
 export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
   const router = useRouter();
   const isEdit = !!initialData;
@@ -26,8 +52,8 @@ export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
   const [name, setName] = useState(initialData?.name ?? '');
   const [videoUrl, setVideoUrl] = useState(initialData?.video_url ?? '');
   const [images, setImages] = useState<string[]>(initialData?.images ?? []);
-  const [relatedServices, setRelatedServices] = useState<RelatedService[]>(
-    initialData?.related_services ?? [],
+  const [relatedServices, setRelatedServices] = useState<RelatedServiceDraft[]>(
+    () => initRelatedServices(initialData?.related_services),
   );
   const [serviceNotes, setServiceNotes] = useState(initialData?.service_notes ?? '');
   const [tone, setTone] = useState(initialData?.tone ?? '');
@@ -40,6 +66,8 @@ export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
   const [featuredImageAlt, setFeaturedImageAlt] = useState(initialData?.featured_image_alt ?? '');
   const [wpCategories, setWpCategories] = useState<WpCategory[]>([]);
   const [site, setSite] = useState<Site | null>(null);
+  const [availableServices, setAvailableServices] = useState<Service[]>([]);
+  const [importServiceId, setImportServiceId] = useState('');
   const [wpCatLoading, setWpCatLoading] = useState(false);
   const [wpCatError, setWpCatError] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -51,10 +79,24 @@ export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
   const [error, setError] = useState('');
   const effectiveSiteId = initialData?.site_id ?? siteId;
   const isWhitelabel = site?.integration_type === 'whitelabel_api';
+  const availableRelatedServices = availableServices.filter(
+    (item) => item.id !== initialData?.id,
+  );
 
   useEffect(() => {
     if (!effectiveSiteId) return;
     api.getSite(effectiveSiteId).then(setSite).catch(() => {});
+  }, [effectiveSiteId]);
+
+  useEffect(() => {
+    if (!effectiveSiteId) {
+      setAvailableServices([]);
+      setImportServiceId('');
+      return;
+    }
+    api.listServices(effectiveSiteId)
+      .then((items) => setAvailableServices(items))
+      .catch(() => setAvailableServices([]));
   }, [effectiveSiteId]);
 
   useEffect(() => {
@@ -69,15 +111,79 @@ export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
   }, [effectiveSiteId, isWhitelabel, site]);
 
   function addRelated() {
-    setRelatedServices((prev) => [...prev, { name: '', url: '' }]);
+    setRelatedServices((prev) => [...prev, { name: '', url: '', serviceId: '', useService: false }]);
   }
   function removeRelated(i: number) {
     setRelatedServices((prev) => prev.filter((_, idx) => idx !== i));
   }
-  function updateRelated(i: number, field: 'name' | 'url', value: string) {
+  function updateRelatedName(i: number, value: string) {
     setRelatedServices((prev) =>
-      prev.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)),
+      prev.map((r, idx) => (idx === i ? { ...r, name: value } : r)),
     );
+  }
+  function updateRelatedUrl(i: number, value: string) {
+    setRelatedServices((prev) =>
+      prev.map((r, idx) => (idx === i ? { ...r, url: value, serviceId: '' } : r)),
+    );
+  }
+  function toggleRelatedService(i: number, checked: boolean) {
+    setRelatedServices((prev) =>
+      prev.map((r, idx) =>
+        idx === i
+          ? {
+              ...r,
+              useService: checked,
+              serviceId: checked ? r.serviceId : '',
+              url: checked ? r.url : '',
+            }
+          : r,
+      ),
+    );
+  }
+  function updateRelatedLinkedService(i: number, serviceId: string) {
+    const linked = availableRelatedServices.find((item) => item.id === serviceId) ?? null;
+    const resolvedUrl = buildServiceUrl(site, linked);
+
+    setRelatedServices((prev) =>
+      prev.map((r, idx) =>
+        idx === i
+          ? {
+              ...r,
+              serviceId,
+              url: resolvedUrl,
+              name: r.name.trim() ? r.name : (linked?.name ?? ''),
+            }
+          : r,
+      ),
+    );
+  }
+  function importRelatedFromService(serviceId: string) {
+    const importedService = availableRelatedServices.find((item) => item.id === serviceId) ?? null;
+    if (!importedService) return;
+
+    const imported = importedService.related_services?.length
+      ? initRelatedServices(importedService.related_services)
+      : [];
+
+    setRelatedServices(imported);
+    toast.success(`Servicos complementares importados de "${importedService.name}".`);
+  }
+  function buildRelatedServicesPayload(): RelatedService[] {
+    return relatedServices
+      .map((item) => {
+        const relatedName = item.name.trim();
+        if (!relatedName) return null;
+
+        if (item.useService) {
+          const linked = availableRelatedServices.find((service) => service.id === item.serviceId) ?? null;
+          const resolvedUrl = buildServiceUrl(site, linked);
+          return resolvedUrl ? { name: relatedName, url: resolvedUrl } : null;
+        }
+
+        const relatedUrl = item.url.trim();
+        return relatedUrl ? { name: relatedName, url: relatedUrl } : null;
+      })
+      .filter((item): item is RelatedService => Boolean(item));
   }
 
   async function handleSyncFeaturedImageOnly() {
@@ -119,7 +225,7 @@ export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
       site_id: effectiveSiteId ?? null,
       video_url: videoUrl || null,
       images,
-      related_services: relatedServices.filter((r) => r.name && r.url),
+      related_services: buildRelatedServicesPayload(),
       service_notes: serviceNotes || null,
       tone: tone,
       min_words: minWords,
@@ -333,6 +439,29 @@ export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
 
       <div className="bib-divider" />
 
+      <div>
+        <label className="bib-label">
+          Importar de Servico <span className="bib-label-hint">(traz titulos e URLs ja cadastrados)</span>
+        </label>
+        <select
+          className="bib-input"
+          value={importServiceId}
+          onChange={(e) => {
+            const nextId = e.target.value;
+            setImportServiceId(nextId);
+            if (nextId) importRelatedFromService(nextId);
+          }}
+          disabled={!effectiveSiteId || availableRelatedServices.length === 0}
+        >
+          <option value="">Selecionar servico para importar</option>
+          {availableRelatedServices.map((service) => (
+            <option key={service.id} value={service.id}>
+              {service.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Serviços relacionados */}
       <div>
         <div className="flex items-center justify-between mb-2">
@@ -347,27 +476,58 @@ export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
             + Adicionar
           </button>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {relatedServices.map((r, i) => (
-            <div key={i} className="flex gap-2 items-center">
+            <div key={i} className="space-y-2 rounded-lg border border-gray-200 p-3">
+              <label className="bib-label">Titulo</label>
               <input
                 className="bib-input"
                 value={r.name}
-                onChange={(e) => updateRelated(i, 'name', e.target.value)}
-                placeholder="Nome"
+                onChange={(e) => updateRelatedName(i, e.target.value)}
+                placeholder="ex: Reparacao de Portas"
               />
-              <input
-                className="bib-input"
-                value={r.url}
-                onChange={(e) => updateRelated(i, 'url', e.target.value)}
-                placeholder="URL"
-              />
+              <div className="flex items-center justify-between">
+                <label className="bib-label" style={{ marginBottom: 0 }}>
+                  {r.useService ? 'Servico relacionado' : 'URL'}
+                </label>
+                <label className="flex items-center gap-2 text-xs text-gray-500">
+                  <input
+                    type="checkbox"
+                    checked={r.useService}
+                    onChange={(e) => toggleRelatedService(i, e.target.checked)}
+                    disabled={availableRelatedServices.length === 0}
+                  />
+                  Servico
+                </label>
+              </div>
+              {r.useService ? (
+                <select
+                  className="bib-input"
+                  value={r.serviceId}
+                  onChange={(e) => updateRelatedLinkedService(i, e.target.value)}
+                  disabled={availableRelatedServices.length === 0}
+                >
+                  <option value="">Selecionar servico existente</option>
+                  {availableRelatedServices.map((service) => (
+                    <option key={service.id} value={service.id}>
+                      {service.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className="bib-input"
+                  value={r.url}
+                  onChange={(e) => updateRelatedUrl(i, e.target.value)}
+                  placeholder="https://site.pt/reparacao-de-portas/"
+                />
+              )}
               <button
                 type="button"
                 onClick={() => removeRelated(i)}
-                className="bib-btn bib-btn-ghost text-gray-400 hover:text-red-500 shrink-0"
+                className="bib-btn bib-btn-ghost text-gray-400 hover:text-red-500 shrink-0 text-xs"
               >
-                ✕
+                Remover
               </button>
             </div>
           ))}

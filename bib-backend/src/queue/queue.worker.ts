@@ -31,12 +31,18 @@ export class QueueWorker implements OnModuleInit {
   ) {}
 
   onModuleInit() {
+    if (!this.isEnabled()) {
+      this.logger.log('Queue worker disabled by QUEUE_WORKER_ENABLED.');
+      return;
+    }
+
     void this.queue.resetStuckProcessing().then(() => {
       void this.processQueue();
     });
   }
 
   async processQueue(): Promise<void> {
+    if (!this.isEnabled()) return;
     if (this.isRunning) return;
     this.isRunning = true;
 
@@ -159,5 +165,9 @@ export class QueueWorker implements OnModuleInit {
       service_id: service.id,
       site_id: service.site_id ?? undefined,
     });
+  }
+
+  private isEnabled(): boolean {
+    return process.env.QUEUE_WORKER_ENABLED === 'true';
   }
 }
