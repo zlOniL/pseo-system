@@ -71,6 +71,10 @@ export class SitesService {
   }
 
   wordpressProxyBase(site: Site): string | null {
+    const explicit = site.wordpress_proxy_base?.trim();
+    if (explicit && site.integration_type === 'wordpress')
+      return explicit.replace(/\/$/, '');
+
     const legacy = process.env.WP_PROXY_BASE?.trim();
     const legacyWpBase = process.env.WP_BASE_URL?.trim();
     if (!legacy || !legacyWpBase || site.integration_type !== 'wordpress')
@@ -120,6 +124,8 @@ export class SitesService {
         wordpress_base_url:
           dto.wordpress_base_url?.trim().replace(/\/$/, '') || null,
         wordpress_secret: dto.wordpress_secret?.trim() || null,
+        wordpress_proxy_base:
+          dto.wordpress_proxy_base?.trim().replace(/\/$/, '') || null,
       })
       .select()
       .single()) as DbResult<Site>;
@@ -175,6 +181,9 @@ export class SitesService {
         dto.wordpress_base_url.trim().replace(/\/$/, '') || null;
     if (dto.wordpress_secret !== undefined)
       patch.wordpress_secret = dto.wordpress_secret.trim() || null;
+    if (dto.wordpress_proxy_base !== undefined)
+      patch.wordpress_proxy_base =
+        dto.wordpress_proxy_base.trim().replace(/\/$/, '') || null;
     if (dto.status !== undefined) patch.status = dto.status;
 
     const { data, error } = (await this.supabase

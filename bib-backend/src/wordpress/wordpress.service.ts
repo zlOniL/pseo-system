@@ -641,18 +641,33 @@ export class WordPressService {
     if (search) params.set('search', search);
 
     const site = await this.sites.findById(siteId);
-    const wpUrl = `${this.wpApiBase(site)}/media?${params.toString()}`;
+    if (site.integration_type !== 'wordpress') {
+      throw new BadRequestException(`Site "${site.name}" nao usa integracao WordPress.`);
+    }
 
-    const response = await fetch(wpUrl, {
-      headers: this.wpHeaders(site),
-    });
+    const wpUrl = `${this.wpDirectApiBase(site)}/media?${params.toString()}`;
+    this.logger.log(`listMedia -> GET ${wpUrl}`);
+
+    let response: Response;
+    try {
+      response = await fetch(wpUrl, {
+        headers: this.wpHeaders(site),
+      });
+    } catch (err) {
+      this.logger.error(`WordPress media list fetch failed: ${(err as Error).message}`);
+      throw new InternalServerErrorException(
+        `WordPress media list fetch failed: ${(err as Error).message}`,
+      );
+    }
 
     if (!response.ok) {
       const err = await response.text();
       this.logger.error(
         `WordPress media list error ${response.status}: ${err}`,
       );
-      throw new InternalServerErrorException('WordPress media list failed');
+      throw new InternalServerErrorException(
+        `WordPress media list failed (${response.status}): ${err.slice(0, 300)}`,
+      );
     }
 
     return response.json() as Promise<MediaResponse>;

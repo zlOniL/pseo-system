@@ -293,6 +293,7 @@ export interface Site {
   domain: string;
   integration_type: 'wordpress' | 'whitelabel_api';
   wordpress_base_url: string | null;
+  wordpress_proxy_base: string | null;
   status: 'active' | 'archived';
   has_api_token: boolean;
   has_wordpress_secret: boolean;
@@ -305,6 +306,7 @@ export interface CreateSiteInput {
   api_token?: string;
   wordpress_base_url?: string;
   wordpress_secret?: string;
+  wordpress_proxy_base?: string;
 }
 
 export interface WhitelabelContentJson {

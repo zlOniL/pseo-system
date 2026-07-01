@@ -16,6 +16,7 @@ export default function SiteForm({ initialData }: { initialData?: Site }) {
   );
   const [apiToken, setApiToken] = useState('');
   const [wordpressBaseUrl, setWordpressBaseUrl] = useState(initialData?.wordpress_base_url ?? '');
+  const [wordpressProxyBase, setWordpressProxyBase] = useState(initialData?.wordpress_proxy_base ?? '');
   const [wordpressSecret, setWordpressSecret] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -32,6 +33,7 @@ export default function SiteForm({ initialData }: { initialData?: Site }) {
         ...(integrationType === 'whitelabel_api' && apiToken.trim() && { api_token: apiToken.trim() }),
         ...(integrationType === 'wordpress' && {
           wordpress_base_url: wordpressBaseUrl.trim() || `https://${domain.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '')}`,
+          wordpress_proxy_base: wordpressProxyBase.trim() || undefined,
           ...(wordpressSecret.trim() && { wordpress_secret: wordpressSecret.trim() }),
         }),
       };
@@ -90,6 +92,16 @@ export default function SiteForm({ initialData }: { initialData?: Site }) {
               value={wordpressBaseUrl}
               onChange={(e) => setWordpressBaseUrl(e.target.value)}
               placeholder="https://exemplo.pt"
+            />
+          </div>
+
+          <div>
+            <label className="bib-label">Proxy WordPress opcional</label>
+            <input
+              className="bib-input"
+              value={wordpressProxyBase}
+              onChange={(e) => setWordpressProxyBase(e.target.value)}
+              placeholder="https://seu-proxy.vercel.app"
             />
           </div>
 
