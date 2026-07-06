@@ -45,6 +45,7 @@ export interface BulkPublishResult {
 }
 
 class PayloadTooLargeError extends Error {}
+class WordPressNetworkError extends InternalServerErrorException {}
 
 @Injectable()
 export class WordPressService {
@@ -85,6 +86,53 @@ export class WordPressService {
       Accept: 'application/json',
       Authorization: `Bearer ${secret}`,
     };
+  }
+
+  private describeFetchError(err: unknown): string {
+    const error = err as Error & {
+      code?: string;
+      cause?: {
+        code?: string;
+        message?: string;
+        hostname?: string;
+        host?: string;
+        port?: string | number;
+      };
+    };
+    const cause = error.cause;
+    const details = [
+      error.message,
+      cause?.code,
+      cause?.message,
+      cause?.hostname ?? cause?.host,
+      cause?.port ? `port ${cause.port}` : undefined,
+      error.code,
+    ].filter(Boolean);
+
+    return [...new Set(details)].join(' | ') || 'Unknown fetch error';
+  }
+
+  private async fetchWordPress(
+    site: Site,
+    url: string,
+    init: RequestInit,
+  ): Promise<Response> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120000);
+
+    try {
+      return await fetch(url, {
+        ...init,
+        signal: controller.signal,
+      });
+    } catch (err) {
+      const detail = this.describeFetchError(err);
+      const message = `WordPress request failed for "${site.name}" (${site.domain}) at ${url}: ${detail}`;
+      this.logger.error(message);
+      throw new WordPressNetworkError(message);
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   private async siteForContent(content: Content): Promise<Site> {
@@ -175,7 +223,7 @@ export class WordPressService {
       `Publishing "${title}" → ${wpUrl} | seoTitle: "${seoTitle}" | categories: [${categories.join(',')}] | primary_category_id: ${blogCategoryId ?? 'null'}`,
     );
 
-    const response = await fetch(wpUrl, {
+    const response = await this.fetchWordPress(site, wpUrl, {
       method: 'POST',
       headers: this.wpHeaders(site),
       body: JSON.stringify({
@@ -196,7 +244,9 @@ export class WordPressService {
       this.logger.error(
         `WordPress publish error ${response.status} (url: ${wpUrl}): ${error}`,
       );
-      throw new InternalServerErrorException('WordPress publish failed');
+      throw new InternalServerErrorException(
+        `WordPress publish failed (${response.status}): ${error}`,
+      );
     }
 
     const result = (await response.json()) as { id: number; link: string };
@@ -375,7 +425,7 @@ export class WordPressService {
     }>
   > {
     const url = `${this.wpApiBase(site)}/posts/bulk`;
-    const response = await fetch(url, {
+    const response = await this.fetchWordPress(site, url, {
       method: 'POST',
       headers: this.wpHeaders(site),
       body: JSON.stringify({ posts: payloads }),
@@ -389,7 +439,9 @@ export class WordPressService {
       if (response.status === 413) {
         throw new PayloadTooLargeError('WordPress bulk publish failed');
       }
-      throw new InternalServerErrorException('WordPress bulk publish failed');
+      throw new InternalServerErrorException(
+        `WordPress bulk publish failed (${response.status}): ${err}`,
+      );
     }
 
     return (await response.json()) as Array<{
@@ -573,7 +625,7 @@ export class WordPressService {
     const site = await this.sites.findById(siteId);
     const url = `${this.wpDirectApiBase(site)}/wp-cats`;
     this.logger.log(`getCategories → GET ${url}`);
-    const response = await fetch(url, {
+    const response = await this.fetchWordPress(site, url, {
       headers: this.wpHeaders(site),
     });
     if (!response.ok) {
@@ -592,7 +644,7 @@ export class WordPressService {
   ): Promise<WpCategory> {
     const site = await this.sites.findById(siteId);
     const url = `${this.wpDirectApiBase(site)}/wp-cats`;
-    const response = await fetch(url, {
+    const response = await this.fetchWordPress(site, url, {
       method: 'POST',
       headers: this.wpHeaders(site),
       body: JSON.stringify({ name, parent }),
@@ -648,17 +700,9 @@ export class WordPressService {
     const wpUrl = `${this.wpDirectApiBase(site)}/media?${params.toString()}`;
     this.logger.log(`listMedia -> GET ${wpUrl}`);
 
-    let response: Response;
-    try {
-      response = await fetch(wpUrl, {
-        headers: this.wpHeaders(site),
-      });
-    } catch (err) {
-      this.logger.error(`WordPress media list fetch failed: ${(err as Error).message}`);
-      throw new InternalServerErrorException(
-        `WordPress media list fetch failed: ${(err as Error).message}`,
-      );
-    }
+    const response = await this.fetchWordPress(site, wpUrl, {
+      headers: this.wpHeaders(site),
+    });
 
     if (!response.ok) {
       const err = await response.text();

@@ -3,6 +3,30 @@ import { NextRequest, NextResponse } from 'next/server';
 const WP_BASE_URL = (process.env.WP_BASE_URL ?? '').replace(/\/$/, '');
 const WP_SECRET = process.env.WP_SECRET ?? '';
 
+function describeFetchError(err: unknown): string {
+  const error = err as Error & {
+    code?: string;
+    cause?: {
+      code?: string;
+      message?: string;
+      hostname?: string;
+      host?: string;
+      port?: string | number;
+    };
+  };
+  const cause = error.cause;
+  const details = [
+    error.message,
+    cause?.code,
+    cause?.message,
+    cause?.hostname ?? cause?.host,
+    cause?.port ? `port ${cause.port}` : undefined,
+    error.code,
+  ].filter(Boolean);
+
+  return [...new Set(details)].join(' | ') || 'Unknown fetch error';
+}
+
 function buildWpUrl(pathSegments: string[], searchParams: URLSearchParams): string {
   const path = pathSegments.join('/');
   const qs = searchParams.toString();
@@ -31,10 +55,18 @@ async function proxy(request: NextRequest, pathSegments: string[]): Promise<Next
 
   const hasBody = method !== 'GET' && method !== 'HEAD';
   const body = hasBody ? await request.text() : undefined;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 120000);
 
   try {
     console.log(`[wp-proxy] ${method} ${wpUrl}`);
-    const res = await fetch(wpUrl, { method, headers, body, cache: 'no-store' });
+    const res = await fetch(wpUrl, {
+      method,
+      headers,
+      body,
+      cache: 'no-store',
+      signal: controller.signal,
+    });
     const resBody = await res.text();
     if (!res.ok) {
       console.error(`[wp-proxy] ${res.status} from ${wpUrl}: ${resBody.slice(0, 300)}`);
@@ -44,8 +76,11 @@ async function proxy(request: NextRequest, pathSegments: string[]): Promise<Next
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    console.error(`[wp-proxy] fetch error to ${wpUrl}:`, err);
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    const detail = describeFetchError(err);
+    console.error(`[wp-proxy] fetch error to ${wpUrl}: ${detail}`, err);
+    return NextResponse.json({ error: `WordPress proxy fetch failed: ${detail}` }, { status: 500 });
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

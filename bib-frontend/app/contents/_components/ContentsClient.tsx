@@ -188,6 +188,15 @@ export default function ContentsClient({ services, siteId }: ContentsClientProps
     const CHUNK_SIZE = 50;
     let published = 0;
     let failedIds: string[] = [];
+    const failureMessages = new Map<string, string>();
+    const contentById = new Map(result.data.map((content) => [content.id, content]));
+
+    function registerFailure(id: string, error?: string) {
+      failedIds.push(id);
+      if (error && !failureMessages.has(id)) {
+        failureMessages.set(id, error);
+      }
+    }
 
     async function runPass(passIds: string[]) {
       for (let i = 0; i < passIds.length; i += CHUNK_SIZE) {
@@ -197,13 +206,14 @@ export default function ContentsClient({ services, siteId }: ContentsClientProps
           const returned = new Set(results.map((r) => r.id));
           for (const r of results) {
             if (r.success) published++;
-            else failedIds.push(r.id);
+            else registerFailure(r.id, r.error);
           }
           for (const id of chunk) {
-            if (!returned.has(id)) failedIds.push(id);
+            if (!returned.has(id)) registerFailure(id, 'Sem retorno do backend para este item.');
           }
-        } catch {
-          failedIds.push(...chunk);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Erro ao publicar chunk.';
+          for (const id of chunk) registerFailure(id, message);
         }
         setBulkProgress(Math.min(i + CHUNK_SIZE, passIds.length));
       }
@@ -226,8 +236,15 @@ export default function ContentsClient({ services, siteId }: ContentsClientProps
     if (failedIds.length === 0) {
       toast.success(`${published} página${published !== 1 ? 's' : ''} publicada${published !== 1 ? 's' : ''}.`);
     } else {
+      const details = failedIds
+        .slice(0, 3)
+        .map((id) => {
+          const content = contentById.get(id);
+          return `${content?.main_keyword ?? id}: ${failureMessages.get(id) ?? 'erro desconhecido'}`;
+        })
+        .join('\n');
       toast.warning(
-        `${published} publicada${published !== 1 ? 's' : ''}, ${failedIds.length} falharam após retry.`,
+        `${published} publicada${published !== 1 ? 's' : ''}, ${failedIds.length} falharam após retry.${details ? `\n${details}` : ''}`,
       );
     }
 
