@@ -253,6 +253,7 @@ export default function MediaPickerModal({
             {mode === 'video' ? 'Selecionar Vídeo' : 'Selecionar Imagens'}
           </h2>
           <button
+            type="button"
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors text-xl leading-none"
             aria-label="Fechar"
@@ -348,6 +349,7 @@ export default function MediaPickerModal({
                 const isSelected = selectedVideo === item.url;
                 return (
                   <button
+                    type="button"
                     key={item.id}
                     onClick={() => handleVideoClick(item.url)}
                     className={`relative aspect-video rounded-lg overflow-hidden border-2 transition-all bg-black ${
@@ -400,6 +402,7 @@ export default function MediaPickerModal({
                 return (
                   <div key={item.id} className="space-y-1">
                     <button
+                      type="button"
                       onClick={() => handleImageClick(item.url)}
                       className={`relative aspect-square w-full rounded-lg overflow-hidden border-2 transition-all ${
                         isSelected
@@ -485,6 +488,7 @@ export default function MediaPickerModal({
         {totalPages > 1 && (
           <div className="flex items-center justify-center gap-2 px-5 py-3 border-t border-gray-100">
             <button
+              type="button"
               disabled={page <= 1}
               onClick={() => handlePageChange(page - 1)}
               className="text-sm px-3 py-1 rounded border border-gray-200 disabled:opacity-40 hover:bg-gray-50"
@@ -495,6 +499,7 @@ export default function MediaPickerModal({
               {page} / {totalPages}
             </span>
             <button
+              type="button"
               disabled={page >= totalPages}
               onClick={() => handlePageChange(page + 1)}
               className="text-sm px-3 py-1 rounded border border-gray-200 disabled:opacity-40 hover:bg-gray-50"
@@ -517,12 +522,14 @@ export default function MediaPickerModal({
           )}
           <div className="flex gap-2">
             <button
+              type="button"
               onClick={onClose}
               className="text-sm px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
             >
               Cancelar
             </button>
             <button
+              type="button"
               onClick={handleConfirm}
               disabled={mode === 'video' ? !selectedVideo : selectedImages.length === 0}
               className="text-sm px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-40"

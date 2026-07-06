@@ -1,6 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { SupabaseService } from '../common/supabase.service';
 import { DbCountResult, DbResult } from '../common/supabase.types';
+import { ContentsService } from '../contents/contents.service';
 
 export interface QueueItem {
   id: string;
@@ -59,7 +64,10 @@ const EMPTY_UUID = '00000000-0000-0000-0000-000000000000';
 
 @Injectable()
 export class QueueService {
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly contents: ContentsService,
+  ) {}
 
   async enqueue(
     serviceId: string,
@@ -75,6 +83,13 @@ export class QueueService {
       .single()) as DbResult<{ site_id: string | null }>;
 
     if (serviceError) throw new Error(serviceError.message);
+
+    const mainPage = await this.contents.findLatestMainPageByService(serviceId);
+    if (mainPage?.status !== 'published') {
+      throw new BadRequestException(
+        'Publique a pagina principal deste servico antes de gerar paginas de localidade.',
+      );
+    }
 
     // Remove failed and done items so they can be re-queued fresh
     await this.supabase

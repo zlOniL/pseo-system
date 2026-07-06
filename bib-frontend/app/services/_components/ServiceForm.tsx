@@ -252,7 +252,12 @@ export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
         router.refresh();
       } else {
         const service = await api.createService(input);
-        toast.success("Serviço criado com sucesso!");
+        toast.success('Serviço criado. Crie a página principal para depois gerar localidades.', {
+          action: {
+            label: 'Criar página principal',
+            onClick: () => router.push(`/scale?service_id=${service.id}&create=main`),
+          },
+        });
         router.push(`/services/${service.id}`);
       }
     } catch (err) {

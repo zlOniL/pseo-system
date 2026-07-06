@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import {
+  Content,
   ContentSummary,
   QueueFilters,
   QueueItem,
@@ -16,6 +17,7 @@ import {
 } from '@/lib/types';
 
 type QueueMode = 'ai' | 'template' | 'library';
+type PageKind = 'main' | 'locality';
 type QueueStatus = QueueItem['status'];
 type ReviewStatus = ContentSummary['status'];
 type WorkView = 'production' | 'review';
@@ -391,6 +393,7 @@ function localityCitiesForRegion(region: RegionWithCities) {
 function NewGenerationModal({
   open,
   initialServiceId,
+  initialPageKind,
   siteId,
   services,
   regions,
@@ -399,37 +402,49 @@ function NewGenerationModal({
 }: {
   open: boolean;
   initialServiceId: string;
+  initialPageKind: PageKind;
   siteId: string;
   services: Service[];
   regions: RegionWithCities[];
   onClose: () => void;
-  onCreated: (serviceId: string, count: number) => void;
+  onCreated: (serviceId: string, count: number, pageKind: PageKind) => void;
 }) {
   const [serviceId, setServiceId] = useState(initialServiceId);
+  const [pageKind, setPageKind] = useState<PageKind>(initialPageKind);
   const [mode, setMode] = useState<QueueMode>('library');
   const [templates, setTemplates] = useState<ServiceTemplate[]>([]);
   const [templateId, setTemplateId] = useState('');
   const [previousItems, setPreviousItems] = useState<QueueItem[]>([]);
+  const [mainContent, setMainContent] = useState<Content | null>(null);
   const [citySearch, setCitySearch] = useState('');
   const [expandedRegions, setExpandedRegions] = useState<Set<string>>(new Set());
   const [selectedCities, setSelectedCities] = useState<Set<string>>(new Set());
   const [enqueueing, setEnqueueing] = useState(false);
 
   const selectedService = services.find((service) => service.id === serviceId) ?? null;
+  const mainStatus = mainContent?.status ?? null;
+  const canCreateLocalities = mainStatus === 'published';
+  const localitiesDisabled = pageKind === 'main' || !canCreateLocalities;
 
   useEffect(() => {
     if (!open) return;
     setServiceId(initialServiceId);
+    setPageKind(initialPageKind);
     setSelectedCities(new Set());
     setCitySearch('');
     setExpandedRegions(new Set());
-  }, [initialServiceId, open]);
+  }, [initialPageKind, initialServiceId, open]);
+
+  useEffect(() => {
+    if (pageKind === 'main') setMode('ai');
+  }, [pageKind]);
 
   useEffect(() => {
     if (!open || !serviceId) {
       setTemplates([]);
       setTemplateId('');
       setPreviousItems([]);
+      setMainContent(null);
       return;
     }
 
@@ -448,6 +463,11 @@ function NewGenerationModal({
       .listQueue({ service_id: serviceId, site_id: siteId || undefined, limit: 1000 })
       .then((result) => setPreviousItems(normalizeQueueResult(result).data))
       .catch(() => setPreviousItems([]));
+
+    api
+      .getMainTemplateContent(serviceId)
+      .then(setMainContent)
+      .catch(() => setMainContent(null));
   }, [open, serviceId, siteId]);
 
   const itemByCity = useMemo(
@@ -470,6 +490,7 @@ function NewGenerationModal({
   }, [citySearch, regions]);
 
   function toggleCity(city: string) {
+    if (localitiesDisabled) return;
     setSelectedCities((current) => {
       const next = new Set(current);
       if (next.has(city)) next.delete(city);
@@ -479,6 +500,7 @@ function NewGenerationModal({
   }
 
   function selectCities(cities: string[]) {
+    if (localitiesDisabled) return;
     setSelectedCities(new Set(uniqueValues(cities)));
     setExpandedRegions(
       new Set(
@@ -504,6 +526,7 @@ function NewGenerationModal({
   }
 
   function toggleRegionLocalities(region: RegionWithCities) {
+    if (localitiesDisabled) return;
     const localities = localityCitiesForRegion(region);
     if (localities.length === 0) return;
 
@@ -521,6 +544,7 @@ function NewGenerationModal({
   }
 
   function toggleRegionAll(region: RegionWithCities) {
+    if (localitiesDisabled) return;
     setSelectedCities((current) => {
       const next = new Set(current);
       const allSelected = region.cities.every((city) => next.has(city));
@@ -535,7 +559,32 @@ function NewGenerationModal({
   }
 
   async function handleSubmit() {
-    if (!serviceId || selectedCities.size === 0) return;
+    if (!serviceId) return;
+    if (pageKind === 'main') {
+      setEnqueueing(true);
+      try {
+        const result = await api.createTemplate(serviceId, { is_main_page: true });
+        setMainContent(result.content);
+        onCreated(serviceId, 0, 'main');
+        toast.success('Página principal criada. Publique para liberar localidades.', {
+          action: {
+            label: 'Revisar e publicar',
+            onClick: () => { window.location.href = `/contents/${result.content.id}`; },
+          },
+        });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Erro ao gerar página principal.');
+      } finally {
+        setEnqueueing(false);
+      }
+      return;
+    }
+
+    if (selectedCities.size === 0) return;
+    if (!canCreateLocalities) {
+      toast.error('Publique a página principal deste serviço antes de gerar páginas de localidade.');
+      return;
+    }
     if (mode === 'template' && !templateId) {
       toast.error('Seleciona um template para continuar.');
       return;
@@ -549,7 +598,7 @@ function NewGenerationModal({
         mode,
         template_id: mode === 'template' ? templateId : undefined,
       });
-      onCreated(serviceId, selectedCities.size);
+      onCreated(serviceId, selectedCities.size, 'locality');
       onClose();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Erro ao adicionar a fila.');
@@ -595,17 +644,51 @@ function NewGenerationModal({
             </div>
 
             <div>
+              <p className="bib-label">Tipo de pagina</p>
+              <div className="grid grid-cols-2 gap-1">
+                {[
+                  { value: 'main' as const, label: 'Principal' },
+                  { value: 'locality' as const, label: 'Localidade' },
+                ].map((item) => (
+                  <button
+                    key={item.value}
+                    onClick={() => setPageKind(item.value)}
+                    className={`rounded-md border px-2 py-2 text-xs font-medium ${
+                      pageKind === item.value
+                        ? 'border-gray-900 bg-gray-900 text-white'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 rounded-lg border border-gray-200 px-3 py-2">
+                <p className="text-xs text-gray-400">Pagina principal</p>
+                <p className="text-sm font-medium text-gray-800">
+                  {mainStatus ? reviewStatusLabel(mainStatus) : 'Nao criada'}
+                </p>
+              </div>
+              {pageKind === 'locality' && !canCreateLocalities && (
+                <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                  Publique a pagina principal para liberar localidades.
+                </p>
+              )}
+            </div>
+
+            <div>
               <p className="bib-label">Modo</p>
               <div className="grid grid-cols-3 gap-1">
                 {(['ai', 'template', 'library'] as const).map((item) => (
                   <button
                     key={item}
+                    disabled={pageKind === 'main' && item !== 'ai'}
                     onClick={() => setMode(item)}
                     className={`rounded-md border px-2 py-2 text-xs font-medium ${
                       mode === item
                         ? 'border-gray-900 bg-gray-900 text-white'
                         : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400'
-                    }`}
+                    } disabled:cursor-not-allowed disabled:opacity-40`}
                   >
                     {modeLabel(item)}
                   </button>
@@ -637,25 +720,30 @@ function NewGenerationModal({
 
             <div className="rounded-lg border border-gray-200 p-3">
               <p className="text-xs font-medium text-gray-600">Resumo</p>
-              <p className="mt-1 text-2xl font-semibold text-gray-900">{selectedCities.size}</p>
+              <p className="mt-1 text-2xl font-semibold text-gray-900">
+                {pageKind === 'main' ? 1 : selectedCities.size}
+              </p>
               <p className="text-xs text-gray-400">
-                paginas para {selectedService?.name ?? 'um servico'} usando {modeLabel(mode)}
+                {pageKind === 'main'
+                  ? `pagina principal para ${selectedService?.name ?? 'um servico'} usando IA`
+                  : `paginas para ${selectedService?.name ?? 'um servico'} usando ${modeLabel(mode)}`}
               </p>
             </div>
 
             <div className="grid gap-2">
-              <button onClick={selectMainLocalities} className="bib-btn bib-btn-secondary justify-center text-xs">
+              <button disabled={localitiesDisabled} onClick={selectMainLocalities} className="bib-btn bib-btn-secondary justify-center text-xs disabled:opacity-40">
                 Principais localidades
               </button>
-              <button onClick={selectFailed} className="bib-btn bib-btn-secondary justify-center text-xs">
+              <button disabled={localitiesDisabled} onClick={selectFailed} className="bib-btn bib-btn-secondary justify-center text-xs disabled:opacity-40">
                 Falhadas anteriormente
               </button>
-              <button onClick={selectNotGenerated} className="bib-btn bib-btn-secondary justify-center text-xs">
+              <button disabled={localitiesDisabled} onClick={selectNotGenerated} className="bib-btn bib-btn-secondary justify-center text-xs disabled:opacity-40">
                 Ainda nao geradas
               </button>
               <button
+                disabled={localitiesDisabled}
                 onClick={() => setSelectedCities(new Set())}
-                className="bib-btn bib-btn-ghost justify-center text-xs"
+                className="bib-btn bib-btn-ghost justify-center text-xs disabled:opacity-40"
               >
                 Limpar selecao
               </button>
@@ -667,7 +755,8 @@ function NewGenerationModal({
               value={citySearch}
               onChange={(event) => setCitySearch(event.target.value)}
               placeholder="Buscar cidade"
-              className="bib-input mb-4"
+              disabled={localitiesDisabled}
+              className="bib-input mb-4 disabled:opacity-40"
             />
 
             <div className="min-h-0 flex-1 overflow-y-auto pr-2">
@@ -711,7 +800,11 @@ function NewGenerationModal({
                         </span>
                       </button>
                       <label
-                        className={`flex shrink-0 cursor-pointer items-center gap-2 rounded-md border px-2 py-1 text-xs ${
+                        className={`flex shrink-0 items-center gap-2 rounded-md border px-2 py-1 text-xs ${
+                          localitiesDisabled
+                            ? 'cursor-not-allowed opacity-40'
+                            : 'cursor-pointer'
+                        } ${
                           mainSelected
                             ? 'border-gray-900 bg-gray-900 text-white'
                             : 'border-gray-200 text-gray-600 hover:border-gray-400'
@@ -721,6 +814,7 @@ function NewGenerationModal({
                         <input
                           type="checkbox"
                           checked={mainSelected}
+                          disabled={localitiesDisabled}
                           onChange={() => toggleCity(mainCity)}
                           className="h-3.5 w-3.5 accent-gray-900"
                         />
@@ -740,16 +834,18 @@ function NewGenerationModal({
                       <div className="mt-2 space-y-2">
                         <div className="grid grid-cols-2 gap-2">
                           <button
+                            disabled={localitiesDisabled}
                             onClick={() => toggleRegionLocalities(region)}
-                            className="rounded-md border border-gray-200 px-2 py-1.5 text-xs text-gray-600 hover:border-gray-400"
+                            className="rounded-md border border-gray-200 px-2 py-1.5 text-xs text-gray-600 hover:border-gray-400 disabled:opacity-40"
                           >
                             {selectedLocalities === localities.length && localities.length > 0
                               ? 'Desmarcar localidades'
                               : 'Marcar localidades'}
                           </button>
                           <button
+                            disabled={localitiesDisabled}
                             onClick={() => toggleRegionAll(region)}
-                            className="rounded-md border border-gray-200 px-2 py-1.5 text-xs text-gray-600 hover:border-gray-400"
+                            className="rounded-md border border-gray-200 px-2 py-1.5 text-xs text-gray-600 hover:border-gray-400 disabled:opacity-40"
                           >
                             {selectedInRegion === region.cities.length
                               ? 'Desmarcar tudo'
@@ -764,7 +860,11 @@ function NewGenerationModal({
                           return (
                             <label
                               key={city}
-                              className={`flex cursor-pointer items-center justify-between rounded-md border px-2 py-1.5 text-xs ${
+                              className={`flex items-center justify-between rounded-md border px-2 py-1.5 text-xs ${
+                                localitiesDisabled
+                                  ? 'cursor-not-allowed opacity-40'
+                                  : 'cursor-pointer'
+                              } ${
                                 selected
                                   ? 'border-gray-900 bg-gray-900 text-white'
                                   : 'border-gray-200 text-gray-600 hover:border-gray-400'
@@ -779,6 +879,7 @@ function NewGenerationModal({
                               <input
                                 type="checkbox"
                                 checked={selected}
+                                disabled={localitiesDisabled}
                                 onChange={() => toggleCity(city)}
                                 className="ml-2"
                               />
@@ -800,14 +901,24 @@ function NewGenerationModal({
 
         <div className="flex items-center justify-between border-t border-gray-200 px-5 py-4">
           <p className="text-xs text-gray-400">
-            Retry volta para a fila normal; esta geracao tambem seguira a ordem da fila.
+            {pageKind === 'main'
+              ? 'A pagina principal nasce como rascunho e precisa ser publicada para liberar localidades.'
+              : 'Retry volta para a fila normal; esta geracao tambem seguira a ordem da fila.'}
           </p>
           <button
             onClick={handleSubmit}
-            disabled={!serviceId || selectedCities.size === 0 || enqueueing}
+            disabled={
+              !serviceId ||
+              enqueueing ||
+              (pageKind === 'locality' && (selectedCities.size === 0 || !canCreateLocalities))
+            }
             className="bib-btn bib-btn-primary"
           >
-            {enqueueing ? 'Adicionando...' : `Adicionar ${selectedCities.size || ''} a fila`}
+            {enqueueing
+              ? (pageKind === 'main' ? 'Gerando...' : 'Adicionando...')
+              : pageKind === 'main'
+                ? 'Gerar pagina principal'
+                : `Adicionar ${selectedCities.size || ''} a fila`}
           </button>
         </div>
       </div>
@@ -819,6 +930,7 @@ function ScalePageContent() {
   const searchParams = useSearchParams();
   const requestedServiceId = searchParams.get('service_id') ?? '';
   const requestedSiteId = searchParams.get('site_id') ?? '';
+  const requestedCreateMain = searchParams.get('create') === 'main';
   const requestedView: WorkView =
     searchParams.get('view') === 'review' ? 'review' : 'production';
   const rawReviewStatus = searchParams.get('review_status');
@@ -1840,12 +1952,14 @@ function ScalePageContent() {
       <NewGenerationModal
         open={modalOpen}
         initialServiceId={serviceId || requestedServiceId}
+        initialPageKind={requestedCreateMain ? 'main' : 'locality'}
         siteId={selectedSiteId}
         services={services}
         regions={regions}
         onClose={() => setModalOpen(false)}
-        onCreated={(createdServiceId, count) => {
+        onCreated={(createdServiceId, count, pageKind) => {
           setServiceId(createdServiceId);
+          if (pageKind === 'main') return;
           setActiveView('production');
           setSelectedProductionStatuses(['pending']);
           setSelectedReviewStatuses([]);
