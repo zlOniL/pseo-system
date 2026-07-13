@@ -27,10 +27,6 @@ export class UpdateSiteDto {
   wordpress_secret?: string;
 
   @IsOptional()
-  @IsString()
-  wordpress_proxy_base?: string;
-
-  @IsOptional()
   @IsIn(['active', 'archived'])
   status?: 'active' | 'archived';
 }

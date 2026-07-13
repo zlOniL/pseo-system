@@ -12,7 +12,6 @@ CREATE TABLE IF NOT EXISTS public.sites (
   api_token        text,
   wordpress_base_url text,
   wordpress_secret   text,
-  wordpress_proxy_base text,
   status           text NOT NULL DEFAULT 'active'
                    CHECK (status IN ('active', 'archived')),
   UNIQUE (domain)
@@ -27,7 +26,6 @@ ALTER TABLE public.sites ALTER COLUMN integration_type SET NOT NULL;
 ALTER TABLE public.sites ADD COLUMN IF NOT EXISTS api_token text;
 ALTER TABLE public.sites ADD COLUMN IF NOT EXISTS wordpress_base_url text;
 ALTER TABLE public.sites ADD COLUMN IF NOT EXISTS wordpress_secret text;
-ALTER TABLE public.sites ADD COLUMN IF NOT EXISTS wordpress_proxy_base text;
 ALTER TABLE public.sites ADD COLUMN IF NOT EXISTS status text DEFAULT 'active';
 UPDATE public.sites SET status = 'active' WHERE status IS NULL;
 ALTER TABLE public.sites ALTER COLUMN status SET NOT NULL;

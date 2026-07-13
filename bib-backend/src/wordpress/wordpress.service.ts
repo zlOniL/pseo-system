@@ -56,20 +56,7 @@ export class WordPressService {
     private readonly services: ServicesService,
     private readonly sites: SitesService,
   ) {}
-
-  /**
-   * Returns the base URL for WordPress API calls.
-   * If WP_PROXY_BASE is set, routes through the Vercel proxy to avoid
-   * Render IP blocks (e.g. Imunify360 on the WordPress host).
-   */
   private wpApiBase(site: Site): string {
-    const proxy = this.sites.wordpressProxyBase(site);
-    if (proxy) return `${proxy}/api/wp-proxy`;
-    const base = this.sites.wordpressBase(site);
-    return `${base}/wp-json/custom/v1`;
-  }
-
-  private wpDirectApiBase(site: Site): string {
     const base = this.sites.wordpressBase(site);
     return `${base}/wp-json/custom/v1`;
   }
@@ -623,7 +610,7 @@ export class WordPressService {
 
   async getCategories(siteId: string): Promise<WpCategory[]> {
     const site = await this.sites.findById(siteId);
-    const url = `${this.wpDirectApiBase(site)}/wp-cats`;
+    const url = `${this.wpApiBase(site)}/wp-cats`;
     this.logger.log(`getCategories → GET ${url}`);
     const response = await this.fetchWordPress(site, url, {
       headers: this.wpHeaders(site),
@@ -643,7 +630,7 @@ export class WordPressService {
     parent: string = 'Blog',
   ): Promise<WpCategory> {
     const site = await this.sites.findById(siteId);
-    const url = `${this.wpDirectApiBase(site)}/wp-cats`;
+    const url = `${this.wpApiBase(site)}/wp-cats`;
     const response = await this.fetchWordPress(site, url, {
       method: 'POST',
       headers: this.wpHeaders(site),
@@ -697,7 +684,7 @@ export class WordPressService {
       throw new BadRequestException(`Site "${site.name}" nao usa integracao WordPress.`);
     }
 
-    const wpUrl = `${this.wpDirectApiBase(site)}/media?${params.toString()}`;
+    const wpUrl = `${this.wpApiBase(site)}/media?${params.toString()}`;
     this.logger.log(`listMedia -> GET ${wpUrl}`);
 
     const response = await this.fetchWordPress(site, wpUrl, {

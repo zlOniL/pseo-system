@@ -23,8 +23,4 @@ export class CreateSiteDto {
   @IsOptional()
   @IsString()
   wordpress_secret?: string;
-
-  @IsOptional()
-  @IsString()
-  wordpress_proxy_base?: string;
 }

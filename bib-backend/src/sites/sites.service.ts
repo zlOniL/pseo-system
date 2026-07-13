@@ -18,7 +18,6 @@ export interface Site {
   api_token: string | null;
   wordpress_base_url: string | null;
   wordpress_secret: string | null;
-  wordpress_proxy_base: string | null;
   status: 'active' | 'archived';
 }
 
@@ -69,24 +68,6 @@ export class SitesService {
 
     return `https://${this.normalizeDomain(site.domain)}`;
   }
-
-  wordpressProxyBase(site: Site): string | null {
-    const explicit = site.wordpress_proxy_base?.trim();
-    if (explicit && site.integration_type === 'wordpress')
-      return explicit.replace(/\/$/, '');
-
-    const legacy = process.env.WP_PROXY_BASE?.trim();
-    const legacyWpBase = process.env.WP_BASE_URL?.trim();
-    if (!legacy || !legacyWpBase || site.integration_type !== 'wordpress')
-      return null;
-
-    const siteBase = this.normalizeDomain(this.wordpressBase(site));
-    const proxyTargetBase = this.normalizeDomain(legacyWpBase);
-    if (siteBase === proxyTargetBase) return legacy.replace(/\/$/, '');
-
-    return null;
-  }
-
   wordpressSecret(site: Site): string | null {
     if (site.wordpress_secret?.trim()) return site.wordpress_secret.trim();
     if (site.api_token?.trim() && site.integration_type === 'wordpress')
@@ -107,8 +88,7 @@ export class SitesService {
     return (
       site.integration_type === 'wordpress' &&
       !site.wordpress_base_url &&
-      !site.wordpress_secret &&
-      !site.wordpress_proxy_base
+      !site.wordpress_secret
     );
   }
 
@@ -124,8 +104,6 @@ export class SitesService {
         wordpress_base_url:
           dto.wordpress_base_url?.trim().replace(/\/$/, '') || null,
         wordpress_secret: dto.wordpress_secret?.trim() || null,
-        wordpress_proxy_base:
-          dto.wordpress_proxy_base?.trim().replace(/\/$/, '') || null,
       })
       .select()
       .single()) as DbResult<Site>;
@@ -181,9 +159,6 @@ export class SitesService {
         dto.wordpress_base_url.trim().replace(/\/$/, '') || null;
     if (dto.wordpress_secret !== undefined)
       patch.wordpress_secret = dto.wordpress_secret.trim() || null;
-    if (dto.wordpress_proxy_base !== undefined)
-      patch.wordpress_proxy_base =
-        dto.wordpress_proxy_base.trim().replace(/\/$/, '') || null;
     if (dto.status !== undefined) patch.status = dto.status;
 
     const { data, error } = (await this.supabase
