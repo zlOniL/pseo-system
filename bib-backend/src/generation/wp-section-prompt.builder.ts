@@ -1,4 +1,5 @@
 import { GenerateDto } from './dto/generate.dto';
+import { COMMERCIAL_CLAIMS_GUARDRAIL } from '../common/commercial-claims.guardrail';
 import {
   HtmlSectionKey,
   SECTION_KEYS,
@@ -72,6 +73,7 @@ function commonRules(
 - Cidade: "${cityLabel(input)}".
 ${cityRules(input)}
 ${relatedServicesRules(input)}
+${COMMERCIAL_CLAIMS_GUARDRAIL}
 - Todos os h1, h2, h3, p, li, strong e a devem ter style="color: #320000;" quando a tag permitir.
 - Links devem usar style="color: #111 !important; font-weight: 600; text-decoration: underline;" target="_blank" rel="noopener noreferrer" quando forem externos.
 - Links externos devem aparecer apenas nos contextos definidos: marcas oficiais no modulo de marcas/componentes; Paginas Amarelas e Portal Autarquico em paginas principais; 2 entidades locais oficiais ou uteis em paginas locais quando o URL real for conhecido; Google.pt e ChatGPT.com no modulo "Mais Sobre".

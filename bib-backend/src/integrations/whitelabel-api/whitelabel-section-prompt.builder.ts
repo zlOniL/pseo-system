@@ -10,6 +10,7 @@ import {
   SERVICE_EXAMPLE_USAGE_RULE,
 } from '../../prompt-context/prompt-context.types';
 import { WHITELABEL_INLINE_LINK_RULES } from './whitelabel-link-rules';
+import { COMMERCIAL_CLAIMS_GUARDRAIL } from '../../common/commercial-claims.guardrail';
 
 export interface WhitelabelSectionPromptInput {
   service: Service;
@@ -252,6 +253,7 @@ ${JSON.stringify(sharedInput(input), null, 2)}
 
 Regras:
 ${geoRule(input)}
+${COMMERCIAL_CLAIMS_GUARDRAIL}
 - O titulo principal deve ser "${keyword}".
 - O slug deve ser "${slug}".
 - Nao geres sections nesta chamada.
@@ -291,6 +293,7 @@ ${JSON.stringify(sharedInput(input), null, 2)}
 
 Regras gerais:
 ${geoRule(input)}
+${COMMERCIAL_CLAIMS_GUARDRAIL}
 - Esta chamada deve gerar apenas a secao "${input.sectionKey}".
 - Volume alvo desta secao: aproximadamente ${input.targetWords} palavras visiveis.
 - Faixa aceitavel desta secao: entre ${input.minimumWords} e ${input.maximumWords} palavras visiveis.
@@ -327,6 +330,7 @@ ${JSON.stringify(input.currentSection, null, 2)}
 
 Regras:
 ${geoRule(input)}
+${COMMERCIAL_CLAIMS_GUARDRAIL}
 - A nova versao deve mirar ${input.targetWords} palavras visiveis.
 - Aceita-se entre ${input.minimumWords} e ${input.maximumWords} palavras visiveis.
 - Mantem o mesmo tipo de estrutura da secao.

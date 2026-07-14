@@ -23,7 +23,7 @@ O sistema é dividido em 4 pilares principais:
 Responsável por:
 
 * Construção de prompts
-* Integração com IA (OpenRouter)
+* Integração com IA (Google AI Studio)
 * Validação e scoring
 * Gerenciamento de fila (jobs/tasks)
 * Regras de negócio

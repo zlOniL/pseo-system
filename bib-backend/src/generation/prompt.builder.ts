@@ -1,4 +1,5 @@
 import { GenerateDto } from './dto/generate.dto';
+import { COMMERCIAL_CLAIMS_GUARDRAIL } from '../common/commercial-claims.guardrail';
 import {
   PromptContext,
   SERVICE_EXAMPLE_USAGE_RULE,
@@ -44,6 +45,8 @@ NÃO altere estrutura. NÃO remova seções. NÃO invente novos blocos.
     - Técnicas e métodos profissionais específicos com os seus nomes técnicos
     - Normas técnicas ou regulamentações relevantes, quando aplicável (ex: "conforme a NP EN 12056", "de acordo com o RGEU")
     Estas referências devem aparecer em 2-3 secções diferentes, de forma natural — nunca forçada ou em lista.
+
+${COMMERCIAL_CLAIMS_GUARDRAIL}
 
 ## IDENTIDADE VISUAL (OBRIGATÓRIO)
 
@@ -679,7 +682,7 @@ ${JSON.stringify(
     user += `\n\nFeedback sobre a versão anterior (aplica estas melhorias):\n${feedback}`;
   }
 
-  user += `\n\n${REINFORCEMENT}`;
+  user += `\n\n${REINFORCEMENT}\n\n${COMMERCIAL_CLAIMS_GUARDRAIL}`;
 
   const system = promptContext?.guardrailPrompt
     ? `# SYSTEM PROMPT - FONTE DE VERDADE DA PASTA prompts
@@ -687,7 +690,9 @@ ${JSON.stringify(
 Segue a instrucao geral abaixo como contrato principal e ignora qualquer estrutura antiga que conflite com ela.
 Mantem exatamente os 15 modulos definidos na instrucao geral.
 
-${promptContext.guardrailPrompt}`
+${promptContext.guardrailPrompt}
+
+${COMMERCIAL_CLAIMS_GUARDRAIL}`
     : SYSTEM_PROMPT;
 
   return { system, user };

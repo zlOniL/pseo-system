@@ -33,7 +33,7 @@ npm run start         # Servir build
 ```
 POST /generate (service, city, keyword)
   → GenerationService: monta prompt (PAGE_GUIDE.md como system prompt)
-  → AiService: chama Google AI via OpenRouter (Gemini 2.0 Flash)
+  → AiService: chama Google AI Studio diretamente (Gemini)
   → ValidationService: score 0–100 (Estrutura 30% + SEO 40% + Conteúdo 30%)
   → ContentsService: persiste no Supabase (status: draft)
   → Frontend: exibe score, preview, issues
@@ -53,7 +53,7 @@ POST /queue/enqueue (service_id + lista de cidades)
 | Módulo | Caminho | Responsabilidade |
 |---|---|---|
 | `generation` | `src/generation/` | Orquestra o pipeline completo |
-| `ai` | `src/ai/` | Chamadas à API Google AI (OpenRouter) |
+| `ai` | `src/ai/` | Chamadas diretas à API Google AI Studio / Gemini |
 | `validation` | `src/validation/` | Scoring de qualidade das páginas |
 | `contents` | `src/contents/` | CRUD no Supabase |
 | `wordpress` | `src/wordpress/` | Publicação via REST API do WP |
@@ -107,7 +107,6 @@ GOOGLE_AI_MODEL          # padrão: gemini-2.0-flash
 WP_BASE_URL
 WP_SECRET
 WP_WHATSAPP_LINK
-WP_PROXY_BASE            # opcional: proxy Vercel para bypass Imunify360
 ```
 
 ## Ficheiros de Documentação Importantes

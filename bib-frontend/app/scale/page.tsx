@@ -8,12 +8,14 @@ import { api } from '@/lib/api';
 import {
   Content,
   ContentSummary,
+  GenerateTemplateInput,
   QueueFilters,
   QueueItem,
   QueueStats,
   RegionWithCities,
   Service,
   ServiceTemplate,
+  RelatedService,
 } from '@/lib/types';
 
 type QueueMode = 'ai' | 'template' | 'library';
@@ -381,6 +383,9 @@ function uniqueValues(values: string[]) {
   return Array.from(new Set(values));
 }
 
+function validRelatedServices(services: RelatedService[] | null | undefined) {
+  return (services ?? []).filter((item) => item.name.trim() && item.url.trim());
+}
 function mainCityForRegion(region: RegionWithCities) {
   return region.cities.find((city) => normalize(city) === normalize(region.region)) ?? region.region;
 }
@@ -399,6 +404,7 @@ function NewGenerationModal({
   regions,
   onClose,
   onCreated,
+  onMainCreated,
 }: {
   open: boolean;
   initialServiceId: string;
@@ -408,6 +414,7 @@ function NewGenerationModal({
   regions: RegionWithCities[];
   onClose: () => void;
   onCreated: (serviceId: string, count: number, pageKind: PageKind) => void;
+  onMainCreated: (serviceId: string) => void;
 }) {
   const [serviceId, setServiceId] = useState(initialServiceId);
   const [pageKind, setPageKind] = useState<PageKind>(initialPageKind);
@@ -420,11 +427,16 @@ function NewGenerationModal({
   const [expandedRegions, setExpandedRegions] = useState<Set<string>>(new Set());
   const [selectedCities, setSelectedCities] = useState<Set<string>>(new Set());
   const [enqueueing, setEnqueueing] = useState(false);
+  const [creatingMainPage, setCreatingMainPage] = useState(false);
+  const [mainPageNotes, setMainPageNotes] = useState('');
 
   const selectedService = services.find((service) => service.id === serviceId) ?? null;
   const mainStatus = mainContent?.status ?? null;
   const canCreateLocalities = mainStatus === 'published';
   const localitiesDisabled = pageKind === 'main' || !canCreateLocalities;
+  const mainPageTemplate = templates.find((template) => template.is_main_page) ?? null;
+  const regularTemplates = templates.filter((template) => !template.is_main_page);
+  const missingMainPage = pageKind === 'locality' && Boolean(selectedService && !mainContent && !mainPageTemplate);
 
   useEffect(() => {
     if (!open) return;
@@ -433,11 +445,18 @@ function NewGenerationModal({
     setSelectedCities(new Set());
     setCitySearch('');
     setExpandedRegions(new Set());
-  }, [initialPageKind, initialServiceId, open]);
+    const initialService = services.find((service) => service.id === initialServiceId) ?? null;
+    setMainPageNotes(initialService?.service_notes ?? '');
+  }, [initialPageKind, initialServiceId, open, services]);
 
   useEffect(() => {
     if (pageKind === 'main') setMode('ai');
   }, [pageKind]);
+
+  useEffect(() => {
+    if (!open || !selectedService) return;
+    setMainPageNotes(selectedService.service_notes ?? '');
+  }, [open, selectedService]);
 
   useEffect(() => {
     if (!open || !serviceId) {
@@ -452,7 +471,7 @@ function NewGenerationModal({
       .listTemplates(serviceId)
       .then((items) => {
         setTemplates(items);
-        setTemplateId(items[0]?.id ?? '');
+        setTemplateId(items.find((item) => !item.is_main_page)?.id ?? '');
       })
       .catch(() => {
         setTemplates([]);
@@ -558,31 +577,51 @@ function NewGenerationModal({
     setExpandedRegions((current) => new Set(current).add(region.region));
   }
 
+  async function handleCreateMainPage() {
+    if (!selectedService || creatingMainPage) return;
+
+    setCreatingMainPage(true);
+    try {
+      const input: GenerateTemplateInput = {
+        is_main_page: true,
+        service_notes: mainPageNotes.trim() || undefined,
+      };
+      const related = validRelatedServices(selectedService.related_services);
+      if (related.length > 0) input.related_services = related;
+
+      const result = await api.createTemplate(selectedService.id, input);
+      setTemplates((current) => [
+        result.template,
+        ...current.filter((template) => template.id !== result.template.id),
+      ]);
+      setMainContent(result.content);
+      setSelectedCities(new Set());
+      onMainCreated(selectedService.id);
+      toast.success('Pagina principal criada. Publique para liberar localidades.', {
+        action: result.content?.id
+          ? {
+              label: 'Revisar e publicar',
+              onClick: () => { window.location.href = `/contents/${result.content.id}`; },
+            }
+          : undefined,
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao criar pagina principal.');
+    } finally {
+      setCreatingMainPage(false);
+    }
+  }
+
   async function handleSubmit() {
     if (!serviceId) return;
     if (pageKind === 'main') {
-      setEnqueueing(true);
-      try {
-        const result = await api.createTemplate(serviceId, { is_main_page: true });
-        setMainContent(result.content);
-        onCreated(serviceId, 0, 'main');
-        toast.success('Página principal criada. Publique para liberar localidades.', {
-          action: {
-            label: 'Revisar e publicar',
-            onClick: () => { window.location.href = `/contents/${result.content.id}`; },
-          },
-        });
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Erro ao gerar página principal.');
-      } finally {
-        setEnqueueing(false);
-      }
+      await handleCreateMainPage();
       return;
     }
 
     if (selectedCities.size === 0) return;
     if (!canCreateLocalities) {
-      toast.error('Publique a página principal deste serviço antes de gerar páginas de localidade.');
+      toast.error('Publique a pagina principal deste servico antes de gerar paginas de localidade.');
       return;
     }
     if (mode === 'template' && !templateId) {
@@ -614,8 +653,14 @@ function NewGenerationModal({
       <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">Nova geracao em escala</h2>
-            <p className="text-xs text-gray-400">Escolha o servico, modo e localidades.</p>
+            <h2 className="text-base font-semibold text-gray-900">
+              {pageKind === 'main' || missingMainPage ? 'Criar pagina principal' : 'Nova geracao em escala'}
+            </h2>
+            <p className="text-xs text-gray-400">
+              {pageKind === 'main' || missingMainPage
+                ? 'Este servico precisa da pagina principal antes das localidades.'
+                : 'Escolha o servico, modo e localidades.'}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -666,7 +711,7 @@ function NewGenerationModal({
               <div className="mt-2 rounded-lg border border-gray-200 px-3 py-2">
                 <p className="text-xs text-gray-400">Pagina principal</p>
                 <p className="text-sm font-medium text-gray-800">
-                  {mainStatus ? reviewStatusLabel(mainStatus) : 'Nao criada'}
+                  {mainStatus ? reviewStatusLabel(mainStatus) : mainPageTemplate ? 'Template criado' : 'Nao criada'}
                 </p>
               </div>
               {pageKind === 'locality' && !canCreateLocalities && (
@@ -682,13 +727,13 @@ function NewGenerationModal({
                 {(['ai', 'template', 'library'] as const).map((item) => (
                   <button
                     key={item}
-                    disabled={pageKind === 'main' && item !== 'ai'}
+                    disabled={pageKind === 'main' || !canCreateLocalities}
                     onClick={() => setMode(item)}
-                    className={`rounded-md border px-2 py-2 text-xs font-medium ${
+                    className={`rounded-md border px-2 py-2 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40 ${
                       mode === item
                         ? 'border-gray-900 bg-gray-900 text-white'
                         : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400'
-                    } disabled:cursor-not-allowed disabled:opacity-40`}
+                    }`}
                   >
                     {modeLabel(item)}
                   </button>
@@ -703,12 +748,12 @@ function NewGenerationModal({
                   value={templateId}
                   onChange={(event) => setTemplateId(event.target.value)}
                   className="bib-input"
-                  disabled={templates.length === 0}
+                  disabled={regularTemplates.length === 0 || !canCreateLocalities}
                 >
-                  {templates.length === 0 ? (
+                  {regularTemplates.length === 0 ? (
                     <option value="">Nenhum template disponivel</option>
                   ) : (
-                    templates.map((template) => (
+                    regularTemplates.map((template) => (
                       <option key={template.id} value={template.id}>
                         #{template.version} - {template.label || template.base_city || 'Template'}
                       </option>
@@ -721,10 +766,10 @@ function NewGenerationModal({
             <div className="rounded-lg border border-gray-200 p-3">
               <p className="text-xs font-medium text-gray-600">Resumo</p>
               <p className="mt-1 text-2xl font-semibold text-gray-900">
-                {pageKind === 'main' ? 1 : selectedCities.size}
+                {pageKind === 'main' || missingMainPage ? 1 : selectedCities.size}
               </p>
               <p className="text-xs text-gray-400">
-                {pageKind === 'main'
+                {pageKind === 'main' || missingMainPage
                   ? `pagina principal para ${selectedService?.name ?? 'um servico'} usando IA`
                   : `paginas para ${selectedService?.name ?? 'um servico'} usando ${modeLabel(mode)}`}
               </p>
@@ -751,175 +796,211 @@ function NewGenerationModal({
           </aside>
 
           <main className="flex min-h-0 flex-col p-5">
-            <input
-              value={citySearch}
-              onChange={(event) => setCitySearch(event.target.value)}
-              placeholder="Buscar cidade"
-              disabled={localitiesDisabled}
-              className="bib-input mb-4 disabled:opacity-40"
-            />
-
-            <div className="min-h-0 flex-1 overflow-y-auto pr-2">
-              {visibleRegions.length === 0 && (
-                <div className="rounded-lg border border-dashed border-gray-200 px-4 py-8 text-center text-sm text-gray-400">
-                  Nenhuma cidade encontrada.
-                </div>
-              )}
-              {visibleRegions.map((region) => {
-                const expanded = citySearch.trim()
-                  ? true
-                  : expandedRegions.has(region.region);
-                const mainCity = mainCityForRegion(region);
-                const localities = localityCitiesForRegion(region);
-                const visibleCitySet = new Set(region.cities);
-                const visibleLocalities = localities.filter((city) => visibleCitySet.has(city));
-                const selectedInRegion = region.cities.filter((city) => selectedCities.has(city)).length;
-                const selectedLocalities = localities.filter((city) => selectedCities.has(city)).length;
-                const previousMain = itemByCity.get(mainCity);
-                const mainSelected = selectedCities.has(mainCity);
-
-                return (
-                  <div key={region.region} className="border-b border-gray-100 py-2">
-                    <div className="flex items-center gap-2 py-1">
-                      <button
-                        onClick={() =>
-                          setExpandedRegions((current) => {
-                            const next = new Set(current);
-                            if (next.has(region.region)) next.delete(region.region);
-                            else next.add(region.region);
-                            return next;
-                          })
-                        }
-                        className="flex min-w-0 flex-1 items-center justify-between text-left"
-                      >
-                        <span className="truncate text-xs font-semibold uppercase tracking-wide text-gray-700">
-                          {region.region}
-                        </span>
-                        <span className="ml-3 shrink-0 text-xs text-gray-400">
-                          {selectedInRegion}/{region.cities.length}
-                        </span>
-                      </button>
-                      <label
-                        className={`flex shrink-0 items-center gap-2 rounded-md border px-2 py-1 text-xs ${
-                          localitiesDisabled
-                            ? 'cursor-not-allowed opacity-40'
-                            : 'cursor-pointer'
-                        } ${
-                          mainSelected
-                            ? 'border-gray-900 bg-gray-900 text-white'
-                            : 'border-gray-200 text-gray-600 hover:border-gray-400'
-                        }`}
-                        title="Selecionar apenas a cidade principal"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={mainSelected}
-                          disabled={localitiesDisabled}
-                          onChange={() => toggleCity(mainCity)}
-                          className="h-3.5 w-3.5 accent-gray-900"
-                        />
-                        <span>Cidade</span>
-                        {previousMain?.status === 'failed' && (
-                          <span className="text-red-400">!</span>
-                        )}
-                        {previousMain && (
-                          <span className="text-[10px] opacity-70">
-                            {compactStatusLabel(previousMain.status)}
-                          </span>
-                        )}
-                      </label>
-                    </div>
-
-                    {expanded && (
-                      <div className="mt-2 space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            disabled={localitiesDisabled}
-                            onClick={() => toggleRegionLocalities(region)}
-                            className="rounded-md border border-gray-200 px-2 py-1.5 text-xs text-gray-600 hover:border-gray-400 disabled:opacity-40"
-                          >
-                            {selectedLocalities === localities.length && localities.length > 0
-                              ? 'Desmarcar localidades'
-                              : 'Marcar localidades'}
-                          </button>
-                          <button
-                            disabled={localitiesDisabled}
-                            onClick={() => toggleRegionAll(region)}
-                            className="rounded-md border border-gray-200 px-2 py-1.5 text-xs text-gray-600 hover:border-gray-400 disabled:opacity-40"
-                          >
-                            {selectedInRegion === region.cities.length
-                              ? 'Desmarcar tudo'
-                              : 'Marcar tudo'}
-                          </button>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-1">
-                        {visibleLocalities.map((city) => {
-                          const previous = itemByCity.get(city);
-                          const selected = selectedCities.has(city);
-                          return (
-                            <label
-                              key={city}
-                              className={`flex items-center justify-between rounded-md border px-2 py-1.5 text-xs ${
-                                localitiesDisabled
-                                  ? 'cursor-not-allowed opacity-40'
-                                  : 'cursor-pointer'
-                              } ${
-                                selected
-                                  ? 'border-gray-900 bg-gray-900 text-white'
-                                  : 'border-gray-200 text-gray-600 hover:border-gray-400'
-                              }`}
-                            >
-                              <span className="truncate">{city}</span>
-                              {previous && (
-                                <span className="ml-auto shrink-0 text-[10px] opacity-70">
-                                  {compactStatusLabel(previous.status)}
-                                </span>
-                              )}
-                              <input
-                                type="checkbox"
-                                checked={selected}
-                                disabled={localitiesDisabled}
-                                onChange={() => toggleCity(city)}
-                                className="ml-2"
-                              />
-                              {previous?.status === 'failed' && (
-                                <span className="ml-1 text-red-400">!</span>
-                              )}
-                            </label>
-                          );
-                        })}
-                        </div>
-                      </div>
-                    )}
+            {pageKind === 'main' || missingMainPage ? (
+              <div className="flex min-h-0 flex-1 flex-col justify-between rounded-lg border border-amber-200 bg-amber-50 p-5">
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-semibold text-amber-950">Pagina principal em falta</p>
+                    <p className="mt-1 text-sm text-amber-800">
+                      Para manter a estrutura SEO correta, crie primeiro a pagina principal de {selectedService?.name ?? 'este servico'}.
+                      Depois de publicar essa pagina, a selecao de cidades e localidades fica disponivel neste modal.
+                    </p>
                   </div>
-                );
-              })}
-            </div>
+
+                  <div>
+                    <label className="bib-label">Contexto para a pagina principal</label>
+                    <textarea
+                      className="bib-textarea bg-white"
+                      rows={5}
+                      value={mainPageNotes}
+                      onChange={(event) => setMainPageNotes(event.target.value)}
+                      placeholder="Notas, tecnicas, marcas, diferenciais e informacoes uteis para a pagina principal..."
+                    />
+                    <p className="mt-1 text-xs text-amber-700">
+                      As imagens, video e servicos complementares vem do cadastro do servico.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs text-amber-800">
+                  A geracao por cidade, regeneracao de falhadas e selecao de localidades ficam bloqueadas ate esta pagina estar publicada.
+                </div>
+              </div>
+            ) : (
+              <>
+                <input
+                  value={citySearch}
+                  onChange={(event) => setCitySearch(event.target.value)}
+                  placeholder="Buscar cidade"
+                  disabled={localitiesDisabled}
+                  className="bib-input mb-4 disabled:opacity-40"
+                />
+
+                <div className="min-h-0 flex-1 overflow-y-auto pr-2">
+                  {visibleRegions.length === 0 && (
+                    <div className="rounded-lg border border-dashed border-gray-200 px-4 py-8 text-center text-sm text-gray-400">
+                      Nenhuma cidade encontrada.
+                    </div>
+                  )}
+                  {visibleRegions.map((region) => {
+                    const expanded = citySearch.trim()
+                      ? true
+                      : expandedRegions.has(region.region);
+                    const mainCity = mainCityForRegion(region);
+                    const localities = localityCitiesForRegion(region);
+                    const visibleCitySet = new Set(region.cities);
+                    const visibleLocalities = localities.filter((city) => visibleCitySet.has(city));
+                    const selectedInRegion = region.cities.filter((city) => selectedCities.has(city)).length;
+                    const selectedLocalities = localities.filter((city) => selectedCities.has(city)).length;
+                    const previousMain = itemByCity.get(mainCity);
+                    const mainSelected = selectedCities.has(mainCity);
+
+                    return (
+                      <div key={region.region} className="border-b border-gray-100 py-2">
+                        <div className="flex items-center gap-2 py-1">
+                          <button
+                            onClick={() =>
+                              setExpandedRegions((current) => {
+                                const next = new Set(current);
+                                if (next.has(region.region)) next.delete(region.region);
+                                else next.add(region.region);
+                                return next;
+                              })
+                            }
+                            className="flex min-w-0 flex-1 items-center justify-between text-left"
+                          >
+                            <span className="truncate text-xs font-semibold uppercase tracking-wide text-gray-700">
+                              {region.region}
+                            </span>
+                            <span className="ml-3 shrink-0 text-xs text-gray-400">
+                              {selectedInRegion}/{region.cities.length}
+                            </span>
+                          </button>
+                          <label
+                            className={`flex shrink-0 items-center gap-2 rounded-md border px-2 py-1 text-xs ${
+                              localitiesDisabled
+                                ? 'cursor-not-allowed opacity-40'
+                                : 'cursor-pointer'
+                            } ${
+                              mainSelected
+                                ? 'border-gray-900 bg-gray-900 text-white'
+                                : 'border-gray-200 text-gray-600 hover:border-gray-400'
+                            }`}
+                            title="Selecionar apenas a cidade principal"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={mainSelected}
+                              disabled={localitiesDisabled}
+                              onChange={() => toggleCity(mainCity)}
+                              className="h-3.5 w-3.5 accent-gray-900"
+                            />
+                            <span>Cidade</span>
+                            {previousMain?.status === 'failed' && (
+                              <span className="text-red-400">!</span>
+                            )}
+                            {previousMain && (
+                              <span className="text-[10px] opacity-70">
+                                {compactStatusLabel(previousMain.status)}
+                              </span>
+                            )}
+                          </label>
+                        </div>
+
+                        {expanded && (
+                          <div className="mt-2 space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                disabled={localitiesDisabled}
+                                onClick={() => toggleRegionLocalities(region)}
+                                className="rounded-md border border-gray-200 px-2 py-1.5 text-xs text-gray-600 hover:border-gray-400 disabled:opacity-40"
+                              >
+                                {selectedLocalities === localities.length && localities.length > 0
+                                  ? 'Desmarcar localidades'
+                                  : 'Marcar localidades'}
+                              </button>
+                              <button
+                                disabled={localitiesDisabled}
+                                onClick={() => toggleRegionAll(region)}
+                                className="rounded-md border border-gray-200 px-2 py-1.5 text-xs text-gray-600 hover:border-gray-400 disabled:opacity-40"
+                              >
+                                {selectedInRegion === region.cities.length
+                                  ? 'Desmarcar tudo'
+                                  : 'Marcar tudo'}
+                              </button>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-1">
+                              {visibleLocalities.map((city) => {
+                                const previous = itemByCity.get(city);
+                                const selected = selectedCities.has(city);
+                                return (
+                                  <label
+                                    key={city}
+                                    className={`flex items-center justify-between rounded-md border px-2 py-1.5 text-xs ${
+                                      localitiesDisabled
+                                        ? 'cursor-not-allowed opacity-40'
+                                        : 'cursor-pointer'
+                                    } ${
+                                      selected
+                                        ? 'border-gray-900 bg-gray-900 text-white'
+                                        : 'border-gray-200 text-gray-600 hover:border-gray-400'
+                                    }`}
+                                  >
+                                    <span className="truncate">{city}</span>
+                                    {previous && (
+                                      <span className="ml-auto shrink-0 text-[10px] opacity-70">
+                                        {compactStatusLabel(previous.status)}
+                                      </span>
+                                    )}
+                                    <input
+                                      type="checkbox"
+                                      checked={selected}
+                                      disabled={localitiesDisabled}
+                                      onChange={() => toggleCity(city)}
+                                      className="ml-2"
+                                    />
+                                    {previous?.status === 'failed' && (
+                                      <span className="ml-1 text-red-400">!</span>
+                                    )}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </main>
         </div>
 
         <div className="flex items-center justify-between border-t border-gray-200 px-5 py-4">
           <p className="text-xs text-gray-400">
-            {pageKind === 'main'
+            {pageKind === 'main' || missingMainPage
               ? 'A pagina principal nasce como rascunho e precisa ser publicada para liberar localidades.'
               : 'Retry volta para a fila normal; esta geracao tambem seguira a ordem da fila.'}
           </p>
-          <button
-            onClick={handleSubmit}
-            disabled={
-              !serviceId ||
-              enqueueing ||
-              (pageKind === 'locality' && (selectedCities.size === 0 || !canCreateLocalities))
-            }
-            className="bib-btn bib-btn-primary"
-          >
-            {enqueueing
-              ? (pageKind === 'main' ? 'Gerando...' : 'Adicionando...')
-              : pageKind === 'main'
-                ? 'Gerar pagina principal'
-                : `Adicionar ${selectedCities.size || ''} a fila`}
-          </button>
+          {pageKind === 'main' || missingMainPage ? (
+            <button
+              onClick={handleCreateMainPage}
+              disabled={!serviceId || creatingMainPage}
+              className="bib-btn bib-btn-primary"
+            >
+              {creatingMainPage ? 'Criando pagina principal...' : 'Criar pagina principal'}
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={!serviceId || selectedCities.size === 0 || enqueueing || !canCreateLocalities}
+              className="bib-btn bib-btn-primary"
+            >
+              {enqueueing ? 'Adicionando...' : `Adicionar ${selectedCities.size || ''} a fila`}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -931,6 +1012,7 @@ function ScalePageContent() {
   const requestedServiceId = searchParams.get('service_id') ?? '';
   const requestedSiteId = searchParams.get('site_id') ?? '';
   const requestedCreateMain = searchParams.get('create') === 'main';
+  const shouldOpenGenerateModal = searchParams.get('modal') === 'generate' || requestedCreateMain;
   const requestedView: WorkView =
     searchParams.get('view') === 'review' ? 'review' : 'production';
   const rawReviewStatus = searchParams.get('review_status');
@@ -982,7 +1064,7 @@ function ScalePageContent() {
   const [loading, setLoading] = useState(true);
   const [selectedPageIds, setSelectedPageIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
-  const [modalOpen, setModalOpen] = useState(Boolean(requestedServiceId));
+  const [modalOpen, setModalOpen] = useState(shouldOpenGenerateModal);
   const previousStatsRef = useRef<QueueStats | null>(null);
   const initializedRef = useRef(false);
   const urlIntentRef = useRef('');
@@ -1150,7 +1232,7 @@ function ScalePageContent() {
   }, [requestedSiteId]);
 
   useEffect(() => {
-    const intent = `${requestedView}|${requestedReviewStatus}|${requestedServiceId}|${requestedSiteId}|${requestedCity}`;
+    const intent = `${requestedView}|${requestedReviewStatus}|${requestedServiceId}|${requestedSiteId}|${requestedCity}|${shouldOpenGenerateModal}`;
     if (urlIntentRef.current === intent) return;
     urlIntentRef.current = intent;
 
@@ -1160,6 +1242,7 @@ function ScalePageContent() {
     setPage(1);
 
     if (requestedServiceId) setServiceId(requestedServiceId);
+    if (shouldOpenGenerateModal) setModalOpen(true);
     if (requestedCity || searchParams.has('city')) {
       setCityQuery(requestedCity);
       setSelectedLocality(null);
@@ -1186,6 +1269,7 @@ function ScalePageContent() {
     requestedSiteId,
     requestedView,
     searchParams,
+    shouldOpenGenerateModal,
   ]);
 
   useEffect(() => {
@@ -1981,7 +2065,28 @@ function ScalePageContent() {
               cityQuery: '',
             }),
           );
-          toast.success(`${count} cidade(s) adicionada(s) a fila.`);
+          toast.success(`${count} cidade(s) adicionada(s) à fila.`);
+        }}
+        onMainCreated={(createdServiceId) => {
+          setServiceId(createdServiceId);
+          setActiveView('review');
+          setSelectedProductionStatuses([]);
+          setSelectedReviewStatuses(['draft']);
+          setPage(1);
+          setAppliedFilters(
+            buildQueueFilters({
+              selectedSiteId,
+              serviceId: createdServiceId,
+              selectedStatuses: [],
+              selectedModes: ALL_MODES,
+              period: 'all',
+              fromDate: '',
+              toDate: '',
+              selectedLocality: null,
+              cityQuery: '',
+            }),
+          );
+          void loadPage(true);
         }}
       />
     </div>

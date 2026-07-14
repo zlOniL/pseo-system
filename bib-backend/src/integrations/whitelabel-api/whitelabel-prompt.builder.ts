@@ -7,6 +7,7 @@ import {
 import { buildExternalSlug } from './whitelabel-json';
 import { WHITELABEL_INLINE_LINK_RULES } from './whitelabel-link-rules';
 import { VerifiedExternalReference } from './external-link.types';
+import { COMMERCIAL_CLAIMS_GUARDRAIL } from '../../common/commercial-claims.guardrail';
 
 type WhitelabelPromptInput = {
   service: Service;
@@ -112,6 +113,7 @@ Contrato obrigatorio de saida:
 
 Regras:
 ${geoRule}
+${COMMERCIAL_CLAIMS_GUARDRAIL}
 - O contrato whitelabel e fixo: content_json.hero representa o Modulo 1; content_json.form e conversao e nao conta como modulo SEO; content_json.article.blocks deve renderizar os Modulos 2 a 15 exatamente nesta ordem.
 - Ordem fixa obrigatoria dos modulos em article.blocks:
 ${fixedOutline}
@@ -205,6 +207,7 @@ Contrato obrigatorio de saida:
 
 Regras:
 ${geoRule}
+${COMMERCIAL_CLAIMS_GUARDRAIL}
 - O hero representa o Modulo 1 - H1 / Topo da Pagina.
 - O form e conversao e nao conta como modulo SEO numerado.
 - Menciona diagnostico antes do orcamento, orcamento justo e antecipado, materiais de qualidade e profissionais especializados, honestos e qualificados.
@@ -289,6 +292,7 @@ ${faqContract}
 
 Regras:
 ${geoRule}
+${COMMERCIAL_CLAIMS_GUARDRAIL}
 - Este modulo deve ter pelo menos ${input.targetWords} palavras visiveis.
 ${retryRule}
 ${faqBoundaryRule}

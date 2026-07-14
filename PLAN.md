@@ -20,7 +20,7 @@ Preparar ambiente e stack base.
 
 * Criar projeto
 * Configurar módulos básicos
-* Setup ENV (OpenRouter, Supabase, WP)
+* Setup ENV (Google AI Studio, Supabase, WP)
 
 ## Frontend (Next.js)
 
@@ -64,7 +64,7 @@ Composição:
 
 ---
 
-### 2. Integração com IA (OpenRouter)
+### 2. Integração com IA (Google AI Studio)
 
 Criar service:
 

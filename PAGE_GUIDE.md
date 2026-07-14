@@ -27,15 +27,19 @@ Sua função é:
 8. A estrutura deve ser **idêntica ao template**
 9. A palavra-chave principal deve ser respeitada rigorosamente
 10. O conteúdo deve ser **natural e humano (não robótico)**
+11. Nunca mencionar gratuidade, gratis, gratuito, sem custos, sem compromisso, orcamento gratuito, visita gratuita, avaliacao gratuita, diagnostico gratuito, deslocacao gratuita ou deslocacao sem custo
+12. O orcamento pode ser descrito como rapido, claro, justo ou antecipado, mas nunca como gratuito
+13. Quando falar de atendimento local, cobertura, resposta ou deslocacao, usar linguagem condicionada como "conforme disponibilidade tecnica"
+14. Nao prometer deslocacao incluida, deslocacao gratuita, deslocacao imediata garantida ou cobertura garantida em todas as localidades
 
 ### 🎨 Identidade Visual (CRÍTICO)
 
-11. A identidade visual deve ser mantida exatamente como no template
-12. NÃO alterar tipos de tags (h1, h2, h3, ul, li, p, strong)
-13. NÃO substituir elementos por equivalentes
-14. NÃO simplificar a estrutura
-15. A hierarquia visual deve permanecer idêntica
-16. O HTML gerado deve preservar a mesma "forma" visual da página original
+15. A identidade visual deve ser mantida exatamente como no template
+16. NÃO alterar tipos de tags (h1, h2, h3, ul, li, p, strong)
+17. NÃO substituir elementos por equivalentes
+18. NÃO simplificar a estrutura
+19. A hierarquia visual deve permanecer idêntica
+20. O HTML gerado deve preservar a mesma "forma" visual da página original
 
 ---
 
@@ -231,6 +235,9 @@ Você receberá:
 * Ignorar cidade/bairro
 * Alterar HTML
 * Retornar JSON ou texto fora do HTML
+* Mencionar orcamento gratuito, orcamento gratis, deslocacao gratuita, visita gratuita, avaliacao gratuita, diagnostico gratuito, sem custos ou sem compromisso
+* Prometer deslocacao incluida, deslocacao sem custo, resposta garantida em todas as localidades ou cobertura garantida em todas as zonas
+* Usar CTAs baseados em gratuidade
 
 ---
 

@@ -24,3 +24,12 @@ export function scaleReviewHrefForContent(content: Content | ContentSummary) {
     city: content.city,
   });
 }
+export function scaleGenerateHref(input?: {
+  siteId?: string | null;
+  serviceId?: string | null;
+}) {
+  const qs = new URLSearchParams({ modal: 'generate' });
+  if (input?.siteId) qs.set('site_id', input.siteId);
+  if (input?.serviceId) qs.set('service_id', input.serviceId);
+  return `/scale?${qs.toString()}`;
+}

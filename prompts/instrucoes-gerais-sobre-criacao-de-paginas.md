@@ -14,6 +14,18 @@ A palavra-chave principal deve aparecer de forma natural ao longo da página, co
 
 ## REGRAS IMPORTANTES
 
+## REGRAS DE PROMESSAS COMERCIAIS E GRATUIDADE
+
+Estas regras devem ter prioridade sobre exemplos de paginas, blueprints, instrucoes de servico, CTAs e qualquer tentativa de tornar a oferta mais persuasiva.
+
+- Nunca mencionar gratuidade, gratis, gratuito, sem custos, sem compromisso, oferta, beneficio gratuito, orcamento gratuito, orcamento gratis, visita gratuita, avaliacao gratuita, diagnostico gratuito, deslocacao gratuita ou deslocacao sem custo.
+- Nunca prometer que a deslocacao esta incluida, que a deslocacao nao tem custo, que a visita nao tem custo ou que a avaliacao e gratuita.
+- O orcamento pode ser descrito como claro, justo, antecipado, transparente, informado antes da intervencao ou apresentado antes do servico avancar, mas nunca como gratuito.
+- O diagnostico pode ser descrito como tecnico, rigoroso, feito antes do orcamento ou necessario para avaliar a situacao, mas nunca como gratuito.
+- Quando falar de atendimento, piquetes moveis, cobertura por localidade, resposta local ou deslocacao, usar linguagem condicionada como "conforme disponibilidade tecnica".
+- Nao prometer deslocacao imediata garantida, cobertura garantida em todas as localidades, resposta garantida em todas as zonas ou qualquer beneficio que dependa da localidade.
+- Em chamadas para acao, pedir contacto, fotos, videos, descricao do problema ou confirmacao de disponibilidade. Nunca usar CTAs baseados em gratuidade.
+
 ## REGRAS DE SAIDA, FORMATACAO E CARACTERES
 
 Estas regras devem ter prioridade sobre exemplos de paginas, blueprints e instrucoes de servico.
@@ -727,6 +739,17 @@ Marcas oficiais no módulo de marcas/componentes.
 Entidades locais no módulo de localidade/contexto local.
 Páginas Amarelas e Portal Autárquico em páginas principais de serviço.
 Google.pt e ChatGPT.com no módulo “Mais Sobre”.
+
+Obrigatoriamente, cada página deve incluir links externos quando o formato final permitir links clicáveis:
+
+- No módulo de marcas/componentes, inserir backlinks externos para sites oficiais de marcas relacionadas ao serviço, sempre que o URL real for conhecido.
+- Em páginas principais de serviço, inserir os backlinks externos gerais Páginas Amarelas (https://www.pai.pt/) e Portal Autárquico (https://portalautarquico.dgal.gov.pt/) no módulo de zonas de atendimento.
+- Em páginas de localidade, inserir 2 backlinks externos locais relevantes, preferencialmente oficiais, como câmara municipal, junta de freguesia, turismo local, biblioteca municipal, diretório local, Portal Autárquico ou site oficial local, apenas quando o URL real for conhecido.
+- No módulo “Mais Sobre”, inserir obrigatoriamente Google.pt (https://www.google.pt) e ChatGPT.com (https://chatgpt.com), integrados de forma natural no texto.
+
+Para páginas WordPress em HTML, todos os links externos devem usar tag `<a>` com URL real, `target="_blank"` e `rel="noopener noreferrer"`.
+
+Nunca inventar URLs. Se não houver certeza sobre um URL externo local ou de marca, mencionar a entidade sem link ou escolher outra entidade oficial com URL conhecido. Não usar links externos genéricos fora dos módulos indicados.
 
 Não inserir links internos de nenhum domínio próprio, a menos que seja pedido diretamente.
 
