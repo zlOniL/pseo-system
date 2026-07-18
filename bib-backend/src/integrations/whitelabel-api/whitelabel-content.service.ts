@@ -33,6 +33,7 @@ import { ExternalLinkResearchService } from './external-link-research.service';
 import { VerifiedExternalReference } from './external-link.types';
 import { validateModuleExternalLinks } from './external-link-validation';
 import { runWithConcurrency } from '../../common/run-with-concurrency';
+import { buildLocalKeyword, formatLocationPhrase } from '../../common/location-preposition';
 
 type ModuleGenerationResult = {
   sectionKey: (typeof WHITELABEL_MODULES)[number]['key'];
@@ -249,7 +250,7 @@ export class WhitelabelContentService {
   }): ReturnType<typeof parseGeneratedShell> {
     const title = input.isMainPage
       ? input.service.name
-      : `${input.service.name} em ${input.baseCity}`;
+      : buildLocalKeyword(input.service.name, input.baseCity);
     return {
       page: {
         title,
@@ -514,10 +515,10 @@ export class WhitelabelContentService {
 
     const generated: WhitelabelGeneratedPage = {
       page: {
-        title: `${input.service.name} em ${input.city}`,
+        title: buildLocalKeyword(input.service.name, input.city),
         slug: buildExternalSlug(input.service.name, input.city),
-        seo_title: `${input.service.name} em ${input.city} 24 Horas`,
-        seo_description: `Assistencia de ${input.service.name} em ${input.city} com atendimento rapido e equipa especializada.`,
+        seo_title: `${buildLocalKeyword(input.service.name, input.city)} 24 Horas`,
+        seo_description: `Assistencia de ${input.service.name} ${formatLocationPhrase(input.city)} com atendimento rapido e equipa especializada.`,
       },
       sections,
     };

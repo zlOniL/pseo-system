@@ -8,6 +8,7 @@ import { buildExternalSlug } from './whitelabel-json';
 import { WHITELABEL_INLINE_LINK_RULES } from './whitelabel-link-rules';
 import { VerifiedExternalReference } from './external-link.types';
 import { COMMERCIAL_CLAIMS_GUARDRAIL } from '../../common/commercial-claims.guardrail';
+import { buildLocalKeyword } from '../../common/location-preposition';
 
 type WhitelabelPromptInput = {
   service: Service;
@@ -25,7 +26,7 @@ export function buildWhitelabelPrompt(input: WhitelabelPromptInput): {
   const { service, baseCity, isMainPage, blueprints, dto } = input;
   const mainKeyword = isMainPage
     ? service.name
-    : `${service.name} em ${baseCity}`;
+    : buildLocalKeyword(service.name, baseCity);
   const slug = buildExternalSlug(service.name, baseCity ?? undefined);
   const minWords = service.min_words ?? 5000;
   const geoRule = isMainPage
@@ -148,7 +149,7 @@ export function buildWhitelabelShellPrompt(input: WhitelabelPromptInput): {
   const { service, baseCity, isMainPage, blueprints, dto } = input;
   const mainKeyword = isMainPage
     ? service.name
-    : `${service.name} em ${baseCity}`;
+    : buildLocalKeyword(service.name, baseCity);
   const slug = buildExternalSlug(service.name, baseCity ?? undefined);
   const geoRule = buildGeoRule(baseCity, isMainPage);
 
@@ -234,7 +235,7 @@ export function buildWhitelabelModulePrompt(
   );
   const mainKeyword = isMainPage
     ? service.name
-    : `${service.name} em ${baseCity}`;
+    : buildLocalKeyword(service.name, baseCity);
   const geoRule = buildGeoRule(baseCity, isMainPage);
   const faqContract =
     module.key === 'modulo_13_perguntas_frequentes'

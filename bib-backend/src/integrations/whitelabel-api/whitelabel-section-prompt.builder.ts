@@ -11,6 +11,7 @@ import {
 } from '../../prompt-context/prompt-context.types';
 import { WHITELABEL_INLINE_LINK_RULES } from './whitelabel-link-rules';
 import { COMMERCIAL_CLAIMS_GUARDRAIL } from '../../common/commercial-claims.guardrail';
+import { buildLocalKeyword } from '../../common/location-preposition';
 
 export interface WhitelabelSectionPromptInput {
   service: Service;
@@ -38,7 +39,7 @@ function mainKeyword(input: {
 }): string {
   return input.isMainPage
     ? input.service.name
-    : `${input.service.name} em ${input.baseCity}`;
+    : buildLocalKeyword(input.service.name, input.baseCity);
 }
 
 function geoRule(input: {

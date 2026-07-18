@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ServicesService } from './services.service';
 import { GenerationService } from '../generation/generation.service';
+import { buildLocalKeyword } from '../common/location-preposition';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { GenerateTemplateDto } from './dto/generate-template.dto';
@@ -60,7 +61,7 @@ export class ServicesController {
   ) {
     const service = await this.servicesService.findById(id);
     const baseCity = dto.base_city ?? 'Lisboa';
-    const mainKeyword = `${service.name} em ${baseCity}`;
+    const mainKeyword = buildLocalKeyword(service.name, baseCity);
     const images = service.images ?? [];
     const videoUrl = service.video_url ?? null;
 

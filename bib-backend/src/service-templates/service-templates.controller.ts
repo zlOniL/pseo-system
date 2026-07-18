@@ -28,6 +28,7 @@ import { GenerateTemplateDto } from '../services/dto/generate-template.dto';
 import { buildExternalSlug } from '../integrations/whitelabel-api/whitelabel-json';
 import { formatWhitelabelGenerationIssue } from '../integrations/whitelabel-api/whitelabel.types';
 import { SectionKey, ServiceTemplate } from './service-templates.types';
+import { buildLocalKeyword } from '../common/location-preposition';
 
 @Controller('services/:serviceId/templates')
 export class ServiceTemplatesController {
@@ -175,7 +176,7 @@ export class ServiceTemplatesController {
     const baseCity = isMainPage ? null : (dto.base_city ?? 'Lisboa');
     const mainKeyword = isMainPage
       ? service.name
-      : `${service.name} em ${baseCity}`;
+      : buildLocalKeyword(service.name, baseCity);
     const images = service.images ?? [];
     const videoUrl = service.video_url ?? null;
 
@@ -277,7 +278,7 @@ export class ServiceTemplatesController {
         site_id: service.site_id ?? undefined,
         external_page_type: isMainPage ? 'service' : 'service_location',
         external_slug: slugify(
-          isMainPage ? service.name : `${service.name} em ${baseCity}`,
+          isMainPage ? service.name : buildLocalKeyword(service.name, baseCity),
         ),
       },
       finalHtml,
@@ -320,7 +321,7 @@ export class ServiceTemplatesController {
     const baseCity = isMainPage ? null : (dto.base_city ?? 'Lisboa');
     const mainKeyword = isMainPage
       ? service.name
-      : `${service.name} em ${baseCity}`;
+      : buildLocalKeyword(service.name, baseCity);
 
     const generationStartedAt = Date.now();
     const generated = await this.whitelabelContent.generateTemplate({

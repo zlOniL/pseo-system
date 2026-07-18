@@ -9,6 +9,7 @@ import { injectImages } from '../common/image-injector';
 import { stripLocalityBacklinksSection } from '../common/locality-backlinks-stripper';
 import { SitesService } from '../sites/sites.service';
 import { WhitelabelContentService } from '../integrations/whitelabel-api/whitelabel-content.service';
+import { buildLocalKeyword, formatLocationPhrase } from '../common/location-preposition';
 
 export interface AssembleInput {
   service: Service;
@@ -28,7 +29,7 @@ export class SectionAssemblerService {
 
   async assemble(input: AssembleInput): Promise<Content> {
     const { service, city } = input;
-    const mainKeyword = `${service.name} em ${city}`;
+    const mainKeyword = buildLocalKeyword(service.name, city);
 
     const site = service.site_id
       ? await this.sites.findById(service.site_id)
@@ -69,7 +70,7 @@ export class SectionAssemblerService {
         },
         null,
         validationResult,
-        `Assistência de ${service.name} em ${city} com atendimento rápido e equipa especializada.`,
+        `Assistencia de ${service.name} ${formatLocationPhrase(city)} com atendimento rapido e equipa especializada.`,
         'library',
       );
     }

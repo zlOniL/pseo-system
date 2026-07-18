@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { slugify } from '../../common/slug';
+import { buildLocalSlug } from '../../common/location-preposition';
 import {
   SectionKey,
   WHITELABEL_MODULES,
@@ -477,7 +478,7 @@ export function countTextWords(value: unknown): number {
 }
 
 export function buildExternalSlug(service: string, city?: string): string {
-  return slugify(city ? `${service} em ${city}` : service);
+  return city ? buildLocalSlug(service, city) : slugify(service);
 }
 
 function escapeRegExp(value: string): string {

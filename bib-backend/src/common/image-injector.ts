@@ -1,3 +1,5 @@
+import { formatLocationPhrase } from './location-preposition';
+
 // Structural anchor patterns: inject images BEFORE these section headers.
 // Ordered to match the 8 template positions used by the 15-module prompt.
 const STRUCTURAL_ANCHORS = [
@@ -18,7 +20,7 @@ export function injectImages(
   service: string,
   city: string,
 ): string {
-  const location = city ? ` em ${city}` : '';
+  const location = city ? ` ${formatLocationPhrase(city)}` : '';
   const alts = [
     keyword,
     `${service} profissional${location}`,

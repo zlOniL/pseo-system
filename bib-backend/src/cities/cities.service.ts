@@ -2,39 +2,8 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { slugify } from '../common/slug';
+import { getLocationPreposition } from '../common/location-preposition';
 
-// Localities that require "na" (feminine article) in the URL and display
-const PREP_NA = new Set([
-  'Amadora',
-  'Maia',
-  'Moita',
-  'Margem Sul',
-  'Quinta do Conde',
-  'Pontinha',
-  'Odivelas',
-  'Reboleira',
-  'Brandoa',
-  'Damaia',
-  'Venda Nova',
-]);
-
-// Localities that require "no" (masculine article) in the URL and display
-const PREP_NO = new Set([
-  'Porto',
-  'Barreiro',
-  'Seixal',
-  'Montijo',
-  'Pinhal Novo',
-  'Gavà',
-  'Alentejo',
-  'Algarve',
-]);
-
-function getPrep(name: string): string {
-  if (PREP_NA.has(name)) return 'na';
-  if (PREP_NO.has(name)) return 'no';
-  return 'em';
-}
 
 @Injectable()
 export class CitiesService implements OnModuleInit {
@@ -135,7 +104,7 @@ export class CitiesService implements OnModuleInit {
     const localities = this.getLocalities(region, cityName);
 
     const items = localities.map((loc) => {
-      const prep = getPrep(loc);
+      const prep = getLocationPreposition(loc);
       const locSlug = slugify(loc);
       const url = `${wpBaseUrl}/${serviceSlug}-${prep}-${locSlug}/`;
       const label = `${service} ${loc}`;

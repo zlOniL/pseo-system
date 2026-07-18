@@ -1,3 +1,4 @@
+import { formatLocationPhrase } from '../common/location-preposition';
 import { GenerateDto } from './dto/generate.dto';
 import { COMMERCIAL_CLAIMS_GUARDRAIL } from '../common/commercial-claims.guardrail';
 import {
@@ -92,7 +93,7 @@ function sectionInstructions(
   sectionKey: HtmlSectionKey,
 ): string {
   const city = cityLabel(input);
-  const citySuffix = city ? ` em ${city}` : '';
+  const citySuffix = city ? ` ${formatLocationPhrase(city)}` : '';
   const service = input.service;
   const mainKeyword = keyword(input);
 
@@ -176,8 +177,8 @@ function sectionInstructions(
 - No fim inclui exatamente {{IMAGE_7}}.`;
     case 'contexto_local':
       return `Gera a secao:
-<h2 style="color: #320000;">${city ? `Contexto Local em ${city}` : 'Zonas de Atendimento'}</h2>
-- Se houver cidade, este modulo DEVE chamar-se exatamente "Contexto Local em ${city}".
+<h2 style="color: #320000;">${city ? `Contexto Local ${formatLocationPhrase(city)}` : 'Zonas de Atendimento'}</h2>
+- Se houver cidade, este modulo DEVE chamar-se exatamente "Contexto Local ${formatLocationPhrase(city)}".
 - Se nao houver cidade, este modulo DEVE chamar-se exatamente "Zonas de Atendimento".
 - Para pagina principal, incluir grandes regioes: Grande Lisboa, Margem Sul, Grande Porto, Braga e Algarve.
 - Para pagina principal, inserir links externos para Paginas Amarelas (https://www.pai.pt/) e Portal Autarquico (https://portalautarquico.dgal.gov.pt/).

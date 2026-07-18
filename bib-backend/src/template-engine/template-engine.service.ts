@@ -7,6 +7,7 @@ import { Service } from '../services/services.service';
 import { slugify } from '../common/slug';
 import { replaceKeyword } from './utils/keyword-replacer';
 import { stripLocalityBacklinksSection } from '../common/locality-backlinks-stripper';
+import { buildLocalKeyword } from '../common/location-preposition';
 
 export interface TemplateGenerateInput {
   service: Service;
@@ -56,7 +57,7 @@ export class TemplateEngineService {
     );
 
     // 5. Validate (score + issues)
-    const mainKeyword = `${service.name} em ${city}`;
+    const mainKeyword = buildLocalKeyword(service.name, city);
     const validationResult = this.validation.validate(
       html,
       mainKeyword,

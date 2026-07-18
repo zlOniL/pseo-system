@@ -7,6 +7,7 @@ import { SectionAssemblerService } from '../service-templates/section-assembler.
 import { ServiceTemplatesService } from '../service-templates/service-templates.service';
 import { Content, ContentsService } from '../contents/contents.service';
 import { SitesService } from '../sites/sites.service';
+import { buildLocalKeyword } from '../common/location-preposition';
 
 @Injectable()
 export class QueueWorker implements OnModuleInit {
@@ -83,7 +84,7 @@ export class QueueWorker implements OnModuleInit {
     );
     try {
       const service = await this.services.findById(item.service_id);
-      const mainKeyword = `${service.name} em ${item.city}`;
+      const mainKeyword = buildLocalKeyword(service.name, item.city);
       const site = service.site_id
         ? await this.sites.findById(service.site_id)
         : null;

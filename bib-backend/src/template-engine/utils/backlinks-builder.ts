@@ -1,35 +1,6 @@
 import { slugify } from '../../common/slug';
+import { getLocationPreposition } from '../../common/location-preposition';
 
-// Mirrors the prep sets in CitiesService — kept as a pure utility (no DI)
-const PREP_NA = new Set([
-  'Amadora',
-  'Maia',
-  'Moita',
-  'Margem Sul',
-  'Quinta do Conde',
-  'Pontinha',
-  'Odivelas',
-  'Reboleira',
-  'Brandoa',
-  'Damaia',
-  'Venda Nova',
-]);
-const PREP_NO = new Set([
-  'Porto',
-  'Barreiro',
-  'Seixal',
-  'Montijo',
-  'Pinhal Novo',
-  'Gavà',
-  'Alentejo',
-  'Algarve',
-]);
-
-function getPrep(name: string): string {
-  if (PREP_NA.has(name)) return 'na';
-  if (PREP_NO.has(name)) return 'no';
-  return 'em';
-}
 
 /**
  * Builds the "Atendemos Também" HTML block with a two-column layout,
@@ -48,7 +19,7 @@ export function buildBacklinksHtml(
   const base = wpBaseUrl.replace(/\/$/, '');
 
   const items = localities.map((loc) => {
-    const prep = getPrep(loc);
+    const prep = getLocationPreposition(loc);
     const locSlug = slugify(loc);
     const url = `${base}/${serviceSlug}-${prep}-${locSlug}/`;
     const label = `${serviceName} ${loc}`;

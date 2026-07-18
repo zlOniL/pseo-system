@@ -1,3 +1,4 @@
+import { getLocationPreposition } from '../../common/location-preposition';
 /**
  * Portuguese prepositions and conjunctions that stay lowercase in place names.
  * e.g. "Monte do Outreiro", "Albufeira de Cima", "Vila Nova de Gaia"
@@ -58,19 +59,30 @@ export function replaceKeyword(
   targetCity: string,
 ): string {
   const escaped = baseCity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const phraseRegex = new RegExp('\\b(em|na|no)\\s+' + escaped + '\\b', 'gi');
   const regex = new RegExp(escaped, 'gi');
 
   const titleCased = titleCasePt(targetCity);
   const upperCased = targetCity.toUpperCase();
   const lowerCased = targetCity.toLowerCase();
+  const prep = getLocationPreposition(targetCity);
 
-  return html.replace(regex, (match) => {
-    if (match === match.toUpperCase() && match.length > 1) {
-      return upperCased;
-    }
-    if (match[0] === match[0].toUpperCase()) {
-      return titleCased;
-    }
-    return lowerCased;
-  });
+  return html
+    .replace(phraseRegex, (match) => {
+      const replacement = prep + ' ' + titleCased;
+      if (match === match.toUpperCase()) return replacement.toUpperCase();
+      if (match[0] === match[0].toUpperCase()) {
+        return replacement.charAt(0).toUpperCase() + replacement.slice(1);
+      }
+      return replacement;
+    })
+    .replace(regex, (match) => {
+      if (match === match.toUpperCase() && match.length > 1) {
+        return upperCased;
+      }
+      if (match[0] === match[0].toUpperCase()) {
+        return titleCased;
+      }
+      return lowerCased;
+    });
 }
