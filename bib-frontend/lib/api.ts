@@ -27,14 +27,32 @@ import {
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
+async function errorMessage(res: Response): Promise<string> {
+  const body = await res.text();
+  if (!body) return `Erro ${res.status}`;
+
+  try {
+    const parsed = JSON.parse(body) as {
+      message?: string | string[];
+      error?: string;
+    };
+    const message = parsed.message ?? parsed.error;
+    if (Array.isArray(message)) return message.join('\n');
+    if (message) return message;
+  } catch {
+    // Plain-text upstream error.
+  }
+
+  return body;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`API error ${res.status}: ${body}`);
+    throw new Error(await errorMessage(res));
   }
   const body = await res.text();
   return (body ? JSON.parse(body) : null) as T;
@@ -149,8 +167,7 @@ export const api = {
   deleteContent: async (id: string): Promise<void> => {
     const res = await fetch(`${BASE_URL}/contents/${id}`, { method: 'DELETE' });
     if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`API error ${res.status}: ${body}`);
+      throw new Error(await errorMessage(res));
     }
   },
 
@@ -194,8 +211,7 @@ export const api = {
   deleteService: async (id: string): Promise<void> => {
     const res = await fetch(`${BASE_URL}/services/${id}`, { method: 'DELETE' });
     if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`API error ${res.status}: ${body}`);
+      throw new Error(await errorMessage(res));
     }
   },
 
@@ -245,8 +261,7 @@ export const api = {
       { method: 'DELETE' },
     );
     if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`API error ${res.status}: ${body}`);
+      throw new Error(await errorMessage(res));
     }
   },
 
@@ -337,8 +352,7 @@ export const api = {
   deleteQueueItem: async (id: string): Promise<void> => {
     const res = await fetch(`${BASE_URL}/queue/${id}`, { method: 'DELETE' });
     if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`API error ${res.status}: ${body}`);
+      throw new Error(await errorMessage(res));
     }
   },
 
@@ -396,8 +410,7 @@ export const api = {
       body: form,
     });
     if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`API error ${res.status}: ${body}`);
+      throw new Error(await errorMessage(res));
     }
     return res.json() as Promise<MediaAsset[]>;
   },
@@ -414,8 +427,7 @@ export const api = {
   deleteSupabaseMedia: async (id: string): Promise<void> => {
     const res = await fetch(`${BASE_URL}/media/${id}`, { method: 'DELETE' });
     if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`API error ${res.status}: ${body}`);
+      throw new Error(await errorMessage(res));
     }
   },
 

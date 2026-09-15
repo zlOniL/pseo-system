@@ -115,7 +115,7 @@ export class QueueWorker implements OnModuleInit {
         `[PERF] queue_item_done id=${item.id} mode=${mode} city=${item.city} content=${content.id} duration_ms=${Date.now() - startedAt}`,
       );
     } catch (err) {
-      const msg = (err as Error).message;
+      const msg = this.userFacingError(err);
       await this.queue.markFailed(item.id, msg);
       this.logger.error(
         `[PERF] queue_item_failed id=${item.id} mode=${mode} city=${item.city} duration_ms=${Date.now() - startedAt} error=${msg}`,
@@ -170,5 +170,13 @@ export class QueueWorker implements OnModuleInit {
 
   private isEnabled(): boolean {
     return process.env.QUEUE_WORKER_ENABLED !== 'false';
+  }
+
+  private userFacingError(err: unknown): string {
+    const message = (err as Error).message || String(err);
+    if (/fetch failed/i.test(message)) {
+      return 'Falha de conexao com uma API externa. Tente novamente; se persistir, verifique rede, dominio do site e chaves configuradas.';
+    }
+    return message;
   }
 }

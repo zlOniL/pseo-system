@@ -8,6 +8,7 @@ import {
   ValidateNested,
   IsUUID,
   IsBoolean,
+  IsNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -21,9 +22,11 @@ export class RelatedService {
 
 export class GenerateDto {
   @IsString()
+  @IsNotEmpty({ message: 'Informe a palavra-chave principal.' })
   main_keyword: string;
 
   @IsString()
+  @IsNotEmpty({ message: 'Informe o nome do servico.' })
   service: string;
 
   @IsOptional()

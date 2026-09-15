@@ -82,7 +82,11 @@ export class QueueService {
       .eq('id', serviceId)
       .single()) as DbResult<{ site_id: string | null }>;
 
-    if (serviceError) throw new Error(serviceError.message);
+    if (serviceError) {
+      throw new NotFoundException(
+        `Servico ${serviceId} nao encontrado. Selecione um servico valido antes de gerar localidades.`,
+      );
+    }
 
     const mainPage = await this.contents.findLatestMainPageByService(serviceId);
     if (mainPage?.status !== 'published') {
@@ -115,7 +119,7 @@ export class QueueService {
       .upsert(rows, { onConflict: 'service_id,city', ignoreDuplicates: true })
       .select()) as DbResult<QueueItem[]>;
 
-    if (error) throw new Error(error.message);
+    if (error) throw new BadRequestException(error.message);
     return data ?? [];
   }
 
@@ -129,7 +133,7 @@ export class QueueService {
       .limit(1)
       .maybeSingle()) as DbResult<QueueItem>;
 
-    if (error) throw new Error(error.message);
+    if (error) throw new BadRequestException(error.message);
     return data;
   }
 
@@ -245,7 +249,7 @@ export class QueueService {
       .eq('service_id', serviceId)
       .order('created_at', { ascending: true })) as DbResult<QueueItem[]>;
 
-    if (error) throw new Error(error.message);
+    if (error) throw new BadRequestException(error.message);
     return data as QueueItem[];
   }
 
@@ -270,7 +274,7 @@ export class QueueService {
     countQuery = this.applyFilters(countQuery, resolvedFilters);
 
     const { count, error: countError } = (await countQuery) as DbCountResult<null>;
-    if (countError) throw new Error(countError.message);
+    if (countError) throw new BadRequestException(countError.message);
 
     const total = count ?? 0;
     if (fromIndex >= total) {
@@ -287,7 +291,7 @@ export class QueueService {
     query = this.applyFilters(query, resolvedFilters);
 
     const { data, error } = (await query) as DbResult<QueueItem[]>;
-    if (error) throw new Error(error.message);
+    if (error) throw new BadRequestException(error.message);
 
     return {
       data: await this.attachServices(data ?? []),
@@ -339,7 +343,9 @@ export class QueueService {
     if (error || !data)
       throw new NotFoundException(`Queue item ${id} not found`);
     if (!['pending', 'failed'].includes(data.status)) {
-      throw new Error('Only pending or failed items can be removed');
+      throw new BadRequestException(
+        'So e possivel remover itens pendentes ou falhados. Aguarde o processamento terminar.',
+      );
     }
 
     await this.supabase.getClient().from('queue').delete().eq('id', id);
@@ -352,7 +358,7 @@ export class QueueService {
       .select('id, status')
       .in('id', ids)) as DbResult<Array<{ id: string; status: QueueItem['status'] }>>;
 
-    if (error) throw new Error(error.message);
+    if (error) throw new BadRequestException(error.message);
 
     const deletableIds = (data ?? [])
       .filter((item) => ['pending', 'failed'].includes(item.status))
@@ -365,7 +371,7 @@ export class QueueService {
         .delete()
         .in('id', deletableIds);
 
-      if (deleteError) throw new Error(deleteError.message);
+      if (deleteError) throw new BadRequestException(deleteError.message);
     }
 
     return {
@@ -388,7 +394,7 @@ export class QueueService {
       .eq('status', 'failed')
       .select()) as DbResult<QueueItem[]>;
 
-    if (error) throw new Error(error.message);
+    if (error) throw new BadRequestException(error.message);
     return data ?? [];
   }
 
@@ -468,7 +474,7 @@ export class QueueService {
     if (filters.service_id) serviceQuery = serviceQuery.eq('id', filters.service_id);
 
     const { data, error } = (await serviceQuery) as DbResult<Array<{ id: string }>>;
-    if (error) throw new Error(error.message);
+    if (error) throw new BadRequestException(error.message);
 
     const { site_id: _siteId, service_id, ...rest } = filters;
     return {
@@ -492,7 +498,7 @@ export class QueueService {
       Array<{ id: string; name: string; site_id: string | null }>
     >;
 
-    if (error) throw new Error(error.message);
+    if (error) throw new BadRequestException(error.message);
 
     const services = new Map((data ?? []).map((service) => [service.id, service]));
     return items.map((item) => ({

@@ -227,7 +227,22 @@ export class AiService {
     const maxAttempts = 3;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const attemptStartedAt = Date.now();
-      const response = await fetch(url, init);
+      let response: Response;
+      try {
+        response = await fetch(url, init);
+      } catch (err) {
+        const detail = (err as Error).message || 'falha de rede';
+        this.logger.warn(
+          `OpenRouter network error (${model}) attempt ${attempt}/${maxAttempts}: ${detail}`,
+        );
+        if (attempt === maxAttempts) {
+          throw new ServiceUnavailableException(
+            `Falha de conexao com a IA. Tente novamente; se persistir, verifique a rede e a OPENROUTER_KEY. Detalhe: ${detail}`,
+          );
+        }
+        await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+        continue;
+      }
       this.logger.log(
         `[PERF] ai_http_attempt model=${model} attempt=${attempt}/${maxAttempts} status=${response.status} duration_ms=${Date.now() - attemptStartedAt}`,
       );
@@ -243,7 +258,9 @@ export class AiService {
       );
       await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
     }
-    return fetch(url, init);
+    throw new ServiceUnavailableException(
+      'Falha de conexao com a IA. Tente novamente em instantes.',
+    );
   }
 
   private compactError(error: string): string {
