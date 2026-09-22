@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { AiService } from '../../ai/ai.service';
 import { Service } from '../../services/services.service';
 import { GenerateTemplateDto } from '../../services/dto/generate-template.dto';
@@ -33,7 +33,10 @@ import { ExternalLinkResearchService } from './external-link-research.service';
 import { VerifiedExternalReference } from './external-link.types';
 import { validateModuleExternalLinks } from './external-link-validation';
 import { runWithConcurrency } from '../../common/run-with-concurrency';
-import { buildLocalKeyword, formatLocationPhrase } from '../../common/location-preposition';
+import {
+  buildLocalKeyword,
+  formatLocationPhrase,
+} from '../../common/location-preposition';
 
 type ModuleGenerationResult = {
   sectionKey: (typeof WHITELABEL_MODULES)[number]['key'];
@@ -181,7 +184,14 @@ export class WhitelabelContentService {
     const normalized = input.isMainPage
       ? (removeMainPageGeoPlaceholders(generated) as WhitelabelGeneratedPage)
       : generated;
-    const contentJson = generatedToContentJson(normalized, { tolerant: true });
+    const contentJson = this.withHeroTitle(
+      generatedToContentJson(normalized, { tolerant: true }),
+      this.buildHeroTitle(
+        input.isMainPage
+          ? input.service.name
+          : buildLocalKeyword(input.service.name, input.baseCity),
+      ),
+    );
     const wordCount = countTextWords(contentJson);
 
     if (wordCount < minWords) {
@@ -220,11 +230,7 @@ export class WhitelabelContentService {
     });
 
     let lastError: Error | null = null;
-    for (
-      let attempt = 1;
-      attempt <= this.maxWordCountAttempts;
-      attempt += 1
-    ) {
+    for (let attempt = 1; attempt <= this.maxWordCountAttempts; attempt += 1) {
       const attemptStartedAt = Date.now();
       try {
         const raw = await this.ai.generateText(system, user);
@@ -423,9 +429,7 @@ export class WhitelabelContentService {
     return Number.isFinite(configured) && configured > 0 ? configured : 5;
   }
 
-  private classifyModuleError(
-    error: Error,
-  ): WhitelabelGenerationIssue['code'] {
+  private classifyModuleError(error: Error): WhitelabelGenerationIssue['code'] {
     const message = error.message.toLowerCase();
     if (/\b429\b|rate.?limit|limite|esgotad/.test(message)) {
       return 'rate_limit';
@@ -524,8 +528,28 @@ export class WhitelabelContentService {
     };
 
     return {
-      contentJson: generatedToContentJson(generated),
+      contentJson: this.withHeroTitle(
+        generatedToContentJson(generated),
+        this.buildHeroTitle(generated.page.title),
+      ),
       externalSlug: generated.page.slug,
+    };
+  }
+
+  private buildHeroTitle(mainKeyword: string): string {
+    return `${mainKeyword} | Tecnicos Especializados 24H/7`;
+  }
+
+  private withHeroTitle(
+    contentJson: WhitelabelContentJson,
+    title: string,
+  ): WhitelabelContentJson {
+    return {
+      ...contentJson,
+      hero: {
+        ...(contentJson.hero ?? {}),
+        h1: title,
+      },
     };
   }
 }

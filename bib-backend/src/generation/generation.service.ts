@@ -5,6 +5,7 @@ import { ContentsService, Content } from '../contents/contents.service';
 import { ContentSectionsService } from '../contents/content-sections.service';
 import { buildPrompt } from './prompt.builder';
 import { slugify } from '../common/slug';
+import { buildLocalKeyword } from '../common/location-preposition';
 import { injectImages } from '../common/image-injector';
 import { stripLocalityBacklinksSection } from '../common/locality-backlinks-stripper';
 import { parseHtmlSections } from '../service-templates/html-section-parser';
@@ -323,7 +324,7 @@ export class GenerationService {
     const config = getSectionVolumeConfig();
     const maxRounds = config.finalExpansionRounds;
     const maxSectionsPerRound = config.maxSectionsPerExpansionRound;
-    let current = { ...sections };
+    const current = { ...sections };
 
     for (let round = 1; round <= maxRounds; round += 1) {
       const roundStartedAt = Date.now();
@@ -346,7 +347,9 @@ export class GenerationService {
       ).slice(0, maxSectionsPerRound);
       if (candidates.length === 0) return current;
 
-      const promptContext = this.promptContext.resolve({ service: dto.service });
+      const promptContext = this.promptContext.resolve({
+        service: dto.service,
+      });
       const expansions = await runWithConcurrency(
         candidates,
         config.sectionConcurrency,
@@ -520,9 +523,11 @@ export class GenerationService {
       issues: generated.issues.map(formatWhitelabelGenerationIssue),
       breakdown: { structure: 30, seo: 40, content: 30 },
     };
+    const mainKeyword = buildLocalKeyword(dto.service, baseCity);
     const content = await this.contents.save(
       {
         ...dto,
+        main_keyword: mainKeyword,
         site_id: site.id,
         service_id: dto.service_id,
         output_format: 'whitelabel_json',
@@ -563,6 +568,7 @@ export class GenerationService {
       issues: generated.issues.map(formatWhitelabelGenerationIssue),
       breakdown: { structure: 30, seo: 40, content: 30 },
     };
+    const mainKeyword = buildLocalKeyword(dto.service, baseCity);
 
     return this.contents.updateWhitelabel(
       dto.content_id,
@@ -572,6 +578,7 @@ export class GenerationService {
         video_url: dto.video_url,
         images: dto.images,
         related_services: dto.related_services,
+        main_keyword: mainKeyword,
         external_page_type: baseCity ? 'service_location' : 'service',
         external_slug: buildExternalSlug(dto.service, baseCity ?? undefined),
       },

@@ -83,9 +83,11 @@ export class ContentsService {
     const statuses = status.split(',').filter(Boolean);
     if (statuses.length === 0) return query;
 
-    return (statuses.length > 1
-      ? (query as any).in('status', statuses)
-      : (query as any).eq('status', statuses[0])) as T;
+    return (
+      statuses.length > 1
+        ? (query as any).in('status', statuses)
+        : (query as any).eq('status', statuses[0])
+    ) as T;
   }
 
   private invalidateCache(): void {
@@ -172,7 +174,10 @@ export class ContentsService {
     contentJson: unknown,
     validation: ValidationResult,
     input?: Partial<
-      Pick<GenerateDto, 'video_url' | 'images' | 'related_services'>
+      Pick<
+        GenerateDto,
+        'video_url' | 'images' | 'related_services' | 'main_keyword'
+      >
     > & {
       external_page_type?: GenerateDto['external_page_type'];
       external_slug?: string;
@@ -193,6 +198,9 @@ export class ContentsService {
         ...(input?.images !== undefined && { images: input.images }),
         ...(input?.related_services !== undefined && {
           related_services: input.related_services,
+        }),
+        ...(input?.main_keyword !== undefined && {
+          main_keyword: input.main_keyword,
         }),
         ...(input?.external_page_type !== undefined && {
           external_page_type: input.external_page_type,
