@@ -68,6 +68,7 @@ export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
   const [site, setSite] = useState<Site | null>(null);
   const [availableServices, setAvailableServices] = useState<Service[]>([]);
   const [importServiceId, setImportServiceId] = useState('');
+  const [baseServiceId, setBaseServiceId] = useState('');
   const [wpCatLoading, setWpCatLoading] = useState(false);
   const [wpCatError, setWpCatError] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -92,6 +93,7 @@ export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
     if (!effectiveSiteId) {
       setAvailableServices([]);
       setImportServiceId('');
+      setBaseServiceId('');
       return;
     }
     api.listServices(effectiveSiteId)
@@ -167,6 +169,27 @@ export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
 
     setRelatedServices(imported);
     toast.success(`Servicos complementares importados de "${importedService.name}".`);
+  }
+  function importSettingsFromService(serviceId: string) {
+    const importedService = availableServices.find((item) => item.id === serviceId) ?? null;
+    if (!importedService) return;
+
+    setVideoUrl(importedService.video_url ?? '');
+    setImages(importedService.images ?? []);
+    setRelatedServices(initRelatedServices(importedService.related_services));
+    setServiceNotes(importedService.service_notes ?? '');
+    setTone(importedService.tone ?? '');
+    setMinWords(importedService.min_words ?? 5000);
+    setWordpressCategory(importedService.wordpress_category ?? '');
+    setSeoTitle(importedService.seo_title ?? '');
+    setSeoDescription(importedService.seo_description ?? '');
+    setFeaturedImageAssetId(importedService.featured_image_asset_id ?? '');
+    setFeaturedImageUrl(importedService.featured_image_url ?? '');
+    setFeaturedImageAlt(importedService.featured_image_alt ?? '');
+    setShowNewCategory(false);
+    setNewCategoryName('');
+    setImportServiceId('');
+    toast.success(`Configuracoes copiadas de "${importedService.name}".`);
   }
   function buildRelatedServicesPayload(): RelatedService[] {
     return relatedServices
@@ -276,6 +299,31 @@ export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
         <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
           Este serviço pertence a um site API Whitelabel. Os templates gerados serão textuais/JSON e publicados pela API do site.
         </p>
+      )}
+
+      {!isEdit && (
+        <div>
+          <label className="bib-label">
+            Basear em servico existente <span className="bib-label-hint">(copia configuracoes, mantendo o nome novo)</span>
+          </label>
+          <select
+            className="bib-input"
+            value={baseServiceId}
+            onChange={(e) => {
+              const nextId = e.target.value;
+              setBaseServiceId(nextId);
+              if (nextId) importSettingsFromService(nextId);
+            }}
+            disabled={!effectiveSiteId || availableServices.length === 0}
+          >
+            <option value="">Criar do zero</option>
+            {availableServices.map((service) => (
+              <option key={service.id} value={service.id}>
+                {service.name}
+              </option>
+            ))}
+          </select>
+        </div>
       )}
 
       {/* Nome */}

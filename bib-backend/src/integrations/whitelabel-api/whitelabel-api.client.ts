@@ -108,15 +108,24 @@ export class WhitelabelApiClient {
       `[${site.domain}] ${method} ${url}${requestBody ? ` payload=${requestBody}` : ''}`,
     );
 
-    const response = await fetch(url, {
-      ...init,
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${site.api_token}`,
-        ...(init?.headers ?? {}),
-      },
-    });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        ...init,
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${site.api_token}`,
+          ...(init?.headers ?? {}),
+        },
+      });
+    } catch (err) {
+      const detail = (err as Error).message || 'falha de rede';
+      throw new HttpException(
+        `Falha de conexao com a API Whitelabel de "${site.name}". Tente novamente; se persistir, verifique dominio e token. Detalhe: ${detail}`,
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
 
     const body = await response.text();
 

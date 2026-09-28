@@ -6,6 +6,7 @@ import { WhitelabelApiClient } from './whitelabel-api.client';
 import { buildExternalSlug } from './whitelabel-json';
 import { WhitelabelPublishResult } from './whitelabel.types';
 import { applyCity } from '../../wordpress/seo-templates';
+import { buildLocalKeyword } from '../../common/location-preposition';
 
 @Injectable()
 export class WhitelabelPublisherService {
@@ -39,8 +40,9 @@ export class WhitelabelPublisherService {
       buildExternalSlug(content.service, content.city || undefined);
     const publicUrl = `https://${this.sites.normalizeDomain(site.domain)}/${slug}`;
     const city = content.city ?? '';
+    const title = buildLocalKeyword(content.service, city || undefined);
 
-    let seoTitle = content.main_keyword;
+    let seoTitle = title;
     let seoDescription = content.meta_description ?? '';
 
     if (service?.seo_title) {
@@ -59,10 +61,10 @@ export class WhitelabelPublisherService {
       slug,
       status: 'published',
       template: 'service-default',
-      title: content.main_keyword,
+      title,
       seo_title: seoTitle,
       seo_description: seoDescription,
-      content_json: content.content_json,
+      content_json: this.withHeroTitle(content.content_json, this.buildHeroTitle(title)),
       related_pages_json: [],
     };
 
@@ -133,5 +135,35 @@ export class WhitelabelPublisherService {
       service_image_url: service.featured_image_url,
       service_image_alt: service.featured_image_alt ?? service.name,
     });
+  }
+
+  private buildHeroTitle(mainKeyword: string): string {
+    return `${mainKeyword} | Tecnicos Especializados 24H/7`;
+  }
+
+  private withHeroTitle(contentJson: unknown, title: string): unknown {
+    if (
+      !contentJson ||
+      typeof contentJson !== 'object' ||
+      Array.isArray(contentJson)
+    ) {
+      return contentJson;
+    }
+
+    const current = contentJson as Record<string, unknown>;
+    const hero =
+      current.hero &&
+      typeof current.hero === 'object' &&
+      !Array.isArray(current.hero)
+        ? (current.hero as Record<string, unknown>)
+        : {};
+
+    return {
+      ...current,
+      hero: {
+        ...hero,
+        h1: title,
+      },
+    };
   }
 }

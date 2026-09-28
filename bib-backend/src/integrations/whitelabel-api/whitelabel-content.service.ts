@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { LocalityLinksService } from '../../cities/locality-links.service';
 import { AiService } from '../../ai/ai.service';
 import { Service } from '../../services/services.service';
@@ -188,7 +188,14 @@ export class WhitelabelContentService {
       ? (removeMainPageGeoPlaceholders(generated) as WhitelabelGeneratedPage)
       : generated;
     const contentJson = await this.localityLinks.json(
-      generatedToContentJson(normalized, { tolerant: true }),
+      this.withHeroTitle(
+        generatedToContentJson(normalized, { tolerant: true }),
+        this.buildHeroTitle(
+          input.isMainPage
+            ? input.service.name
+            : buildLocalKeyword(input.service.name, input.baseCity),
+        ),
+      ),
       {
         service: input.service.name,
         city: input.isMainPage ? null : input.baseCity,
@@ -534,7 +541,10 @@ export class WhitelabelContentService {
 
     return {
       contentJson: await this.localityLinks.json(
-        generatedToContentJson(generated),
+        this.withHeroTitle(
+          generatedToContentJson(generated),
+          this.buildHeroTitle(generated.page.title),
+        ),
         {
           service: input.service.name,
           city: input.city,
@@ -542,6 +552,23 @@ export class WhitelabelContentService {
         },
       ),
       externalSlug: generated.page.slug,
+    };
+  }
+
+  private buildHeroTitle(mainKeyword: string): string {
+    return `${mainKeyword} | Tecnicos Especializados 24H/7`;
+  }
+
+  private withHeroTitle(
+    contentJson: WhitelabelContentJson,
+    title: string,
+  ): WhitelabelContentJson {
+    return {
+      ...contentJson,
+      hero: {
+        ...(contentJson.hero ?? {}),
+        h1: title,
+      },
     };
   }
 }

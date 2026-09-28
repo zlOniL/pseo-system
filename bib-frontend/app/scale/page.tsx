@@ -418,7 +418,7 @@ function NewGenerationModal({
 }) {
   const [serviceId, setServiceId] = useState(initialServiceId);
   const [pageKind, setPageKind] = useState<PageKind>(initialPageKind);
-  const [mode, setMode] = useState<QueueMode>('library');
+  const [mode, setMode] = useState<QueueMode>('ai');
   const [templates, setTemplates] = useState<ServiceTemplate[]>([]);
   const [templateId, setTemplateId] = useState('');
   const [previousItems, setPreviousItems] = useState<QueueItem[]>([]);
@@ -442,6 +442,7 @@ function NewGenerationModal({
     if (!open) return;
     setServiceId(initialServiceId);
     setPageKind(initialPageKind);
+    setMode('ai');
     setSelectedCities(new Set());
     setCitySearch('');
     setExpandedRegions(new Set());

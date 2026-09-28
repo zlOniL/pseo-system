@@ -1,13 +1,15 @@
-import { IsIn, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import type { IntegrationType } from './create-site.dto';
 
 export class UpdateSiteDto {
   @IsOptional()
   @IsString()
+  @IsNotEmpty({ message: 'Informe o nome do site.' })
   name?: string;
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty({ message: 'Informe o dominio do site.' })
   domain?: string;
 
   @IsOptional()

@@ -7,6 +7,7 @@ import {
   Max,
   ValidateNested,
   IsUUID,
+  IsNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { RelatedService } from '../../generation/dto/generate.dto';
@@ -18,6 +19,7 @@ export class UpdateServiceDto {
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty({ message: 'Informe o nome do servico.' })
   name?: string;
 
   @IsOptional()

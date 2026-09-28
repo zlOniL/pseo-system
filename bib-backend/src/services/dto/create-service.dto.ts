@@ -7,6 +7,7 @@ import {
   Max,
   ValidateNested,
   IsUUID,
+  IsNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { RelatedService } from '../../generation/dto/generate.dto';
@@ -17,6 +18,7 @@ export class CreateServiceDto {
   site_id?: string;
 
   @IsString()
+  @IsNotEmpty({ message: 'Informe o nome do servico.' })
   name: string;
 
   @IsOptional()
