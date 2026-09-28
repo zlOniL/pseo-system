@@ -22,7 +22,6 @@ import { SitesService } from '../sites/sites.service';
 import { WhitelabelContentService } from '../integrations/whitelabel-api/whitelabel-content.service';
 import { parseHtmlSections } from './html-section-parser';
 import { injectImages } from '../common/image-injector';
-import { stripLocalityBacklinksSection } from '../common/locality-backlinks-stripper';
 import { slugify } from '../common/slug';
 import { GenerateTemplateDto } from '../services/dto/generate-template.dto';
 import { buildExternalSlug } from '../integrations/whitelabel-api/whitelabel-json';
@@ -200,12 +199,11 @@ export class ServiceTemplatesController {
           related_services: relatedServices,
           service_id: serviceId,
           site_id: service.site_id ?? undefined,
-          skip_backlinks: isMainPage || undefined,
         },
         dto.feedback,
       );
 
-    // 2. Inject images and keep locality backlink sections out of new templates.
+    // 2. Inject images; buildHtmlRaw already added the dynamic locality links.
     const htmlWithImages = injectImages(
       rawHtml,
       images,
@@ -213,7 +211,7 @@ export class ServiceTemplatesController {
       service.name,
       baseCity ?? '',
     );
-    const finalHtml = stripLocalityBacklinksSection(htmlWithImages);
+    const finalHtml = htmlWithImages;
 
     const templateSaveStartedAt = Date.now();
     let template: ServiceTemplate;

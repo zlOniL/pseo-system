@@ -184,7 +184,8 @@ function sectionInstructions(
 - Para pagina principal, inserir links externos para Paginas Amarelas (https://www.pai.pt/) e Portal Autarquico (https://portalautarquico.dgal.gov.pt/).
 - Para pagina local, criar contexto local forte mencionando cidade/localidade, freguesias, bairros, ruas conhecidas, pracas, avenidas, pontos de referencia, zonas residenciais e comerciais, perfil do local, tipos de imoveis e necessidades provaveis do servico naquela zona.
 - Para pagina local, inserir 2 backlinks externos locais relevantes quando tiveres certeza do URL, como camara municipal, junta de freguesia, turismo local, diretorio local, Portal Autarquico, biblioteca municipal ou site oficial local. Preferir sites oficiais.
-- Nao mistures localidades.`;
+- Nao mistures localidades.
+- Nao gerar o bloco "Também atendemos" nem links para outras paginas locais do servico; o backend insere esse bloco depois da geracao.`;
     case 'perguntas_frequentes':
       return `Gera a secao:
 <h2 style="color: #320000;">Perguntas Frequentes sobre ${mainKeyword}</h2>

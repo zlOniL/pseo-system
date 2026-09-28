@@ -6,7 +6,7 @@ import { ContentSectionsService } from '../contents/content-sections.service';
 import { buildPrompt } from './prompt.builder';
 import { slugify } from '../common/slug';
 import { injectImages } from '../common/image-injector';
-import { stripLocalityBacklinksSection } from '../common/locality-backlinks-stripper';
+import { LocalityLinksService } from '../cities/locality-links.service';
 import { parseHtmlSections } from '../service-templates/html-section-parser';
 import { GenerateDto } from './dto/generate.dto';
 import { RegenerateDto } from './dto/regenerate.dto';
@@ -48,6 +48,7 @@ export class GenerationService {
     private readonly sites: SitesService,
     private readonly whitelabelContent: WhitelabelContentService,
     private readonly promptContext: PromptContextService,
+    private readonly localityLinks: LocalityLinksService,
   ) {}
 
   async generate(dto: GenerateDto): Promise<Content> {
@@ -152,7 +153,7 @@ export class GenerationService {
         .replace(/\{\{CITY\}\}/gi, '');
     }
 
-    html = stripLocalityBacklinksSection(html);
+    html = await this.localityLinks.html(html, dto);
 
     return { html, metaDescription };
   }
@@ -513,6 +514,7 @@ export class GenerationService {
       },
       baseCity,
       isMainPage: !baseCity,
+      skipBacklinks: dto.skip_backlinks,
     });
 
     const validationResult = {
@@ -556,6 +558,7 @@ export class GenerationService {
       },
       baseCity,
       isMainPage: !baseCity,
+      skipBacklinks: dto.skip_backlinks,
     });
 
     const validationResult = {
@@ -602,28 +605,6 @@ export class GenerationService {
       seo_title: null,
       seo_description: null,
     };
-  }
-
-  private replaceAtendemosTambem(html: string, replacement: string): string {
-    const regex = /<h2[^>]*>[^<]*Atendemos[^<]*<\/h2>[\s\S]*?(?=<h2)/i;
-    if (regex.test(html)) {
-      return html.replace(regex, replacement);
-    }
-    const perguntasMatch = /<h2[^>]*>[^<]*Perguntas Frequentes/i;
-    if (perguntasMatch.test(html)) {
-      return html.replace(
-        perguntasMatch,
-        replacement + '\n\n<h2 style="color: #320000;">Perguntas Frequentes',
-      );
-    }
-    const contacteMatch = /<h2[^>]*>[^<]*Contacte a Empresa/i;
-    if (contacteMatch.test(html)) {
-      return html.replace(
-        contacteMatch,
-        replacement + '\n\n<h2 style="color: #320000;">Contacte a Empresa',
-      );
-    }
-    return html + '\n\n' + replacement;
   }
 
   private async persistHtmlSections(

@@ -7,6 +7,7 @@ import { Service } from '../services/services.service';
 import { slugify } from '../common/slug';
 import { replaceKeyword } from './utils/keyword-replacer';
 import { stripLocalityBacklinksSection } from '../common/locality-backlinks-stripper';
+import { LocalityLinksService } from '../cities/locality-links.service';
 import { buildLocalKeyword } from '../common/location-preposition';
 
 export interface TemplateGenerateInput {
@@ -22,6 +23,7 @@ export class TemplateEngineService {
   constructor(
     private readonly contents: ContentsService,
     private readonly validation: ValidationService,
+    private readonly localityLinks: LocalityLinksService,
   ) {}
 
   async generate(input: TemplateGenerateInput): Promise<Content> {
@@ -52,8 +54,10 @@ export class TemplateEngineService {
     this.logger.log(`Template base city: "${baseCity}" → target: "${city}"`);
 
     // 3. Replace all occurrences of the base city with the target city
-    let html = stripLocalityBacklinksSection(
-      replaceKeyword(rawHtml, baseCity, city),
+    // Remove source-city links before replacing city text, then rebuild for the target.
+    const html = await this.localityLinks.html(
+      replaceKeyword(stripLocalityBacklinksSection(rawHtml), baseCity, city),
+      { service: service.name, city, site_id: service.site_id },
     );
 
     // 5. Validate (score + issues)
@@ -129,17 +133,6 @@ export class TemplateEngineService {
     }
 
     return 'Lisboa';
-  }
-
-  private injectBacklinks(html: string, linksHtml: string): string {
-    const placeholder = '<div id="dynamic-neighborhood-links"></div>';
-    if (html.includes(placeholder)) {
-      return html.replace(placeholder, linksHtml);
-    }
-    this.logger.warn(
-      'Template is missing <div id="dynamic-neighborhood-links"></div> placeholder — appending backlinks at end.',
-    );
-    return html + (linksHtml ? '\n\n' + linksHtml : '');
   }
 
   private resolveTemplatesDir(): string {

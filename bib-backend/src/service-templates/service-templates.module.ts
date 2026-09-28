@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { LocalityLinksModule } from '../cities/locality-links.module';
 import { ServiceTemplatesService } from './service-templates.service';
 import { SectionLibraryService } from './section-library.service';
 import { SectionAssemblerService } from './section-assembler.service';
@@ -14,6 +15,7 @@ import { WhitelabelApiModule } from '../integrations/whitelabel-api/whitelabel-a
 
 @Module({
   imports: [
+    LocalityLinksModule,
     GenerationModule,
     ServicesModule,
     ContentsModule,

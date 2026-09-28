@@ -17,6 +17,7 @@ import MediaPickerModal from '@/app/_components/MediaPickerModal';
 import { ContentSectionsPanel } from '@/app/_components/ContentSectionsPanel';
 import { WhitelabelSectionPreview } from '@/app/_components/WhitelabelSectionPreview';
 import { ScoreCard } from '@/app/generate/_components/ScoreCard';
+import { LocalityLinksRefresh } from './LocalityLinksRefresh';
 import {
   PreviewPane,
   buildPreviewHtml,
@@ -458,7 +459,11 @@ export function UnifiedLayout({ initialContent }: Props) {
           <div className="flex h-12 shrink-0 items-center justify-between border-b border-gray-200 px-5">
             <div className="flex items-center gap-2">
               <Link
-                href={content ? scaleReviewHrefForContent(content) : '/scale?view=review'}
+                href={
+                  content
+                    ? scaleReviewHrefForContent(content)
+                    : '/scale?view=review'
+                }
                 className="flex items-center gap-0.5 text-xs text-gray-400 transition-colors hover:text-gray-700"
               >
                 ← Conteúdos
@@ -493,6 +498,19 @@ export function UnifiedLayout({ initialContent }: Props) {
           {content && (
             <div className="shrink-0 space-y-3 border-b border-gray-100 px-5 py-4">
               <ScoreCard content={content} />
+              {site?.id === content.site_id &&
+                site?.integration_type === 'wordpress' &&
+                content.output_format !== 'whitelabel_json' && (
+                  <LocalityLinksRefresh
+                    key={content.id}
+                    content={content}
+                    disabled={actionLoading}
+                    onUpdated={(updated) => {
+                      setContent(updated);
+                      setSectionsRefreshKey((value) => value + 1);
+                    }}
+                  />
+                )}
 
               <div className="flex flex-wrap gap-2">
                 {content.status === 'draft' && (

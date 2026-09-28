@@ -53,6 +53,7 @@ function createSubject(
     sites as never,
     {} as never,
     externalLinks as never,
+    { json: jest.fn(async (json: unknown) => json) } as never,
   );
 }
 

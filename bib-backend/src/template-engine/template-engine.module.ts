@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { LocalityLinksModule } from '../cities/locality-links.module';
 import { TemplateEngineService } from './template-engine.service';
 import { ContentsModule } from '../contents/contents.module';
 import { ValidationModule } from '../validation/validation.module';
@@ -7,7 +8,7 @@ import { SitesModule } from '../sites/sites.module';
 // CitiesModule is @Global() — no need to import it here
 
 @Module({
-  imports: [ContentsModule, ValidationModule, SitesModule],
+  imports: [ContentsModule, ValidationModule, SitesModule, LocalityLinksModule],
   providers: [TemplateEngineService],
   exports: [TemplateEngineService],
 })

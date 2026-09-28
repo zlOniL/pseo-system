@@ -6,10 +6,13 @@ import { Service } from '../services/services.service';
 import { SECTION_KEYS } from './service-templates.types';
 import { replaceKeyword } from '../template-engine/utils/keyword-replacer';
 import { injectImages } from '../common/image-injector';
-import { stripLocalityBacklinksSection } from '../common/locality-backlinks-stripper';
+import { LocalityLinksService } from '../cities/locality-links.service';
 import { SitesService } from '../sites/sites.service';
 import { WhitelabelContentService } from '../integrations/whitelabel-api/whitelabel-content.service';
-import { buildLocalKeyword, formatLocationPhrase } from '../common/location-preposition';
+import {
+  buildLocalKeyword,
+  formatLocationPhrase,
+} from '../common/location-preposition';
 
 export interface AssembleInput {
   service: Service;
@@ -25,6 +28,7 @@ export class SectionAssemblerService {
     private readonly contents: ContentsService,
     private readonly sites: SitesService,
     private readonly whitelabelContent: WhitelabelContentService,
+    private readonly localityLinks: LocalityLinksService,
   ) {}
 
   async assemble(input: AssembleInput): Promise<Content> {
@@ -83,7 +87,15 @@ export class SectionAssemblerService {
       parts.push(replaceKeyword(section.html ?? '', section.base_city, city));
     }
 
-    let html = stripLocalityBacklinksSection(parts.join('\n'));
+    let html = await this.localityLinks.html(
+      parts.join('\n'),
+      {
+        service: service.name,
+        city,
+        site_id: service.site_id,
+      },
+      site ?? undefined,
+    );
     html = injectImages(
       html,
       service.images ?? [],

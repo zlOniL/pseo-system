@@ -114,6 +114,14 @@ export const api = {
 
   getContent: (id: string) => request<Content>(`/contents/${id}`),
 
+  previewLocalityLinks: (id: string) =>
+    request<{ content: Content; changed: boolean; link_count: number }>(
+      `/contents/${id}/locality-links/preview`,
+    ),
+
+  refreshLocalityLinks: (id: string) =>
+    request<Content>(`/contents/${id}/locality-links`, { method: 'POST' }),
+
   getContentSections: (id: string) =>
     request<ContentSection[]>(`/contents/${id}/sections`),
 

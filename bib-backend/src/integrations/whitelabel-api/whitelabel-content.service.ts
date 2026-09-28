@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { LocalityLinksService } from '../../cities/locality-links.service';
 import { AiService } from '../../ai/ai.service';
 import { Service } from '../../services/services.service';
 import { GenerateTemplateDto } from '../../services/dto/generate-template.dto';
@@ -33,7 +34,10 @@ import { ExternalLinkResearchService } from './external-link-research.service';
 import { VerifiedExternalReference } from './external-link.types';
 import { validateModuleExternalLinks } from './external-link-validation';
 import { runWithConcurrency } from '../../common/run-with-concurrency';
-import { buildLocalKeyword, formatLocationPhrase } from '../../common/location-preposition';
+import {
+  buildLocalKeyword,
+  formatLocationPhrase,
+} from '../../common/location-preposition';
 
 type ModuleGenerationResult = {
   sectionKey: (typeof WHITELABEL_MODULES)[number]['key'];
@@ -51,6 +55,7 @@ export class WhitelabelContentService {
     private readonly sites: SitesService,
     private readonly client: WhitelabelApiClient,
     private readonly externalLinks: ExternalLinkResearchService,
+    private readonly localityLinks: LocalityLinksService,
   ) {}
 
   async getBlueprintContext(site: Site): Promise<Record<string, unknown>> {
@@ -74,6 +79,7 @@ export class WhitelabelContentService {
   }
 
   async generateTemplate(input: {
+    skipBacklinks?: boolean;
     service: Service;
     site: Site;
     dto: GenerateTemplateDto;
@@ -181,7 +187,16 @@ export class WhitelabelContentService {
     const normalized = input.isMainPage
       ? (removeMainPageGeoPlaceholders(generated) as WhitelabelGeneratedPage)
       : generated;
-    const contentJson = generatedToContentJson(normalized, { tolerant: true });
+    const contentJson = await this.localityLinks.json(
+      generatedToContentJson(normalized, { tolerant: true }),
+      {
+        service: input.service.name,
+        city: input.isMainPage ? null : input.baseCity,
+        site_id: input.site.id,
+        skip_backlinks: input.skipBacklinks,
+      },
+      input.site,
+    );
     const wordCount = countTextWords(contentJson);
 
     if (wordCount < minWords) {
@@ -220,11 +235,7 @@ export class WhitelabelContentService {
     });
 
     let lastError: Error | null = null;
-    for (
-      let attempt = 1;
-      attempt <= this.maxWordCountAttempts;
-      attempt += 1
-    ) {
+    for (let attempt = 1; attempt <= this.maxWordCountAttempts; attempt += 1) {
       const attemptStartedAt = Date.now();
       try {
         const raw = await this.ai.generateText(system, user);
@@ -423,9 +434,7 @@ export class WhitelabelContentService {
     return Number.isFinite(configured) && configured > 0 ? configured : 5;
   }
 
-  private classifyModuleError(
-    error: Error,
-  ): WhitelabelGenerationIssue['code'] {
+  private classifyModuleError(error: Error): WhitelabelGenerationIssue['code'] {
     const message = error.message.toLowerCase();
     if (/\b429\b|rate.?limit|limite|esgotad/.test(message)) {
       return 'rate_limit';
@@ -524,7 +533,14 @@ export class WhitelabelContentService {
     };
 
     return {
-      contentJson: generatedToContentJson(generated),
+      contentJson: await this.localityLinks.json(
+        generatedToContentJson(generated),
+        {
+          service: input.service.name,
+          city: input.city,
+          site_id: input.service.site_id,
+        },
+      ),
       externalSlug: generated.page.slug,
     };
   }
