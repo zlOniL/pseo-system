@@ -1,6 +1,6 @@
 import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
-export type IntegrationType = 'wordpress' | 'whitelabel_api';
+export type IntegrationType = 'wordpress' | 'whitelabel_api' | 'ftp_html';
 
 export class CreateSiteDto {
   @IsString()
@@ -11,7 +11,7 @@ export class CreateSiteDto {
   @IsNotEmpty({ message: 'Informe o dominio do site.' })
   domain: string;
 
-  @IsIn(['wordpress', 'whitelabel_api'])
+  @IsIn(['wordpress', 'whitelabel_api', 'ftp_html'])
   integration_type: IntegrationType;
 
   @IsOptional()

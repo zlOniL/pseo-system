@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { api } from '@/lib/api';
 import ServiceForm from '../_components/ServiceForm';
 
 export default async function NewServicePage({
@@ -8,6 +9,7 @@ export default async function NewServicePage({
 }) {
   const resolvedSearchParams = await searchParams;
   const siteId = resolvedSearchParams?.site_id;
+  const site = siteId ? await api.getSite(siteId).catch(() => null) : null;
 
   return (
     <div className="bib-page">
@@ -16,7 +18,7 @@ export default async function NewServicePage({
         <h1 className="bib-title mb-6">Novo Serviço</h1>
 
         <div className="bib-card">
-          <ServiceForm siteId={siteId} />
+          <ServiceForm siteId={siteId} initialSite={site} />
         </div>
       </div>
     </div>

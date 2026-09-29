@@ -7,10 +7,18 @@ import { ContentsModule } from '../contents/contents.module';
 import { ServicesModule } from '../services/services.module';
 import { WhitelabelApiModule } from '../integrations/whitelabel-api/whitelabel-api.module';
 import { SitesModule } from '../sites/sites.module';
+import { PublishingService } from '../publishing/publishing.service';
+import { FtpHtmlModule } from '../integrations/ftp-html/ftp-html.module';
 
 @Module({
-  imports: [ContentsModule, ServicesModule, SitesModule, WhitelabelApiModule],
-  providers: [WordPressService],
+  imports: [
+    ContentsModule,
+    ServicesModule,
+    SitesModule,
+    WhitelabelApiModule,
+    FtpHtmlModule,
+  ],
+  providers: [WordPressService, PublishingService],
   controllers: [
     WordPressController,
     WordPressCategoriesController,

@@ -13,8 +13,10 @@ import {
 import { ContentsService } from './contents.service';
 import { ListContentsDto } from './dto/list-contents.dto';
 import { ContentSectionsService } from './content-sections.service';
+import { ContentLocalityLinksService } from './content-locality-links.service';
 import {
   SECTION_KEYS,
+  WHITELABEL_SECTION_KEYS,
   SectionKey,
 } from '../service-templates/service-templates.types';
 
@@ -23,6 +25,7 @@ export class ContentsController {
   constructor(
     private readonly contentsService: ContentsService,
     private readonly contentSections: ContentSectionsService,
+    private readonly localityLinks: ContentLocalityLinksService,
   ) {}
 
   @Get()
@@ -33,6 +36,17 @@ export class ContentsController {
   @Get(':id/sections')
   findSections(@Param('id') id: string) {
     return this.contentSections.listByContentId(id);
+  }
+
+  @Get(':id/locality-links/preview')
+  previewLocalityLinks(@Param('id') id: string) {
+    return this.localityLinks.preview(id);
+  }
+
+  @Post(':id/locality-links')
+  @HttpCode(200)
+  refreshLocalityLinks(@Param('id') id: string) {
+    return this.localityLinks.apply(id);
   }
 
   @Patch(':id/sections/:sectionKey')
@@ -85,7 +99,11 @@ export class ContentsController {
   }
 
   private parseSectionKey(sectionKey: string): SectionKey {
-    if ((SECTION_KEYS as readonly string[]).includes(sectionKey)) {
+    if (
+      (
+        [...SECTION_KEYS, ...WHITELABEL_SECTION_KEYS] as readonly string[]
+      ).includes(sectionKey)
+    ) {
       return sectionKey as SectionKey;
     }
     throw new BadRequestException(`Secao invalida: ${sectionKey}`);

@@ -20,9 +20,9 @@ import { ContentSectionsService } from '../contents/content-sections.service';
 import { ValidationService } from '../validation/validation.service';
 import { SitesService } from '../sites/sites.service';
 import { WhitelabelContentService } from '../integrations/whitelabel-api/whitelabel-content.service';
+import { FtpHtmlContentService } from '../integrations/ftp-html/ftp-html-content.service';
 import { parseHtmlSections } from './html-section-parser';
 import { injectImages } from '../common/image-injector';
-import { stripLocalityBacklinksSection } from '../common/locality-backlinks-stripper';
 import { slugify } from '../common/slug';
 import { GenerateTemplateDto } from '../services/dto/generate-template.dto';
 import { buildExternalSlug } from '../integrations/whitelabel-api/whitelabel-json';
@@ -44,6 +44,7 @@ export class ServiceTemplatesController {
     private readonly validation: ValidationService,
     private readonly sites: SitesService,
     private readonly whitelabelContent: WhitelabelContentService,
+    private readonly ftpHtmlContent: FtpHtmlContentService,
   ) {}
 
   @Get()
@@ -171,6 +172,9 @@ export class ServiceTemplatesController {
     if (site?.integration_type === 'whitelabel_api') {
       return this.generateAndSaveWhitelabel(serviceId, dto, existingTemplateId);
     }
+    if (site?.integration_type === 'ftp_html') {
+      return this.generateAndSaveFtpHtml(serviceId, dto, existingTemplateId);
+    }
 
     const isMainPage = dto.is_main_page ?? false;
     const baseCity = isMainPage ? null : (dto.base_city ?? 'Lisboa');
@@ -200,12 +204,11 @@ export class ServiceTemplatesController {
           related_services: relatedServices,
           service_id: serviceId,
           site_id: service.site_id ?? undefined,
-          skip_backlinks: isMainPage || undefined,
         },
         dto.feedback,
       );
 
-    // 2. Inject images and keep locality backlink sections out of new templates.
+    // 2. Inject images; buildHtmlRaw already added the dynamic locality links.
     const htmlWithImages = injectImages(
       rawHtml,
       images,
@@ -213,7 +216,7 @@ export class ServiceTemplatesController {
       service.name,
       baseCity ?? '',
     );
-    const finalHtml = stripLocalityBacklinksSection(htmlWithImages);
+    const finalHtml = htmlWithImages;
 
     const templateSaveStartedAt = Date.now();
     let template: ServiceTemplate;
@@ -426,6 +429,139 @@ export class ServiceTemplatesController {
       content,
       sections_saved: sectionsSaved,
       generation_issues: generated.issues,
+    };
+  }
+
+  private async generateAndSaveFtpHtml(
+    serviceId: string,
+    dto: GenerateTemplateDto,
+    existingTemplateId?: string,
+  ) {
+    const service = await this.services.findById(serviceId);
+    const isMainPage = dto.is_main_page ?? false;
+    const baseCity = isMainPage ? null : (dto.base_city ?? 'Lisboa');
+    const mainKeyword = isMainPage
+      ? service.name
+      : buildLocalKeyword(service.name, baseCity);
+    const images = service.images ?? [];
+    const videoUrl = service.video_url ?? null;
+    const relatedServices = dto.related_services?.length
+      ? dto.related_services
+      : (service.related_services ?? []);
+
+    const { html: rawHtml, metaDescription } =
+      await this.generation.buildHtmlRaw(
+        {
+          main_keyword: mainKeyword,
+          service: service.name,
+          city: baseCity ?? undefined,
+          images,
+          video_url: videoUrl ?? undefined,
+          tone: service.tone,
+          min_words: service.min_words,
+          service_notes:
+            dto.service_notes ?? service.service_notes ?? undefined,
+          related_services: relatedServices,
+          service_id: serviceId,
+          site_id: service.site_id ?? undefined,
+          skip_backlinks: isMainPage || undefined,
+        },
+        dto.feedback,
+      );
+
+    const fragmentHtml = injectImages(
+      rawHtml,
+      images,
+      mainKeyword,
+      service.name,
+      baseCity ?? '',
+    );
+    const composed = await this.ftpHtmlContent.compose({
+      service,
+      fragmentHtml,
+      mainKeyword,
+      metaDescription,
+      city: baseCity,
+    });
+
+    const templateSaveStartedAt = Date.now();
+    const template = existingTemplateId
+      ? await this.templates.update(
+          existingTemplateId,
+          composed.html,
+          baseCity,
+          images,
+          videoUrl,
+          isMainPage,
+          dto.label,
+        )
+      : await this.templates.create(
+          serviceId,
+          composed.html,
+          baseCity,
+          images,
+          videoUrl,
+          isMainPage,
+          dto.label,
+          { siteId: service.site_id },
+        );
+
+    this.logger.log(
+      `[PERF] ftp_template_record_saved template=${template.id} duration_ms=${Date.now() - templateSaveStartedAt}`,
+    );
+
+    let sectionsSaved = 0;
+    if (!isMainPage) {
+      const { sections } = parseHtmlSections(rawHtml);
+      await this.library.saveAll(
+        serviceId,
+        template.id,
+        sections,
+        baseCity!,
+        service.site_id,
+      );
+      sectionsSaved = sections.size;
+    }
+
+    const validationResult = this.validation.validate(
+      composed.html,
+      mainKeyword,
+      service.min_words ?? 5000,
+    );
+    const content = await this.contents.save(
+      {
+        main_keyword: mainKeyword,
+        service: service.name,
+        city: baseCity ?? undefined,
+        images,
+        video_url: videoUrl ?? undefined,
+        tone: service.tone,
+        min_words: service.min_words,
+        service_notes: dto.service_notes ?? service.service_notes ?? undefined,
+        related_services: relatedServices,
+        service_id: serviceId,
+        site_id: service.site_id ?? undefined,
+        external_page_type: isMainPage ? 'service' : 'service_location',
+        external_slug: composed.externalSlug,
+      },
+      composed.html,
+      validationResult,
+      metaDescription,
+      'ai',
+      {
+        ftp_remote_page_id: composed.remotePage.id,
+        render_mode: 'full_document',
+        deployment_status: 'not_deployed',
+        external_page_url: composed.externalUrl,
+      },
+    );
+    await this.persistHtmlSections(content.id, composed.html);
+
+    return {
+      template,
+      content,
+      sections_saved: sectionsSaved,
+      generation_issues: [],
     };
   }
 

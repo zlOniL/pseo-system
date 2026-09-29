@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import ServiceForm from '../_components/ServiceForm';
 import DeleteServiceButton from './_components/DeleteServiceButton';
+import FtpRemotePagePanel from './_components/FtpRemotePagePanel';
 import { scaleGenerateHref } from '@/lib/routes';
 
 interface Props {
@@ -16,6 +17,7 @@ export default async function ServiceDetailPage({ params }: Props) {
   const service = await api.getService(id).catch(() => null);
   if (!service) notFound();
 
+  const site = service.site_id ? await api.getSite(service.site_id).catch(() => null) : null;
   const mainContent = await api.getMainTemplateContent(id).catch(() => null);
   const scaleHref = scaleGenerateHref({ serviceId: id, siteId: service.site_id });
 
@@ -51,12 +53,20 @@ export default async function ServiceDetailPage({ params }: Props) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </Link>
+
+        {site?.integration_type === 'ftp_html' && (
+          <FtpRemotePagePanel
+            serviceId={service.id}
+            defaultRemotePath={`${service.slug}.html`}
+          />
+        )}
+
         {/* Formulário */}
         <div className="bib-card">
           <p className="bib-label mb-4" style={{ fontSize: '0.8125rem', marginBottom: '1.25rem' }}>
             Configuração do Serviço
           </p>
-          <ServiceForm initialData={service} />
+          <ServiceForm initialData={service} initialSite={site} />
         </div>
 
         {/* Zona de perigo */}

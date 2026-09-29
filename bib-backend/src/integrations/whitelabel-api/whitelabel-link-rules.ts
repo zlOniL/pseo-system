@@ -1,6 +1,7 @@
 import type { WhitelabelContentJson } from './whitelabel.types';
 
 export const WHITELABEL_INLINE_LINK_RULES = `Regras para links inline na API Whitelabel:
+- O bloco "Também atendemos" esta desativado para a integracao Whitelabel. Nao gerar esse bloco nem listas de links para outras paginas locais do servico.
 - Podes inserir links no meio do texto usando apenas HTML simples.
 - Formato obrigatorio para links externos: <a href="https://exemplo.pt/pagina" target="_blank" rel="noopener">texto ancora</a>.
 - Para links internos do proprio site, usa href absoluto ou caminho publico, por exemplo <a href="/picheleiros">picheleiros 24 horas</a>.

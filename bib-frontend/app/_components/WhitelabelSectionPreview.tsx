@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { Content, ContentSection } from '@/lib/types';
 import { WhitelabelTextPreview } from '@/app/_components/WhitelabelTextPreview';
@@ -176,6 +176,29 @@ export function WhitelabelSectionPreview({
 }) {
   const [sections, setSections] = useState<ContentSection[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const article = content.content_json?.article;
+  const blocks = Array.isArray(article) ? article : (article?.blocks ?? []);
+  const localityIndex = blocks.findIndex(
+    (block) =>
+      block.type === 'heading' &&
+      /^tamb[eé]m atendemos$/i.test(String(block.text ?? '')),
+  );
+  const localityBlocks =
+    localityIndex < 0 ? [] : blocks.slice(localityIndex, localityIndex + 2);
+  const faqIndex = sections.findIndex(
+    (section) => section.section_key === 'modulo_13_perguntas_frequentes',
+  );
+  const renderLinks = () =>
+    localityBlocks.length > 0 && (
+      <section
+        className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+        aria-label="Também atendemos"
+      >
+        {localityBlocks.map((block, index) => (
+          <Block key={index} block={block} />
+        ))}
+      </section>
+    );
 
   useEffect(() => {
     let cancelled = false;
@@ -218,35 +241,38 @@ export function WhitelabelSectionPreview({
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
-      {sections.map((section) => {
+      {sections.map((section, index) => {
         const selected = selectedSectionKey === section.section_key;
         return (
-          <section
-            key={section.id}
-            onClick={() => onSectionSelect?.(section.section_key)}
-            className={`relative cursor-pointer rounded-xl border bg-white p-6 shadow-sm transition ${
-              selected
-                ? 'border-gray-950 ring-4 ring-gray-900/10'
-                : 'border-gray-200 hover:border-gray-900 hover:ring-4 hover:ring-gray-900/5'
-            }`}
-          >
-            <div className="mb-4 flex items-center justify-between gap-3 border-b border-gray-100 pb-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                {sectionLabel(section.section_key)}
-              </p>
-              <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-500">
-                {section.word_count} palavras
-              </span>
-              {section.generation_status !== 'done' && (
-                <span className="rounded-full bg-amber-50 px-2 py-1 text-xs text-amber-700">
-                  {section.generation_status}
+          <Fragment key={section.id}>
+            {index === faqIndex && renderLinks()}
+            <section
+              onClick={() => onSectionSelect?.(section.section_key)}
+              className={`relative cursor-pointer rounded-xl border bg-white p-6 shadow-sm transition ${
+                selected
+                  ? 'border-gray-950 ring-4 ring-gray-900/10'
+                  : 'border-gray-200 hover:border-gray-900 hover:ring-4 hover:ring-gray-900/5'
+              }`}
+            >
+              <div className="mb-4 flex items-center justify-between gap-3 border-b border-gray-100 pb-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  {sectionLabel(section.section_key)}
+                </p>
+                <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-500">
+                  {section.word_count} palavras
                 </span>
-              )}
-            </div>
-            <SectionContent section={section} />
-          </section>
+                {section.generation_status !== 'done' && (
+                  <span className="rounded-full bg-amber-50 px-2 py-1 text-xs text-amber-700">
+                    {section.generation_status}
+                  </span>
+                )}
+              </div>
+              <SectionContent section={section} />
+            </section>
+          </Fragment>
         );
       })}
+      {faqIndex < 0 && renderLinks()}
     </div>
   );
 }

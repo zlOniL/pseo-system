@@ -20,6 +20,16 @@ export interface Content {
   generation_mode: 'ai' | 'template' | 'library';
   wordpress_category: string | null;
   output_format: 'html' | 'whitelabel_json';
+  render_mode: 'fragment' | 'full_document';
+  ftp_remote_page_id: string | null;
+  deployment_status:
+    | 'not_deployed'
+    | 'pending'
+    | 'published'
+    | 'conflict'
+    | 'failed'
+    | 'rolled_back';
+  last_publish_run_id: string | null;
   content_json: WhitelabelContentJson | null;
   external_page_type: 'service' | 'service_location' | 'page' | null;
   external_slug: string | null;
@@ -291,7 +301,7 @@ export interface Site {
   updated_at: string;
   name: string;
   domain: string;
-  integration_type: 'wordpress' | 'whitelabel_api';
+  integration_type: 'wordpress' | 'whitelabel_api' | 'ftp_html';
   wordpress_base_url: string | null;
   status: 'active' | 'archived';
   has_api_token: boolean;
@@ -301,10 +311,81 @@ export interface Site {
 export interface CreateSiteInput {
   name: string;
   domain: string;
-  integration_type: 'wordpress' | 'whitelabel_api';
+  integration_type: 'wordpress' | 'whitelabel_api' | 'ftp_html';
   api_token?: string;
   wordpress_base_url?: string;
   wordpress_secret?: string;
+}
+
+export interface FtpSiteConfig {
+  site_id: string;
+  host: string;
+  port: number;
+  security_mode: 'plain' | 'explicit_tls';
+  username: string;
+  remote_root: string;
+  backup_root: string;
+  public_base_url: string;
+  passive_mode: boolean;
+  connection_status: 'untested' | 'ok' | 'failed';
+  has_ftp_password: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FtpConnectionTestResult {
+  ok: boolean;
+  code?: 'auth' | 'dns' | 'timeout' | 'not_found' | 'unknown';
+  message?: string;
+}
+
+export interface FtpRemotePageCheckResult {
+  status: 'found' | 'not_found' | 'unavailable';
+  remote_path: string;
+  attempted_ftp_path?: string;
+  attempted_ftp_directory?: string;
+  public_url?: string;
+  size?: number;
+  modified_at?: string | null;
+  error?: string;
+}
+
+export interface FtpRemotePageImportResult {
+  status: 'imported' | 'manual_boundary_required';
+  remote_page: {
+    id: string;
+    site_id: string;
+    service_id: string | null;
+    remote_path: string;
+    public_url: string | null;
+    last_seen_hash: string | null;
+    last_seen_size: number | null;
+    last_seen_modified_at: string | null;
+    import_status: 'pending' | 'imported' | 'manual_boundary_required' | 'failed';
+    active_template_version_id: string | null;
+  };
+  template_version: {
+    id: string;
+    remote_page_id: string;
+    version: number;
+    source_hash: string;
+    source_encoding: string;
+    status: 'active' | 'archived' | 'invalid';
+  } | null;
+  boundary_issue?: string;
+  managed_content_preview?: string;
+}
+
+export interface UpsertFtpSiteConfigInput {
+  host: string;
+  port?: number;
+  security_mode: 'plain' | 'explicit_tls';
+  username: string;
+  password?: string;
+  remote_root: string;
+  backup_root: string;
+  public_base_url: string;
+  passive_mode?: boolean;
 }
 
 export interface WhitelabelContentJson {

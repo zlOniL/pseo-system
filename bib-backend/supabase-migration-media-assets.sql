@@ -6,8 +6,8 @@ VALUES (
   'service-media',
   'service-media',
   true,
-  10485760,
-  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+  104857600,
+  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/webm', 'video/quicktime']
 )
 ON CONFLICT (id) DO UPDATE SET
   public = EXCLUDED.public,

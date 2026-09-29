@@ -1,4 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { LocalityLinksService } from '../cities/locality-links.service';
+import { isLocalityLinksHeading } from '../common/locality-backlinks-stripper';
+import type { WhitelabelContentJson } from '../integrations/whitelabel-api/whitelabel.types';
 import { AiService } from '../ai/ai.service';
 import { SupabaseService } from '../common/supabase.service';
 import { DbError, DbResult } from '../common/supabase.types';
@@ -28,6 +31,8 @@ export interface ContentSection {
 }
 
 interface StoredContent {
+  content_json: WhitelabelContentJson | null;
+  site_id: string | null;
   id: string;
   main_keyword: string;
   service: string;
@@ -43,6 +48,7 @@ export class ContentSectionsService {
     private readonly supabase: SupabaseService,
     private readonly ai: AiService,
     private readonly validation: ValidationService,
+    private readonly localityLinks: LocalityLinksService,
   ) {}
 
   async listByContentId(contentId: string): Promise<ContentSection[]> {
@@ -227,15 +233,25 @@ Regras:
         row.section_key === section.section_key ? nextJson : row.content_json;
     }
 
-    const contentJson = generatedToContentJson({
-      page: {
-        title: content.main_keyword,
-        slug: content.external_slug ?? '',
-        seo_title: content.main_keyword,
-        seo_description: content.meta_description ?? '',
+    const contentJson = await this.localityLinks.json(
+      generatedToContentJson({
+        page: {
+          title: content.main_keyword,
+          slug: content.external_slug ?? '',
+          seo_title: content.main_keyword,
+          seo_description: content.meta_description ?? '',
+        },
+        sections,
+      }),
+      {
+        ...content,
+        skip_backlinks: !content.content_json?.article?.blocks?.some(
+          (block) =>
+            block.type === 'heading' &&
+            isLocalityLinksHeading(String(block.text ?? '')),
+        ),
       },
-      sections,
-    });
+    );
 
     const { data, error } = (await this.supabase
       .getClient()

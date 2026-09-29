@@ -23,6 +23,11 @@ import {
   WpCategory,
   Site,
   CreateSiteInput,
+  FtpSiteConfig,
+  FtpConnectionTestResult,
+  FtpRemotePageCheckResult,
+  FtpRemotePageImportResult,
+  UpsertFtpSiteConfigInput,
 } from './types';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -78,6 +83,20 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
+  getFtpSiteConfig: (siteId: string) =>
+    request<FtpSiteConfig | null>(`/sites/${siteId}/ftp-config`),
+
+  upsertFtpSiteConfig: (siteId: string, input: UpsertFtpSiteConfigInput) =>
+    request<FtpSiteConfig>(`/sites/${siteId}/ftp-config`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+
+  testFtpSiteConfig: (siteId: string) =>
+    request<FtpConnectionTestResult>(`/sites/${siteId}/ftp-config/test`, {
+      method: 'POST',
+    }),
+
   refreshWhitelabelBlueprints: (siteId: string) =>
     request<{ ok: boolean; blueprints: string[] }>(
       `/sites/${siteId}/whitelabel/blueprints/refresh`,
@@ -131,6 +150,14 @@ export const api = {
   },
 
   getContent: (id: string) => request<Content>(`/contents/${id}`),
+
+  previewLocalityLinks: (id: string) =>
+    request<{ content: Content; changed: boolean; link_count: number }>(
+      `/contents/${id}/locality-links/preview`,
+    ),
+
+  refreshLocalityLinks: (id: string) =>
+    request<Content>(`/contents/${id}/locality-links`, { method: 'POST' }),
 
   getContentSections: (id: string) =>
     request<ContentSection[]>(`/contents/${id}/sections`),
@@ -207,6 +234,18 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(input),
     }),
+
+  checkFtpRemotePage: (serviceId: string, input?: { remote_path?: string }) =>
+    request<FtpRemotePageCheckResult>(
+      `/services/${serviceId}/ftp-html/check-remote-page`,
+      { method: 'POST', body: JSON.stringify(input ?? {}) },
+    ),
+
+  importFtpRemotePage: (serviceId: string, input?: { remote_path?: string }) =>
+    request<FtpRemotePageImportResult>(
+      `/services/${serviceId}/ftp-html/import-remote-page`,
+      { method: 'POST', body: JSON.stringify(input ?? {}) },
+    ),
 
   deleteService: async (id: string): Promise<void> => {
     const res = await fetch(`${BASE_URL}/services/${id}`, { method: 'DELETE' });
@@ -381,7 +420,7 @@ export const api = {
     ),
 
   listSupabaseMedia: (
-    type: 'image',
+    type: 'image' | 'video',
     page: number,
     search: string,
     siteId?: string,

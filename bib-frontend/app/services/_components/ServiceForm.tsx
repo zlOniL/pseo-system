@@ -17,6 +17,7 @@ import MediaPickerModal from '@/app/_components/MediaPickerModal';
 interface ServiceFormProps {
   initialData?: Service;
   siteId?: string;
+  initialSite?: Site | null;
 }
 
 interface RelatedServiceDraft {
@@ -45,7 +46,7 @@ function buildServiceUrl(site: Site | null, service: Service | null): string {
   return `${normalizeBaseUrl(site)}/${service.slug}/`;
 }
 
-export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
+export default function ServiceForm({ initialData, siteId, initialSite = null }: ServiceFormProps) {
   const router = useRouter();
   const isEdit = !!initialData;
 
@@ -65,7 +66,7 @@ export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
   const [featuredImageUrl, setFeaturedImageUrl] = useState(initialData?.featured_image_url ?? '');
   const [featuredImageAlt, setFeaturedImageAlt] = useState(initialData?.featured_image_alt ?? '');
   const [wpCategories, setWpCategories] = useState<WpCategory[]>([]);
-  const [site, setSite] = useState<Site | null>(null);
+  const [site, setSite] = useState<Site | null>(initialSite);
   const [availableServices, setAvailableServices] = useState<Service[]>([]);
   const [importServiceId, setImportServiceId] = useState('');
   const [baseServiceId, setBaseServiceId] = useState('');
@@ -80,14 +81,20 @@ export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
   const [error, setError] = useState('');
   const effectiveSiteId = initialData?.site_id ?? siteId;
   const isWhitelabel = site?.integration_type === 'whitelabel_api';
+  const isFtpHtml = site?.integration_type === 'ftp_html';
+  const mediaSourceLabel = isWhitelabel ? 'WhiteLabel' : isFtpHtml ? 'do site' : 'WordPress';
   const availableRelatedServices = availableServices.filter(
     (item) => item.id !== initialData?.id,
   );
 
   useEffect(() => {
+    if (initialSite?.id === effectiveSiteId) {
+      setSite(initialSite);
+      return;
+    }
     if (!effectiveSiteId) return;
     api.getSite(effectiveSiteId).then(setSite).catch(() => {});
-  }, [effectiveSiteId]);
+  }, [effectiveSiteId, initialSite]);
 
   useEffect(() => {
     if (!effectiveSiteId) {
@@ -103,14 +110,18 @@ export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
 
   useEffect(() => {
     if (effectiveSiteId && !site) return;
-    if (isWhitelabel) return;
+    if (!effectiveSiteId || isWhitelabel || isFtpHtml) {
+      setWpCategories([]);
+      setWpCatError('');
+      setWpCatLoading(false);
+      return;
+    }
     setWpCatLoading(true);
-    if (!effectiveSiteId) return;
     api.getWpCategories(effectiveSiteId)
       .then(setWpCategories)
       .catch((err: Error) => setWpCatError(err.message))
       .finally(() => setWpCatLoading(false));
-  }, [effectiveSiteId, isWhitelabel, site]);
+  }, [effectiveSiteId, isWhitelabel, isFtpHtml, site]);
 
   function addRelated() {
     setRelatedServices((prev) => [...prev, { name: '', url: '', serviceId: '', useService: false }]);
@@ -275,12 +286,16 @@ export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
         router.refresh();
       } else {
         const service = await api.createService(input);
-        toast.success('Serviço criado. Crie a página principal para depois gerar localidades.', {
-          action: {
-            label: 'Criar página principal',
-            onClick: () => router.push(`/scale?service_id=${service.id}&create=main`),
-          },
-        });
+        if (isFtpHtml) {
+          toast.success('Serviço criado. Importe o HTML via FTP para criar o template.');
+        } else {
+          toast.success('Serviço criado. Crie a página principal para depois gerar localidades.', {
+            action: {
+              label: 'Criar página principal',
+              onClick: () => router.push(`/scale?service_id=${service.id}&create=main`),
+            },
+          });
+        }
         router.push(`/services/${service.id}`);
       }
     } catch (err) {
@@ -298,6 +313,11 @@ export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
       {isWhitelabel && (
         <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
           Este serviço pertence a um site API Whitelabel. Os templates gerados serão textuais/JSON e publicados pela API do site.
+        </p>
+      )}
+      {isFtpHtml && !isEdit && (
+        <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+          Depois de criar o serviço, abra a página dele para importar o HTML remoto via FTP e transformar essa página em template.
         </p>
       )}
 
@@ -428,7 +448,7 @@ export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
         >
           {images.filter(Boolean).length > 0
             ? `${images.filter(Boolean).length} imagem(ns) selecionada(s) — clique para alterar`
-            : `Escolher Imagens da Biblioteca ${isWhitelabel ? 'WhiteLabel' : 'WordPress'}`}
+            : `Escolher Imagens da Biblioteca ${mediaSourceLabel}`}
         </button>
         {images.filter(Boolean).length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -592,7 +612,7 @@ export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
 
       <div className="bib-divider" />
 
-      {!isWhitelabel && (
+      {!isWhitelabel && !isFtpHtml && (
       <>
       {/* Categoria WordPress */}
       <div>
@@ -751,7 +771,7 @@ export default function ServiceForm({ initialData, siteId }: ServiceFormProps) {
           isOpen
           onClose={() => setMediaModal(null)}
           mode={mediaModal.mode}
-          source={isWhitelabel && mediaModal.mode === 'images' ? 'supabase' : 'wordpress'}
+          source={(isWhitelabel && mediaModal.mode === 'images') || isFtpHtml ? 'supabase' : 'wordpress'}
           siteId={effectiveSiteId}
           maxImages={mediaModal.target === 'featured' ? 1 : 8}
           onConfirmVideo={(url) => { setVideoUrl(url); setMediaModal(null); }}

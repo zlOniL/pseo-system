@@ -2,10 +2,15 @@ import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { SitesService } from './sites.service';
 import { CreateSiteDto } from './dto/create-site.dto';
 import { UpdateSiteDto } from './dto/update-site.dto';
+import { FtpSiteConfigsService } from '../integrations/ftp-html/ftp-site-configs.service';
+import { UpsertFtpSiteConfigDto } from '../integrations/ftp-html/dto/upsert-ftp-site-config.dto';
 
 @Controller('sites')
 export class SitesController {
-  constructor(private readonly sites: SitesService) {}
+  constructor(
+    private readonly sites: SitesService,
+    private readonly ftpConfigs: FtpSiteConfigsService,
+  ) {}
 
   @Get()
   findAll() {
@@ -30,5 +35,23 @@ export class SitesController {
   @Get(':id/blueprints')
   getBlueprints(@Param('id') id: string) {
     return this.sites.getBlueprints(id);
+  }
+
+  @Get(':id/ftp-config')
+  getFtpConfig(@Param('id') id: string) {
+    return this.ftpConfigs.findPublicBySiteId(id);
+  }
+
+  @Patch(':id/ftp-config')
+  upsertFtpConfig(
+    @Param('id') id: string,
+    @Body() dto: UpsertFtpSiteConfigDto,
+  ) {
+    return this.ftpConfigs.upsert(id, dto);
+  }
+
+  @Post(':id/ftp-config/test')
+  testFtpConfig(@Param('id') id: string) {
+    return this.ftpConfigs.testConnection(id);
   }
 }

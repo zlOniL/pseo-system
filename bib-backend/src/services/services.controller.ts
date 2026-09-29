@@ -15,12 +15,15 @@ import { buildLocalKeyword } from '../common/location-preposition';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { GenerateTemplateDto } from './dto/generate-template.dto';
+import { FtpHtmlImportService } from '../integrations/ftp-html/ftp-html-import.service';
+import { ImportFtpRemotePageDto } from '../integrations/ftp-html/dto/import-ftp-remote-page.dto';
 
 @Controller('services')
 export class ServicesController {
   constructor(
     private readonly servicesService: ServicesService,
     private readonly generationService: GenerationService,
+    private readonly ftpHtmlImport: FtpHtmlImportService,
   ) {}
 
   @Post()
@@ -52,6 +55,24 @@ export class ServicesController {
   @HttpCode(204)
   delete(@Param('id') id: string) {
     return this.servicesService.delete(id);
+  }
+
+  @Post(':id/ftp-html/check-remote-page')
+  async checkFtpRemotePage(
+    @Param('id') id: string,
+    @Body() dto: ImportFtpRemotePageDto,
+  ) {
+    const service = await this.servicesService.findById(id);
+    return this.ftpHtmlImport.checkRemotePage(service, dto.remote_path);
+  }
+
+  @Post(':id/ftp-html/import-remote-page')
+  async importFtpRemotePage(
+    @Param('id') id: string,
+    @Body() dto: ImportFtpRemotePageDto,
+  ) {
+    const service = await this.servicesService.findById(id);
+    return this.ftpHtmlImport.importRemotePage(service, dto.remote_path);
   }
 
   @Post(':id/generate-template')

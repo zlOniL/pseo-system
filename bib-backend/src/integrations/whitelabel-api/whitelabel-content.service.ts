@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { LocalityLinksService } from '../../cities/locality-links.service';
 import { AiService } from '../../ai/ai.service';
 import { Service } from '../../services/services.service';
 import { GenerateTemplateDto } from '../../services/dto/generate-template.dto';
@@ -54,6 +55,7 @@ export class WhitelabelContentService {
     private readonly sites: SitesService,
     private readonly client: WhitelabelApiClient,
     private readonly externalLinks: ExternalLinkResearchService,
+    private readonly localityLinks: LocalityLinksService,
   ) {}
 
   async getBlueprintContext(site: Site): Promise<Record<string, unknown>> {
@@ -77,6 +79,7 @@ export class WhitelabelContentService {
   }
 
   async generateTemplate(input: {
+    skipBacklinks?: boolean;
     service: Service;
     site: Site;
     dto: GenerateTemplateDto;
@@ -184,13 +187,22 @@ export class WhitelabelContentService {
     const normalized = input.isMainPage
       ? (removeMainPageGeoPlaceholders(generated) as WhitelabelGeneratedPage)
       : generated;
-    const contentJson = this.withHeroTitle(
-      generatedToContentJson(normalized, { tolerant: true }),
-      this.buildHeroTitle(
-        input.isMainPage
-          ? input.service.name
-          : buildLocalKeyword(input.service.name, input.baseCity),
+    const contentJson = await this.localityLinks.json(
+      this.withHeroTitle(
+        generatedToContentJson(normalized, { tolerant: true }),
+        this.buildHeroTitle(
+          input.isMainPage
+            ? input.service.name
+            : buildLocalKeyword(input.service.name, input.baseCity),
+        ),
       ),
+      {
+        service: input.service.name,
+        city: input.isMainPage ? null : input.baseCity,
+        site_id: input.site.id,
+        skip_backlinks: input.skipBacklinks,
+      },
+      input.site,
     );
     const wordCount = countTextWords(contentJson);
 
@@ -528,9 +540,16 @@ export class WhitelabelContentService {
     };
 
     return {
-      contentJson: this.withHeroTitle(
-        generatedToContentJson(generated),
-        this.buildHeroTitle(generated.page.title),
+      contentJson: await this.localityLinks.json(
+        this.withHeroTitle(
+          generatedToContentJson(generated),
+          this.buildHeroTitle(generated.page.title),
+        ),
+        {
+          service: input.service.name,
+          city: input.city,
+          site_id: input.service.site_id,
+        },
       ),
       externalSlug: generated.page.slug,
     };

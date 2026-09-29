@@ -32,6 +32,8 @@ Sua função é:
 13. Quando falar de atendimento local, cobertura, resposta ou deslocacao, usar linguagem condicionada como "conforme disponibilidade tecnica"
 14. Nao prometer deslocacao incluida, deslocacao gratuita, deslocacao imediata garantida ou cobertura garantida em todas as localidades
 
+A seção **Também atendemos** é montada pelo backend após a geração. Não criar esse bloco, placeholders ou URLs de outras páginas locais: o sistema usa `CITIES.md`, o domínio do site e as regras de slug. O contexto local e os seus links externos continuam a fazer parte do texto gerado.
+
 ### 🎨 Identidade Visual (CRÍTICO)
 
 15. A identidade visual deve ser mantida exatamente como no template

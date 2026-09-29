@@ -11,13 +11,17 @@ import { slugify } from '../common/slug';
 import { UpdateMediaDto } from './dto/update-media.dto';
 
 const MEDIA_BUCKET = 'service-media';
-const ALLOWED_IMAGE_TYPES = new Set([
+const ALLOWED_MEDIA_TYPES = new Set([
   'image/jpeg',
   'image/png',
   'image/webp',
   'image/gif',
+  'video/mp4',
+  'video/webm',
+  'video/quicktime',
 ]);
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
 
 export interface MediaAsset {
   id: string;
@@ -71,15 +75,18 @@ export class MediaService {
     tags?: string[];
   }): Promise<MediaAsset> {
     const file = input.file;
-    if (!file) throw new BadRequestException('Imagem obrigatoria.');
-    if (!ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
+    if (!file) throw new BadRequestException('Ficheiro obrigatorio.');
+    if (!ALLOWED_MEDIA_TYPES.has(file.mimetype)) {
       throw new BadRequestException(
-        'Tipo de imagem invalido. Use JPG, PNG, WEBP ou GIF.',
+        'Tipo de ficheiro invalido. Use JPG, PNG, WEBP, GIF, MP4, WEBM ou MOV.',
       );
     }
-    if (file.size > MAX_FILE_SIZE) {
+    const maxSize = file.mimetype.startsWith('video/')
+      ? MAX_VIDEO_SIZE
+      : MAX_IMAGE_SIZE;
+    if (file.size > maxSize) {
       throw new BadRequestException(
-        'Imagem demasiado grande. Limite maximo: 10MB.',
+        `Ficheiro demasiado grande. Limite maximo: ${Math.round(maxSize / 1024 / 1024)}MB.`,
       );
     }
 
@@ -87,7 +94,7 @@ export class MediaService {
     const extension = this.fileExtension(file.originalname, file.mimetype);
     const pathParts = [
       input.siteId ? `sites/${input.siteId}` : 'global',
-      `${slugify(title) || 'imagem'}-${randomUUID()}${extension}`,
+      `${slugify(title) || 'media'}-${randomUUID()}${extension}`,
     ];
     const storagePath = pathParts.join('/');
 
@@ -102,7 +109,7 @@ export class MediaService {
 
     if (uploadError) {
       throw new BadRequestException(
-        `Falha no upload da imagem: ${uploadError.message}`,
+        `Falha no upload do ficheiro: ${uploadError.message}`,
       );
     }
 
@@ -144,7 +151,7 @@ export class MediaService {
     tags?: string[];
   }): Promise<MediaAsset[]> {
     if (!input.files?.length) {
-      throw new BadRequestException('Imagem obrigatoria.');
+      throw new BadRequestException('Ficheiro obrigatorio.');
     }
 
     const assets: MediaAsset[] = [];
@@ -185,6 +192,9 @@ export class MediaService {
 
     if (input.type === 'image' || !input.type) {
       query = query.like('mime_type', 'image/%');
+    }
+    if (input.type === 'video') {
+      query = query.like('mime_type', 'video/%');
     }
     if (input.siteId) {
       query = query.or(`site_id.eq.${input.siteId},site_id.is.null`);
@@ -284,7 +294,7 @@ export class MediaService {
       url: asset.public_url,
       mime_type: asset.mime_type,
       date: asset.created_at,
-      thumbnail: asset.public_url,
+      thumbnail: asset.mime_type.startsWith('image/') ? asset.public_url : null,
       alt: asset.alt,
     };
   }
@@ -294,7 +304,7 @@ export class MediaService {
       filename
         .replace(/\.[^.]+$/, '')
         .replace(/[-_]+/g, ' ')
-        .trim() || 'Imagem de servico'
+        .trim() || 'Ficheiro de servico'
     );
   }
 
@@ -304,6 +314,9 @@ export class MediaService {
     if (mimeType === 'image/png') return '.png';
     if (mimeType === 'image/webp') return '.webp';
     if (mimeType === 'image/gif') return '.gif';
+    if (mimeType === 'video/mp4') return '.mp4';
+    if (mimeType === 'video/webm') return '.webm';
+    if (mimeType === 'video/quicktime') return '.mov';
     return '.jpg';
   }
 

@@ -32,6 +32,10 @@ interface SiteBlueprintRow {
   fetched_at: string;
 }
 
+interface FtpPublicBaseRow {
+  public_base_url: string | null;
+}
+
 @Injectable()
 export class SitesService {
   constructor(private readonly supabase: SupabaseService) {}
@@ -67,6 +71,28 @@ export class SitesService {
       return legacy.replace(/\/$/, '');
 
     return `https://${this.normalizeDomain(site.domain)}`;
+  }
+
+  async localityLinksBase(site: Site): Promise<string> {
+    if (site.integration_type === 'wordpress') return this.wordpressBase(site);
+    if (site.integration_type !== 'ftp_html') return '';
+
+    const { data, error } = (await this.supabase
+      .getClient()
+      .from('ftp_site_configs')
+      .select('public_base_url')
+      .eq('site_id', site.id)
+      .maybeSingle()) as DbResult<FtpPublicBaseRow>;
+
+    if (error) {
+      if (error.code === '42P01') {
+        throw new BadRequestException(
+          'Tabela ftp_site_configs nao encontrada. Execute a migration supabase-migration-ftp-html-phase-2.sql.',
+        );
+      }
+      throw new BadRequestException(error.message);
+    }
+    return data?.public_base_url?.trim().replace(/\/+$/, '') ?? '';
   }
   wordpressSecret(site: Site): string | null {
     if (site.wordpress_secret?.trim()) return site.wordpress_secret.trim();
@@ -224,6 +250,14 @@ export class SitesService {
     if (error.code === '23505') {
       throw new BadRequestException(
         'Já existe um site configurado com este domínio.',
+      );
+    }
+    if (
+      error.code === '23514' &&
+      error.message.includes('sites_integration_type_check')
+    ) {
+      throw new BadRequestException(
+        'O banco ainda nao permite integration_type=ftp_html. Execute a migration supabase-migration-ftp-html-integration-type.sql no Supabase.',
       );
     }
     throw new BadRequestException(error.message);

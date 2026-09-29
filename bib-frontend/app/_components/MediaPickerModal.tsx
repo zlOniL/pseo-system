@@ -68,10 +68,11 @@ export default function MediaPickerModal({
 
   function loadMedia(p: number, q: string) {
     setLoading(true);
+    const mediaType = mode === 'video' ? 'video' : 'image';
     const request =
-      source === 'supabase' && mode === 'images'
-        ? api.listSupabaseMedia('image', p, q, siteId)
-        : api.listMedia(mode === 'video' ? 'video' : 'image', p, q, siteId);
+      source === 'supabase'
+        ? api.listSupabaseMedia(mediaType, p, q, siteId)
+        : api.listMedia(mediaType, p, q, siteId);
 
     request
       .then((res) => {
@@ -131,7 +132,7 @@ export default function MediaPickerModal({
 
   function handleFilesSelected(files: FileList | null) {
     const selectedFiles = Array.from(files ?? []);
-    if (selectedFiles.length === 0 || source !== 'supabase' || mode !== 'images') return;
+    if (selectedFiles.length === 0 || source !== 'supabase') return;
     setUploadError('');
     setPendingUploads((prev) => [
       ...prev,
@@ -155,7 +156,7 @@ export default function MediaPickerModal({
   }
 
   async function handleUploadPending() {
-    if (pendingUploads.length === 0 || source !== 'supabase' || mode !== 'images') return;
+    if (pendingUploads.length === 0 || source !== 'supabase') return;
     setUploading(true);
     setUploadError('');
     try {
@@ -177,6 +178,11 @@ export default function MediaPickerModal({
         alt: asset.alt,
       }));
       setItems((prev) => [...newItems, ...prev]);
+      if (mode === 'video') {
+        setSelectedVideo(newItems[0]?.url ?? null);
+        setPendingUploads([]);
+        return;
+      }
       setSelectedImages((prev) => {
         if (maxImages === 1) return newItems[0] ? [newItems[0].url] : prev;
         const next = [...prev];
@@ -271,14 +277,14 @@ export default function MediaPickerModal({
             placeholder="Pesquisar na biblioteca..."
             className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-gray-400"
           />
-          {source === 'supabase' && mode === 'images' && (
+          {source === 'supabase' && (
             <div className="mt-3 space-y-3">
               <label className="text-sm px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors text-center cursor-pointer">
                 Selecionar ficheiros
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  multiple
+                  accept={mode === 'video' ? 'video/mp4,video/webm,video/quicktime' : 'image/jpeg,image/png,image/webp,image/gif'}
+                  multiple={mode === 'images'}
                   disabled={uploading}
                   onChange={(e) => {
                     handleFilesSelected(e.target.files);
@@ -320,7 +326,9 @@ export default function MediaPickerModal({
                     onClick={() => void handleUploadPending()}
                     className="text-sm px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-40"
                   >
-                    {uploading ? 'A enviar...' : `Enviar ${pendingUploads.length} imagem(ns)`}
+                    {uploading
+                      ? 'A enviar...'
+                      : `Enviar ${pendingUploads.length} ${mode === 'video' ? 'video(s)' : 'imagem(ns)'}`}
                   </button>
                 </div>
               )}

@@ -7,7 +7,7 @@ import { buildPrompt } from './prompt.builder';
 import { slugify } from '../common/slug';
 import { buildLocalKeyword } from '../common/location-preposition';
 import { injectImages } from '../common/image-injector';
-import { stripLocalityBacklinksSection } from '../common/locality-backlinks-stripper';
+import { LocalityLinksService } from '../cities/locality-links.service';
 import { parseHtmlSections } from '../service-templates/html-section-parser';
 import { GenerateDto } from './dto/generate.dto';
 import { RegenerateDto } from './dto/regenerate.dto';
@@ -18,6 +18,7 @@ import { formatWhitelabelGenerationIssue } from '../integrations/whitelabel-api/
 import { Service } from '../services/services.service';
 import { PromptContextService } from '../prompt-context/prompt-context.service';
 import { PromptContext } from '../prompt-context/prompt-context.types';
+import { FtpHtmlContentService } from '../integrations/ftp-html/ftp-html-content.service';
 import { runWithConcurrency } from '../common/run-with-concurrency';
 import {
   HtmlSectionKey,
@@ -49,6 +50,8 @@ export class GenerationService {
     private readonly sites: SitesService,
     private readonly whitelabelContent: WhitelabelContentService,
     private readonly promptContext: PromptContextService,
+    private readonly localityLinks: LocalityLinksService,
+    private readonly ftpHtmlContent: FtpHtmlContentService,
   ) {}
 
   async generate(dto: GenerateDto): Promise<Content> {
@@ -69,6 +72,13 @@ export class GenerationService {
       const content = await this.generateWhitelabel(dto, site);
       this.logger.log(
         `[PERF] page_generation_done format=whitelabel_json service=${dto.service} city=${dto.city ?? 'main'} duration_ms=${Date.now() - totalStartedAt}`,
+      );
+      return content;
+    }
+    if (site.integration_type === 'ftp_html') {
+      const content = await this.generateFtpHtml(dto);
+      this.logger.log(
+        `[PERF] page_generation_done format=ftp_html service=${dto.service} city=${dto.city ?? 'main'} duration_ms=${Date.now() - totalStartedAt}`,
       );
       return content;
     }
@@ -106,6 +116,9 @@ export class GenerationService {
     const site = dto.site_id ? await this.sites.findById(dto.site_id) : null;
     if (site?.integration_type === 'whitelabel_api') {
       return this.regenerateWhitelabel(dto, site);
+    }
+    if (site?.integration_type === 'ftp_html') {
+      return this.regenerateFtpHtml(dto, totalStartedAt);
     }
 
     const { html, metaDescription } = await this.buildHtml(dto, dto.feedback);
@@ -153,7 +166,7 @@ export class GenerationService {
         .replace(/\{\{CITY\}\}/gi, '');
     }
 
-    html = stripLocalityBacklinksSection(html);
+    html = await this.localityLinks.html(html, dto);
 
     return { html, metaDescription };
   }
@@ -500,6 +513,95 @@ export class GenerationService {
     return { html, metaDescription };
   }
 
+  private async generateFtpHtml(dto: GenerateDto): Promise<Content> {
+    const { html: fragmentHtml, metaDescription } = await this.buildHtml(dto);
+    const service = this.buildSyntheticService(dto);
+    if (!service.id) {
+      throw new BadRequestException(
+        'Selecione um servico cadastrado antes de gerar HTML via FTP.',
+      );
+    }
+
+    const composed = await this.ftpHtmlContent.compose({
+      service,
+      fragmentHtml,
+      mainKeyword: dto.main_keyword,
+      metaDescription,
+      city: dto.city ?? null,
+    });
+    const minWords = dto.min_words ?? 5000;
+    const result = this.validation.validate(
+      composed.html,
+      dto.main_keyword,
+      finalMinimumWords(minWords),
+    );
+    const content = await this.contents.save(
+      {
+        ...dto,
+        external_page_type: dto.city ? 'service_location' : 'service',
+        external_slug: composed.externalSlug,
+      },
+      composed.html,
+      result,
+      metaDescription,
+      'ai',
+      {
+        ftp_remote_page_id: composed.remotePage.id,
+        render_mode: 'full_document',
+        deployment_status: 'not_deployed',
+        external_page_url: composed.externalUrl,
+      },
+    );
+    await this.persistHtmlSections(content.id, composed.html);
+    return content;
+  }
+
+  private async regenerateFtpHtml(
+    dto: RegenerateDto,
+    totalStartedAt: number,
+  ): Promise<Content> {
+    const { html: fragmentHtml, metaDescription } = await this.buildHtml(
+      dto,
+      dto.feedback,
+    );
+    const service = this.buildSyntheticService(dto);
+    if (!service.id) {
+      throw new BadRequestException(
+        'Selecione um servico cadastrado antes de regenerar HTML via FTP.',
+      );
+    }
+
+    const composed = await this.ftpHtmlContent.compose({
+      service,
+      fragmentHtml,
+      mainKeyword: dto.main_keyword,
+      metaDescription,
+      city: dto.city ?? null,
+    });
+    const minWords = dto.min_words ?? 5000;
+    const result = this.validation.validate(
+      composed.html,
+      dto.main_keyword,
+      finalMinimumWords(minWords),
+    );
+    const content = await this.contents.update(
+      dto.content_id,
+      composed.html,
+      result,
+      {
+        video_url: dto.video_url,
+        images: dto.images,
+        related_services: dto.related_services,
+      },
+      metaDescription,
+    );
+    await this.persistHtmlSections(content.id, composed.html);
+    this.logger.log(
+      `[PERF] page_generation_done format=ftp_html service=${dto.service} city=${dto.city ?? 'main'} duration_ms=${Date.now() - totalStartedAt}`,
+    );
+    return content;
+  }
+
   private async generateWhitelabel(
     dto: GenerateDto,
     site: Awaited<ReturnType<SitesService['findById']>>,
@@ -516,6 +618,7 @@ export class GenerationService {
       },
       baseCity,
       isMainPage: !baseCity,
+      skipBacklinks: dto.skip_backlinks,
     });
 
     const validationResult = {
@@ -561,6 +664,7 @@ export class GenerationService {
       },
       baseCity,
       isMainPage: !baseCity,
+      skipBacklinks: dto.skip_backlinks,
     });
 
     const validationResult = {
@@ -609,28 +713,6 @@ export class GenerationService {
       seo_title: null,
       seo_description: null,
     };
-  }
-
-  private replaceAtendemosTambem(html: string, replacement: string): string {
-    const regex = /<h2[^>]*>[^<]*Atendemos[^<]*<\/h2>[\s\S]*?(?=<h2)/i;
-    if (regex.test(html)) {
-      return html.replace(regex, replacement);
-    }
-    const perguntasMatch = /<h2[^>]*>[^<]*Perguntas Frequentes/i;
-    if (perguntasMatch.test(html)) {
-      return html.replace(
-        perguntasMatch,
-        replacement + '\n\n<h2 style="color: #320000;">Perguntas Frequentes',
-      );
-    }
-    const contacteMatch = /<h2[^>]*>[^<]*Contacte a Empresa/i;
-    if (contacteMatch.test(html)) {
-      return html.replace(
-        contacteMatch,
-        replacement + '\n\n<h2 style="color: #320000;">Contacte a Empresa',
-      );
-    }
-    return html + '\n\n' + replacement;
   }
 
   private async persistHtmlSections(

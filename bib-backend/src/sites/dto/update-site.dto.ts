@@ -13,7 +13,7 @@ export class UpdateSiteDto {
   domain?: string;
 
   @IsOptional()
-  @IsIn(['wordpress', 'whitelabel_api'])
+  @IsIn(['wordpress', 'whitelabel_api', 'ftp_html'])
   integration_type?: IntegrationType;
 
   @IsOptional()

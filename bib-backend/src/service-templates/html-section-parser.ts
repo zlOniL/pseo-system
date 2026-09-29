@@ -1,4 +1,5 @@
 import { SECTION_KEYS, SectionKey } from './service-templates.types';
+import { stripLocalityBacklinksSection } from '../common/locality-backlinks-stripper';
 
 const EXCLUDED_KEYS = new Set(['atendemos_tambem']);
 
@@ -51,7 +52,7 @@ export interface ParsedSections {
  * Image blocks are normalised to {{IMAGE_N}} placeholders.
  */
 export function parseHtmlSections(html: string): ParsedSections {
-  const normalised = normaliseImages(html);
+  const normalised = normaliseImages(stripLocalityBacklinksSection(html));
   const parts = normalised.split(/(?=<h2[\s>])/i);
 
   const sections = new Map<SectionKey, string>();

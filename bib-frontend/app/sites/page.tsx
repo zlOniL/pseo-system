@@ -1,7 +1,14 @@
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { Site } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
+
+function integrationLabel(type: Site['integration_type']): string {
+  if (type === 'whitelabel_api') return 'API Whitelabel';
+  if (type === 'ftp_html') return 'HTML via FTP';
+  return 'WordPress';
+}
 
 export default async function SitesPage() {
   const sites = await api.listSites().catch(() => []);
@@ -38,7 +45,7 @@ export default async function SitesPage() {
                     <p className="text-xs text-gray-400 mt-0.5">{site.domain}</p>
                   </div>
                   <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
-                    {site.integration_type === 'whitelabel_api' ? 'API Whitelabel' : 'WordPress'}
+                    {integrationLabel(site.integration_type)}
                   </span>
                 </div>
               </Link>

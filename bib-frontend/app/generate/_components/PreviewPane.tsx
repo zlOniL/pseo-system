@@ -1,6 +1,11 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import {
+  buildFullDocumentPreviewHtml,
+  PreviewDevice,
+  previewDeviceWidth,
+} from '@/lib/full-document-preview';
 
 function escapeScriptText(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -61,6 +66,35 @@ function interactiveScript(selectedSectionKey?: string): string {
 </script>`;
 }
 
+function detectPreviewResourceWarnings(doc?: Document | null): string[] {
+  if (!doc) return [];
+
+  const warnings: string[] = [];
+  const brokenImages = Array.from(doc.images).filter(
+    (image) => image.complete && image.naturalWidth === 0,
+  );
+  if (brokenImages.length > 0) {
+    warnings.push(`${brokenImages.length} imagem(ns) nao carregaram.`);
+  }
+
+  const brokenStyles = Array.from(
+    doc.querySelectorAll<HTMLLinkElement>('link[rel~="stylesheet"]'),
+  ).filter((link) => !link.sheet);
+  if (brokenStyles.length > 0) {
+    warnings.push(`${brokenStyles.length} arquivo(s) CSS nao carregaram.`);
+  }
+
+  let failedFonts = 0;
+  doc.fonts?.forEach((font) => {
+    if (font.status === 'error') failedFonts += 1;
+  });
+  if (failedFonts > 0) {
+    warnings.push(`${failedFonts} fonte(s) nao carregaram.`);
+  }
+
+  return warnings;
+}
+
 export function buildPreviewHtml(
   contentHtml: string,
   videoUrl?: string,
@@ -89,6 +123,8 @@ interface Props {
   videoUrl?: string;
   loading: boolean;
   generationMode?: 'ai' | 'template' | 'library';
+  renderMode?: 'fragment' | 'full_document';
+  publicBaseUrl?: string;
   interactiveSections?: boolean;
   selectedSectionKey?: string;
   onSectionSelect?: (sectionKey: string) => void;
@@ -100,27 +136,46 @@ export function PreviewPane({
   videoUrl,
   loading,
   generationMode,
+  renderMode = 'fragment',
+  publicBaseUrl,
   interactiveSections,
   selectedSectionKey,
   onSectionSelect,
   onSectionEdit,
 }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [resourceWarnings, setResourceWarnings] = useState<string[]>([]);
+  const deviceButtons: Array<{ value: PreviewDevice; label: string }> = [
+    { value: 'desktop', label: 'Desktop' },
+    { value: 'tablet', label: 'Tablet' },
+    { value: 'mobile', label: 'Mobile' },
+  ];
+  const [device, setDevice] = useState<PreviewDevice>('desktop');
+  const isFullDocumentPreview = renderMode === 'full_document' && Boolean(html);
+  const fullDocumentPreview = isFullDocumentPreview
+    ? buildFullDocumentPreviewHtml(html ?? '', publicBaseUrl)
+    : null;
 
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe || !html) return;
+    setResourceWarnings([]);
     const onLoad = () => {
       try {
         const h = iframe.contentDocument?.body?.scrollHeight;
         if (h) iframe.style.height = `${h + 40}px`;
+        if (isFullDocumentPreview) {
+          setResourceWarnings(
+            detectPreviewResourceWarnings(iframe.contentDocument),
+          );
+        }
       } catch {
         // sandboxed
       }
     };
     iframe.addEventListener('load', onLoad);
     return () => iframe.removeEventListener('load', onLoad);
-  }, [html]);
+  }, [html, isFullDocumentPreview]);
 
   useEffect(() => {
     function onMessage(event: MessageEvent) {
@@ -188,16 +243,59 @@ export function PreviewPane({
   }
 
   return (
-    <iframe
-      ref={iframeRef}
-      sandbox="allow-same-origin allow-scripts"
-      srcDoc={buildPreviewHtml(html, videoUrl, generationMode, {
-        interactiveSections,
-        selectedSectionKey,
-      })}
-      className="w-full bg-white rounded-xl border border-gray-200 shadow-sm"
-      style={{ minHeight: 600 }}
-      title="Preview da página"
-    />
+    <div className="space-y-3">
+      {fullDocumentPreview && (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-lg border border-gray-200 bg-white p-1">
+            {deviceButtons.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => setDevice(item.value)}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  device === item.value
+                    ? 'bg-gray-900 text-white'
+                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          {[...fullDocumentPreview.warnings, ...resourceWarnings].map((warning) => (
+            <span
+              key={warning}
+              className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs text-amber-800"
+            >
+              {warning}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <iframe
+        ref={iframeRef}
+        sandbox={
+          fullDocumentPreview
+            ? 'allow-same-origin'
+            : 'allow-same-origin allow-scripts'
+        }
+        srcDoc={
+          fullDocumentPreview
+            ? fullDocumentPreview.html
+            : buildPreviewHtml(html, videoUrl, generationMode, {
+                interactiveSections,
+                selectedSectionKey,
+              })
+        }
+        className="mx-auto w-full bg-white rounded-xl border border-gray-200 shadow-sm"
+        style={{
+          minHeight: 600,
+          width: fullDocumentPreview ? previewDeviceWidth(device) : '100%',
+          maxWidth: '100%',
+        }}
+        title="Preview da página"
+      />
+    </div>
   );
 }

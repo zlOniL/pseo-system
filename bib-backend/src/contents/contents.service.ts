@@ -31,11 +31,34 @@ export interface Content {
   generation_mode: 'ai' | 'template' | 'library';
   wordpress_category: string | null;
   output_format: 'html' | 'whitelabel_json';
+  render_mode: 'fragment' | 'full_document';
+  ftp_remote_page_id: string | null;
+  deployment_status:
+    | 'not_deployed'
+    | 'pending'
+    | 'published'
+    | 'conflict'
+    | 'failed'
+    | 'rolled_back';
+  last_publish_run_id: string | null;
   content_json: unknown;
   external_page_type: 'service' | 'service_location' | 'page' | null;
   external_slug: string | null;
   external_page_id: number | null;
   external_page_url: string | null;
+}
+
+export interface SaveContentOptions {
+  ftp_remote_page_id?: string | null;
+  render_mode?: 'fragment' | 'full_document';
+  deployment_status?:
+    | 'not_deployed'
+    | 'pending'
+    | 'published'
+    | 'conflict'
+    | 'failed'
+    | 'rolled_back';
+  external_page_url?: string | null;
 }
 
 type CacheEntry = {
@@ -100,6 +123,7 @@ export class ContentsService {
     validation: ValidationResult,
     metaDescription?: string,
     generationMode: 'ai' | 'template' | 'library' = 'ai',
+    options: SaveContentOptions = {},
   ): Promise<Content> {
     const { data, error } = (await this.supabase
       .getClient()
@@ -125,6 +149,18 @@ export class ContentsService {
         content_json: input.content_json ?? null,
         external_page_type: input.external_page_type ?? null,
         external_slug: input.external_slug ?? null,
+        ...(options.ftp_remote_page_id !== undefined && {
+          ftp_remote_page_id: options.ftp_remote_page_id,
+        }),
+        ...(options.render_mode !== undefined && {
+          render_mode: options.render_mode,
+        }),
+        ...(options.deployment_status !== undefined && {
+          deployment_status: options.deployment_status,
+        }),
+        ...(options.external_page_url !== undefined && {
+          external_page_url: options.external_page_url,
+        }),
       })
       .select()
       .single()) as DbResult<Content>;
@@ -253,7 +289,7 @@ export class ContentsService {
       .getClient()
       .from('contents')
       .select(
-        'id, created_at, site_id, service_id, main_keyword, service, city, score, score_issues, status, wp_post_url, external_page_url, output_format, external_page_type',
+        'id, created_at, site_id, service_id, main_keyword, service, city, score, score_issues, status, wp_post_url, external_page_url, output_format, external_page_type, render_mode, deployment_status',
       )
       .order('created_at', { ascending: false });
 

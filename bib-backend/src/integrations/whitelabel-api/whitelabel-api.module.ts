@@ -1,4 +1,5 @@
 import { forwardRef, Module } from '@nestjs/common';
+import { LocalityLinksModule } from '../../cities/locality-links.module';
 import { AiModule } from '../../ai/ai.module';
 import { ContentsModule } from '../../contents/contents.module';
 import { ServicesModule } from '../../services/services.module';
@@ -13,6 +14,7 @@ import { ExternalLinkResearchService } from './external-link-research.service';
 
 @Module({
   imports: [
+    LocalityLinksModule,
     AiModule,
     ContentsModule,
     forwardRef(() => ServicesModule),
