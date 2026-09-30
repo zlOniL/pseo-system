@@ -188,8 +188,11 @@ export const api = {
       body: JSON.stringify({ status: 'approved' }),
     }),
 
-  publishContent: (id: string) =>
-    request<Content>(`/contents/${id}/publish`, { method: 'POST' }),
+  publishContent: (id: string, input?: { forceRemoteConflict?: boolean }) =>
+    request<Content>(`/contents/${id}/publish`, {
+      method: 'POST',
+      body: JSON.stringify(input ?? {}),
+    }),
 
   deleteContent: async (id: string): Promise<void> => {
     const res = await fetch(`${BASE_URL}/contents/${id}`, { method: 'DELETE' });

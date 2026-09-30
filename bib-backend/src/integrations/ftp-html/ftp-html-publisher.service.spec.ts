@@ -260,6 +260,21 @@ describe('FtpHtmlPublisherService', () => {
     );
   });
 
+  it('publishes changed remote file when conflict is confirmed', async () => {
+    process.env.FTP_HTML_INTEGRATION_ENABLED = 'true';
+    const subject = createSubject('previous-hash');
+
+    await subject.service.publish('content-1', { forceRemoteConflict: true });
+
+    expect(subject.remoteClient.uploadAccountPath).toHaveBeenCalled();
+    expect(subject.remoteClient.files.get('reparacao-de-estores.html')).toEqual(
+      Buffer.from(newHtml),
+    );
+    expect(subject.updates.contents).toHaveBeenCalledWith(
+      expect.objectContaining({ deployment_status: 'published' }),
+    );
+  });
+
   it('creates a new remote file without requiring an original backup', async () => {
     process.env.FTP_HTML_INTEGRATION_ENABLED = 'true';
     const subject = createSubjectForNewRemotePage();

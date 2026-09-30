@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { publishContentWithRemoteConfirm } from '@/lib/publish';
 import {
   Content,
   ContentSummary,
@@ -1498,7 +1499,7 @@ function ScalePageContent() {
 
   async function publishContentItem(content: ContentSummary) {
     try {
-      await api.publishContent(content.id);
+      await publishContentWithRemoteConfirm(content.id);
       toast.success(`${content.main_keyword} publicada.`);
       void loadPage(false);
     } catch (error) {

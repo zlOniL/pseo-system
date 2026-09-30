@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { publishContentWithRemoteConfirm } from '@/lib/publish';
 import {
   Content,
   RelatedService,
@@ -428,7 +429,7 @@ export function UnifiedLayout({ initialContent }: Props) {
     setError(null);
 
     try {
-      const result = await api.publishContent(content.id);
+      const result = await publishContentWithRemoteConfirm(content.id);
       setContent(result);
       toast.success(
         content.output_format === 'whitelabel_json'

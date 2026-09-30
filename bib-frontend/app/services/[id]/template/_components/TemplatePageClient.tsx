@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { publishContentWithRemoteConfirm } from '@/lib/publish';
 import {
   Content,
   Service,
@@ -617,7 +618,7 @@ export default function TemplatePageClient({ service }: Props) {
     if (!mainContent) return;
     setMainActionLoading(true);
     try {
-      const updated = await api.publishContent(mainContent.id);
+      const updated = await publishContentWithRemoteConfirm(mainContent.id);
       setMainContent(updated);
       toast.success(updated.output_format === 'whitelabel_json' ? 'Pagina principal publicada via API.' : 'Pagina principal publicada no WordPress.');
     } catch (err) {

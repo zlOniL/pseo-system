@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { createHash } from 'crypto';
 import * as path from 'path/posix';
 import { Content } from '../../contents/contents.service';
-import { ContentPublisher } from '../../publishing/content-publisher';
+import { ContentPublisher, PublishOptions } from '../../publishing/content-publisher';
 import { ContentsService } from '../../contents/contents.service';
 import { SupabaseService } from '../../common/supabase.service';
 import { DbResult } from '../../common/supabase.types';
@@ -60,7 +60,10 @@ export class FtpHtmlPublisherService implements ContentPublisher {
     private readonly renderer: FtpHtmlDocumentRenderer,
   ) {}
 
-  async publish(contentId: string): Promise<Content> {
+  async publish(
+    contentId: string,
+    options: PublishOptions = {},
+  ): Promise<Content> {
     if (process.env.FTP_HTML_INTEGRATION_ENABLED !== 'true') {
       throw new BadRequestException(
         'Integracao FTP HTML desabilitada por FTP_HTML_INTEGRATION_ENABLED.',
@@ -80,12 +83,15 @@ export class FtpHtmlPublisherService implements ContentPublisher {
     const remotePage = await this.findRemotePage(content.ftp_remote_page_id);
     const lockKey = `${remotePage.site_id}:${remotePage.remote_path}`;
 
-    return this.withLock(lockKey, () => this.publishLocked(content, remotePage));
+    return this.withLock(lockKey, () =>
+      this.publishLocked(content, remotePage, options),
+    );
   }
 
   private async publishLocked(
     content: Content,
     remotePage: FtpRemotePageRow,
+    options: PublishOptions,
   ): Promise<Content> {
     const config = await this.ftpConfigs.findRawBySiteId(content.site_id!);
     if (!config) throw new NotFoundException('Configuracao FTP nao encontrada.');
@@ -127,6 +133,7 @@ export class FtpHtmlPublisherService implements ContentPublisher {
       if (
         originalBytes &&
         remotePage.last_seen_hash &&
+        !options.forceRemoteConflict &&
         remotePage.last_seen_hash !== remoteHashBefore
       ) {
         await this.markConflict(content.id, run.id);

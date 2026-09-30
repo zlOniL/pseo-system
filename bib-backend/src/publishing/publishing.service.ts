@@ -4,7 +4,7 @@ import { SitesService } from '../sites/sites.service';
 import { WordPressService, BulkPublishResult } from '../wordpress/wordpress.service';
 import { WhitelabelPublisherService } from '../integrations/whitelabel-api/whitelabel-publisher.service';
 import { FtpHtmlPublisherService } from '../integrations/ftp-html/ftp-html-publisher.service';
-import { ContentPublisher } from './content-publisher';
+import { ContentPublisher, PublishOptions } from './content-publisher';
 
 @Injectable()
 export class PublishingService {
@@ -16,8 +16,11 @@ export class PublishingService {
     private readonly ftpHtml: FtpHtmlPublisherService,
   ) {}
 
-  async publish(contentId: string): Promise<Content> {
+  async publish(contentId: string, options?: PublishOptions): Promise<Content> {
     const publisher = await this.publisherForContentId(contentId);
+    if (options?.forceRemoteConflict) {
+      return publisher.publish(contentId, options);
+    }
     return publisher.publish(contentId);
   }
 

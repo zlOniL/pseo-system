@@ -30,7 +30,12 @@ export class WordPressController {
 
   @Post(':id/publish')
   @HttpCode(200)
-  async publish(@Param('id') id: string) {
-    return this.publishingService.publish(id);
+  async publish(
+    @Param('id') id: string,
+    @Body() dto: { forceRemoteConflict?: boolean } = {},
+  ) {
+    return this.publishingService.publish(id, {
+      forceRemoteConflict: dto.forceRemoteConflict === true,
+    });
   }
 }

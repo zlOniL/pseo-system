@@ -28,7 +28,19 @@ describe('WordPressController', () => {
 
     await controller.publish('content-1');
 
-    expect(publishingService.publish).toHaveBeenCalledWith('content-1');
+    expect(publishingService.publish).toHaveBeenCalledWith('content-1', {
+      forceRemoteConflict: false,
+    });
+  });
+
+  it('passes forceRemoteConflict on individual publish', async () => {
+    const { controller, publishingService } = createController();
+
+    await controller.publish('content-1', { forceRemoteConflict: true });
+
+    expect(publishingService.publish).toHaveBeenCalledWith('content-1', {
+      forceRemoteConflict: true,
+    });
   });
 
   it('delegates bulk publish to PublishingService', async () => {

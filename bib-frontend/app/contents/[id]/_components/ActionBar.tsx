@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { publishContentWithRemoteConfirm } from "@/lib/publish";
 import { Content } from "@/lib/types";
 import { scaleReviewHrefForContent } from "@/lib/routes";
 import { RegenerateForm } from "./RegenerateForm";
@@ -31,7 +32,7 @@ export function ActionBar({ content }: { content: Content }) {
   async function handlePublish() {
     setLoading(true);
     try {
-      await api.publishContent(content.id);
+      await publishContentWithRemoteConfirm(content.id);
       toast.success("Publicado no WordPress!");
       router.refresh();
     } catch (err) {

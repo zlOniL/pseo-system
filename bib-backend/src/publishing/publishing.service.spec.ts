@@ -91,6 +91,23 @@ describe('PublishingService', () => {
     expect(ftpHtml.publish).toHaveBeenCalledWith('content-ftp');
   });
 
+  it('passes forceRemoteConflict to the selected publisher', async () => {
+    const { service, contents, sites, ftpHtml } = createSubject();
+    contents.findById.mockResolvedValue({ id: 'content-ftp', site_id: 'site-ftp' });
+    sites.findById.mockResolvedValue({
+      id: 'site-ftp',
+      name: 'FTP',
+      integration_type: 'ftp_html',
+    });
+
+    await expect(
+      service.publish('content-ftp', { forceRemoteConflict: true }),
+    ).rejects.toThrow('ftp disabled');
+    expect(ftpHtml.publish).toHaveBeenCalledWith('content-ftp', {
+      forceRemoteConflict: true,
+    });
+  });
+
   it('returns a controlled error for unknown integrations', async () => {
     const { service, contents, sites } = createSubject();
     contents.findById.mockResolvedValue({
