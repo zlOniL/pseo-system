@@ -471,7 +471,6 @@ export class ServiceTemplatesController {
           related_services: relatedServices,
           service_id: serviceId,
           site_id: service.site_id ?? undefined,
-          skip_backlinks: isMainPage || undefined,
         },
         dto.feedback,
       );
