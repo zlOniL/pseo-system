@@ -31,6 +31,7 @@ describe('FtpHtmlDocumentRenderer', () => {
     expect(html).toContain(fragment);
     expect(html).toContain(template.document_suffix);
     expect(html).toContain('<style data-pseo-content-layout>');
+    expect(html).toContain('line-height:1.65!important');
     expect(html).toContain(`<div class="pseo-content">${fragment}</div>`);
     expect(html.match(/Conteudo novo/g)).toHaveLength(1);
   });
@@ -43,6 +44,21 @@ describe('FtpHtmlDocumentRenderer', () => {
 
     expect(renderer.applyContentLayout(html)).toBe(html);
     expect(html.match(/data-pseo-content-layout/g)).toHaveLength(1);
+  });
+
+  it('refreshes existing content layout styles', () => {
+    const oldHtml = [
+      '<!DOCTYPE html><html><head>',
+      '<style data-pseo-content-layout>.pseo-content{padding:32px 0}</style>',
+      '</head><body><main>Banner</main><div class="pseo-content">Conteudo</div>',
+      '<footer>Rodape</footer></body></html>',
+    ].join('');
+
+    const html = renderer.applyContentLayout(oldHtml);
+
+    expect(html.match(/data-pseo-content-layout/g)).toHaveLength(1);
+    expect(html).toContain('line-height:1.65!important');
+    expect(html).not.toContain('.pseo-content{padding:32px 0}</style>');
   });
 
   it('updates SEO fields and allowed banner text in the prefix', () => {

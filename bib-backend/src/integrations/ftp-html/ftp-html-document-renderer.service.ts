@@ -22,8 +22,10 @@ const FORBIDDEN_FRAGMENT_TAGS =
   /<\s*\/?\s*(html|head|body|nav|footer|script|meta|title)\b/i;
 
 const CONTENT_LAYOUT_STYLE = `<style data-pseo-content-layout>
-.pseo-content{box-sizing:border-box;width:calc(100% - 32px);max-width:1120px;margin:0 auto;padding:32px 0}
-.pseo-content p,.pseo-content li{text-align:justify!important;hyphens:auto;overflow-wrap:break-word}
+.pseo-content{box-sizing:border-box;width:calc(100% - 32px);max-width:1120px;margin:0 auto;padding:32px 0;font-size:16px;line-height:1.65!important;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+.pseo-content *{box-sizing:border-box}
+.pseo-content p,.pseo-content li,.pseo-content dd{text-align:justify!important;hyphens:auto;overflow-wrap:break-word;line-height:1.65!important}
+.pseo-content h1,.pseo-content h2,.pseo-content h3,.pseo-content h4,.pseo-content h5,.pseo-content h6{line-height:1.25!important;overflow-wrap:break-word}
 .pseo-content img,.pseo-content video,.pseo-content iframe{display:block!important;float:none!important;max-width:100%!important;height:auto;margin-left:auto!important;margin-right:auto!important}
 .pseo-content figure,.pseo-content .wp-caption{max-width:100%!important;margin-left:auto!important;margin-right:auto!important;text-align:center}
 @media (max-width:600px){.pseo-content{width:calc(100% - 24px);padding:24px 0}}
@@ -47,7 +49,12 @@ export class FtpHtmlDocumentRenderer {
   }
 
   applyContentLayout(document: string): string {
-    if (document.includes('data-pseo-content-layout')) return document;
+    if (document.includes('data-pseo-content-layout')) {
+      return document.replace(
+        /<style\b[^>]*data-pseo-content-layout[^>]*>[\s\S]*?<\/style>/i,
+        CONTENT_LAYOUT_STYLE,
+      );
+    }
 
     const headEnd = document.toLowerCase().indexOf('</head>');
     const contentStart = document.toLowerCase().indexOf('</main>');

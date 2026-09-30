@@ -62,28 +62,26 @@ function injectPreviewHead(
   html: string,
   input: { baseUrl: string; css: string },
 ): string {
-  const tags = [
-    input.baseUrl ? `<base href="${escapeAttribute(input.baseUrl)}">` : '',
-    `<style data-pseo-preview-lock>${input.css}</style>`,
-  ]
-    .filter(Boolean)
-    .join('');
+  const baseTag = input.baseUrl
+    ? `<base href="${escapeAttribute(input.baseUrl)}">`
+    : '';
+  const styleTag = `<style data-pseo-preview-lock>${input.css}</style>`;
 
   const withoutExistingBase = html.replace(/<base\b[^>]*>/i, '');
 
   if (/<head\b[^>]*>/i.test(withoutExistingBase)) {
-    return withoutExistingBase.replace(/<head\b[^>]*>/i, (match) => {
-      return `${match}${tags}`;
-    });
+    return withoutExistingBase
+      .replace(/<head\b[^>]*>/i, (match) => `${match}${baseTag}`)
+      .replace(/<\/head>/i, `${styleTag}</head>`);
   }
 
   if (/<html\b[^>]*>/i.test(withoutExistingBase)) {
     return withoutExistingBase.replace(/<html\b[^>]*>/i, (match) => {
-      return `${match}<head>${tags}</head>`;
+      return `${match}<head>${baseTag}${styleTag}</head>`;
     });
   }
 
-  return `${tags}${withoutExistingBase}`;
+  return `${baseTag}${styleTag}${withoutExistingBase}`;
 }
 
 function normalizePreviewBaseUrl(value?: string): string {
@@ -170,5 +168,9 @@ function previewLockCss(): string {
     'a,area{pointer-events:none!important;cursor:default!important}',
     'form,button,input,select,textarea{pointer-events:none!important}',
     'img,video{max-width:100%;height:auto}',
+    '.pseo-content{line-height:1.65!important;-webkit-text-size-adjust:100%;text-size-adjust:100%}',
+    '.pseo-content *{box-sizing:border-box}',
+    '.pseo-content p,.pseo-content li,.pseo-content dd{line-height:1.65!important;overflow-wrap:break-word}',
+    '.pseo-content h1,.pseo-content h2,.pseo-content h3,.pseo-content h4,.pseo-content h5,.pseo-content h6{line-height:1.25!important;overflow-wrap:break-word}',
   ].join('');
 }
