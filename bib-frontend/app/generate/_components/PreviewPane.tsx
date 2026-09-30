@@ -162,13 +162,18 @@ export function PreviewPane({
     setResourceWarnings([]);
     const onLoad = () => {
       try {
-        const h = iframe.contentDocument?.body?.scrollHeight;
-        if (h) iframe.style.height = `${h + 40}px`;
-        if (isFullDocumentPreview) {
-          setResourceWarnings(
-            detectPreviewResourceWarnings(iframe.contentDocument),
-          );
-        }
+        const doc = iframe.contentDocument;
+        const updateHeight = () => {
+          const h = doc?.body?.scrollHeight;
+          if (h) iframe.style.height = `${h + 40}px`;
+          if (isFullDocumentPreview) {
+            setResourceWarnings(detectPreviewResourceWarnings(doc));
+          }
+        };
+
+        updateHeight();
+        void doc?.fonts?.ready.then(updateHeight).catch(() => undefined);
+        window.setTimeout(updateHeight, 250);
       } catch {
         // sandboxed
       }

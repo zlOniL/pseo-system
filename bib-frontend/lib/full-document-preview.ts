@@ -27,6 +27,7 @@ export function buildFullDocumentPreviewHtml(
     );
   }
 
+  html = absolutizePreviewResourceUrls(html, baseUrl);
   html = injectPreviewHead(html, {
     baseUrl,
     css: previewLockCss(),
@@ -104,6 +105,64 @@ function escapeAttribute(value: string): string {
     .replace(/"/g, '&quot;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+function absolutizePreviewResourceUrls(html: string, baseUrl: string): string {
+  if (!baseUrl) return html;
+
+  return html
+    .replace(
+      /\b(href|src|poster)=("([^"]*)"|'([^']*)')/gi,
+      (match, attr, quoted, doubleValue, singleValue) => {
+        const quote = quoted[0];
+        const value = doubleValue ?? singleValue ?? '';
+        const resolved = resolvePreviewUrl(value, baseUrl);
+        return resolved
+          ? `${attr}=${quote}${escapeAttribute(resolved)}${quote}`
+          : match;
+      },
+    )
+    .replace(
+      /\bsrcset=("([^"]*)"|'([^']*)')/gi,
+      (match, quoted, doubleValue, singleValue) => {
+        const quote = quoted[0];
+        const value = doubleValue ?? singleValue ?? '';
+        const resolved = resolvePreviewSrcset(value, baseUrl);
+        return resolved
+          ? `srcset=${quote}${escapeAttribute(resolved)}${quote}`
+          : match;
+      },
+    );
+}
+
+function resolvePreviewSrcset(value: string, baseUrl: string): string {
+  const candidates = value
+    .split(',')
+    .map((candidate) => {
+      const [url = '', ...descriptor] = candidate.trim().split(/\s+/);
+      const resolved = resolvePreviewUrl(url, baseUrl);
+      return resolved ? [resolved, ...descriptor].join(' ') : candidate.trim();
+    })
+    .filter(Boolean);
+
+  return candidates.length > 0 ? candidates.join(', ') : '';
+}
+
+function resolvePreviewUrl(value: string, baseUrl: string): string {
+  const trimmed = value.trim();
+  if (
+    !trimmed ||
+    trimmed.startsWith('#') ||
+    /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(trimmed)
+  ) {
+    return '';
+  }
+
+  try {
+    return new URL(trimmed, baseUrl).toString();
+  } catch {
+    return '';
+  }
 }
 
 function previewLockCss(): string {
