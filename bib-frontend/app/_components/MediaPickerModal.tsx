@@ -529,6 +529,15 @@ export default function MediaPickerModal({
             </span>
           )}
           <div className="flex gap-2">
+            {mode === 'images' && selectedImages.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSelectedImages([])}
+                className="text-sm px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                Limpar seleção
+              </button>
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -539,7 +548,7 @@ export default function MediaPickerModal({
             <button
               type="button"
               onClick={handleConfirm}
-              disabled={mode === 'video' ? !selectedVideo : selectedImages.length === 0}
+              disabled={mode === 'video' && !selectedVideo}
               className="text-sm px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-40"
             >
               Confirmar

@@ -18,7 +18,10 @@ export default async function ServiceDetailPage({ params }: Props) {
   if (!service) notFound();
 
   const site = service.site_id ? await api.getSite(service.site_id).catch(() => null) : null;
-  const mainContent = await api.getMainTemplateContent(id).catch(() => null);
+  const mainContentSummary = await api
+    .getMainTemplateContentSummary(id)
+    .catch(() => ({ exists: false }));
+  const hasMainContent = mainContentSummary.exists;
   const scaleHref = scaleGenerateHref({ serviceId: id, siteId: service.site_id });
 
   return (
@@ -31,23 +34,23 @@ export default async function ServiceDetailPage({ params }: Props) {
         <Link
           href={scaleHref}
           className={`flex items-center justify-between w-full rounded-xl px-5 py-4 mb-6 transition-colors group ${
-            mainContent
+            hasMainContent
               ? 'bg-gray-900 text-white hover:bg-gray-800'
               : 'bg-amber-50 text-amber-950 border border-amber-200 hover:bg-amber-100'
           }`}
         >
           <div>
             <p className="text-sm font-semibold">
-              {mainContent ? 'Gerar Páginas por Cidade' : 'Criar página principal'}
+              {hasMainContent ? 'Gerar Páginas por Cidade' : 'Criar página principal'}
             </p>
-            <p className={`text-xs mt-0.5 ${mainContent ? 'text-gray-400' : 'text-amber-700'}`}>
-              {mainContent
+            <p className={`text-xs mt-0.5 ${hasMainContent ? 'text-gray-400' : 'text-amber-700'}`}>
+              {hasMainContent
                 ? 'Abre a central de produção com este serviço selecionado'
                 : 'Este serviço ainda não tem página principal. O cockpit abre no modal correto.'}
             </p>
           </div>
           <svg
-            className={`w-5 h-5 group-hover:translate-x-0.5 transition-transform ${mainContent ? 'text-gray-500' : 'text-amber-700'}`}
+            className={`w-5 h-5 group-hover:translate-x-0.5 transition-transform ${hasMainContent ? 'text-gray-500' : 'text-amber-700'}`}
             fill="none" viewBox="0 0 24 24" stroke="currentColor"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

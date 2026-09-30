@@ -426,6 +426,37 @@ export class ContentsService {
     return fallback.data ?? null;
   }
 
+  async findLatestMainPageSummaryByService(
+    serviceId: string,
+  ): Promise<Pick<Content, 'id' | 'status'> | null> {
+    const select = 'id, status';
+    const { data, error } = (await this.supabase
+      .getClient()
+      .from('contents')
+      .select(select)
+      .eq('service_id', serviceId)
+      .eq('external_page_type', 'service')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()) as DbResult<Pick<Content, 'id' | 'status'>>;
+
+    if (error) this.throwFriendlyContentError(error);
+    if (data) return data;
+
+    const fallback = (await this.supabase
+      .getClient()
+      .from('contents')
+      .select(select)
+      .eq('service_id', serviceId)
+      .eq('city', '')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()) as DbResult<Pick<Content, 'id' | 'status'>>;
+
+    if (fallback.error) this.throwFriendlyContentError(fallback.error);
+    return fallback.data ?? null;
+  }
+
   async forceDelete(id: string): Promise<void> {
     await this.supabase.getClient().from('queue').delete().eq('content_id', id);
     const { error } = await this.supabase

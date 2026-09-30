@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import type { Content } from '@/lib/types';
 import { WhitelabelTextPreview } from './WhitelabelTextPreview';
-import { HtmlPreview } from '@/app/contents/[id]/_components/HtmlPreview';
+import { PreviewPane } from '@/app/generate/_components/PreviewPane';
 
 export function LocalityLinksRefresh({
   content,
@@ -100,10 +100,12 @@ export function LocalityLinksRefresh({
             {preview.content.output_format === 'whitelabel_json' ? (
               <WhitelabelTextPreview content={preview.content.content_json} />
             ) : (
-              <HtmlPreview
+              <PreviewPane
                 html={preview.content.html ?? ''}
                 videoUrl={preview.content.video_url ?? undefined}
+                loading={false}
                 generationMode={preview.content.generation_mode}
+                renderMode={preview.content.render_mode}
               />
             )}
           </div>

@@ -68,6 +68,13 @@ export class ServiceTemplatesController {
     return this.contents.findLatestMainPageByService(serviceId);
   }
 
+  @Get('main-content/summary')
+  async mainContentSummary(@Param('serviceId') serviceId: string) {
+    const content =
+      await this.contents.findLatestMainPageSummaryByService(serviceId);
+    return { exists: Boolean(content), status: content?.status ?? null };
+  }
+
   @Post()
   async generate(
     @Param('serviceId') serviceId: string,

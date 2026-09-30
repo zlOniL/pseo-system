@@ -331,6 +331,11 @@ export const api = {
   getMainTemplateContent: (serviceId: string) =>
     request<Content | null>(`/services/${serviceId}/templates/main-content`),
 
+  getMainTemplateContentSummary: (serviceId: string) =>
+    request<{ exists: boolean; status: ContentSummary['status'] | null }>(
+      `/services/${serviceId}/templates/main-content/summary`,
+    ),
+
   // ── Cities ───────────────────────────────────────────────────────────────────
 
   getCities: () => request<RegionWithCities[]>('/cities'),

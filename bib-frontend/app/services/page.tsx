@@ -43,7 +43,7 @@ export default async function ServicesPage({
         ) : (
           <div className="space-y-2">
             {services.map((service) => (
-              <Link
+              <a
                 key={service.id}
                 href={`/services/${service.id}`}
                 className="group flex items-center gap-4 bib-card hover:border-gray-300 hover:shadow-sm transition-all py-4"
@@ -72,7 +72,7 @@ export default async function ServicesPage({
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="text-gray-300 shrink-0">
                   <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-              </Link>
+              </a>
             ))}
           </div>
         )}
