@@ -57,7 +57,9 @@ export class FtpHtmlContentService {
       );
     }
 
-    const template = await this.findTemplate(remotePage.active_template_version_id);
+    const template = await this.findTemplate(
+      remotePage.active_template_version_id,
+    );
     const html = this.renderer.render({
       template,
       fragmentHtml: input.fragmentHtml,
@@ -72,6 +74,7 @@ export class FtpHtmlContentService {
           to: input.mainKeyword,
         },
       ],
+      videoUrl: input.service.video_url,
     });
 
     return {
@@ -90,9 +93,12 @@ export class FtpHtmlContentService {
     if (!input.city?.trim()) return basePage;
 
     const config = await this.ftpConfigs.findRawBySiteId(service.site_id!);
-    if (!config) throw new BadRequestException('Configuracao FTP nao encontrada.');
+    if (!config)
+      throw new BadRequestException('Configuracao FTP nao encontrada.');
 
-    const remotePath = normalizeRemotePath(`${slugify(input.mainKeyword)}.html`);
+    const remotePath = normalizeRemotePath(
+      `${slugify(input.mainKeyword)}.html`,
+    );
     const publicUrl = `${config.public_base_url.replace(/\/+$/, '')}/${remotePath
       .split('/')
       .map(encodeURIComponent)
@@ -120,7 +126,9 @@ export class FtpHtmlContentService {
     return data as FtpHtmlRemotePage;
   }
 
-  private async findBaseRemotePage(service: Service): Promise<FtpHtmlRemotePage> {
+  private async findBaseRemotePage(
+    service: Service,
+  ): Promise<FtpHtmlRemotePage> {
     const { data, error } = (await this.supabase
       .getClient()
       .from('ftp_remote_pages')

@@ -6,18 +6,25 @@ import { api } from '@/lib/api';
 import {
   FtpRemotePageCheckResult,
   FtpRemotePageImportResult,
+  FtpRemotePageTemplateStatus,
 } from '@/lib/types';
 
 export default function FtpRemotePagePanel({
   serviceId,
   defaultRemotePath,
+  initialStatus,
 }: {
   serviceId: string;
   defaultRemotePath: string;
+  initialStatus: FtpRemotePageTemplateStatus | null;
 }) {
-  const [remotePath, setRemotePath] = useState(defaultRemotePath);
+  const [remotePath, setRemotePath] = useState(
+    initialStatus?.remote_page?.remote_path ?? defaultRemotePath,
+  );
   const [checking, setChecking] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [templateStatus, setTemplateStatus] =
+    useState<FtpRemotePageTemplateStatus | null>(initialStatus);
   const [checkResult, setCheckResult] =
     useState<FtpRemotePageCheckResult | null>(null);
   const [importResult, setImportResult] =
@@ -48,6 +55,10 @@ export default function FtpRemotePagePanel({
         remote_path: remotePath.trim() || undefined,
       });
       setImportResult(result);
+      setTemplateStatus({
+        remote_page: result.remote_page,
+        template_version: result.template_version,
+      });
       if (result.status === 'imported') toast.success('Template FTP importado.');
       if (result.status === 'manual_boundary_required') {
         toast.error('Fronteiras do template exigem revisão manual.');
@@ -60,13 +71,46 @@ export default function FtpRemotePagePanel({
   }
 
   const canImport = checkResult?.status === 'found';
+  const hasTemplate =
+    templateStatus?.remote_page?.import_status === 'imported' &&
+    Boolean(templateStatus.template_version);
 
   return (
     <div className="bib-card mb-4 space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-gray-900">Página HTML remota</p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Verificação e importação do template FTP, sem escrita no servidor.
+          </p>
+        </div>
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+            hasTemplate
+              ? 'bg-emerald-50 text-emerald-700'
+              : 'bg-gray-100 text-gray-500'
+          }`}
+        >
+          {hasTemplate ? 'Template FTP gerado' : 'Template FTP pendente'}
+        </span>
+      </div>
+
+      {templateStatus?.remote_page && (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          <p>Importação salva: {templateStatus.remote_page.import_status}</p>
+          <p>Caminho: {templateStatus.remote_page.remote_path}</p>
+          {templateStatus.template_version && (
+            <p>Versão ativa: {templateStatus.template_version.version}</p>
+          )}
+          {templateStatus.remote_page.last_seen_hash && (
+            <p>Hash: {templateStatus.remote_page.last_seen_hash}</p>
+          )}
+        </div>
+      )}
+
       <div>
-        <p className="text-sm font-medium text-gray-900">Página HTML remota</p>
         <p className="text-xs text-gray-400 mt-0.5">
-          Verificação e importação do template FTP, sem escrita no servidor.
+          O cookie é comparado com o bloco do index.html no mesmo FTP.
         </p>
       </div>
 
@@ -79,6 +123,7 @@ export default function FtpRemotePagePanel({
             setRemotePath(event.target.value);
             setCheckResult(null);
             setImportResult(null);
+            setTemplateStatus(null);
           }}
           placeholder={defaultRemotePath}
         />
@@ -114,6 +159,9 @@ export default function FtpRemotePagePanel({
           )}
           {checkResult.public_url && <p>URL: {checkResult.public_url}</p>}
           {checkResult.size !== undefined && <p>Tamanho: {checkResult.size} bytes</p>}
+          {checkResult.cookie_banner && (
+            <p>Cookies: {checkResult.cookie_banner.message}</p>
+          )}
           {checkResult.error && <p>Erro: {checkResult.error}</p>}
         </div>
       )}
@@ -126,6 +174,9 @@ export default function FtpRemotePagePanel({
           )}
           {importResult.remote_page.last_seen_hash && (
             <p>Hash: {importResult.remote_page.last_seen_hash}</p>
+          )}
+          {importResult.cookie_banner && (
+            <p>Cookies: {importResult.cookie_banner.message}</p>
           )}
           {importResult.boundary_issue && (
             <p>Fronteira: {importResult.boundary_issue}</p>

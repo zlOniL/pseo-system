@@ -40,7 +40,7 @@ const service: Service = {
   seo_description: null,
 };
 
-function createSubject(html: string) {
+function createSubject(html: string, indexHtml?: string) {
   const ftpClient = {
     resolveAttempt: jest.fn().mockReturnValue({
       path: 'public_html/reparacao-de-estores.html',
@@ -51,7 +51,14 @@ function createSubject(html: string) {
       size: Buffer.byteLength(html),
       modifiedAt: new Date('2026-09-25T10:00:00.000Z'),
     }),
-    download: jest.fn().mockResolvedValue(Buffer.from(html)),
+    download: jest.fn((path: string) => {
+      if (path === 'index.html') {
+        return indexHtml
+          ? Promise.resolve(Buffer.from(indexHtml))
+          : Promise.reject(new Error('missing index'));
+      }
+      return Promise.resolve(Buffer.from(html));
+    }),
   };
   const ftpConfigs = {
     findRawBySiteId: jest.fn().mockResolvedValue(config),
@@ -179,5 +186,28 @@ describe('FtpHtmlImportService', () => {
       { onConflict: 'site_id,remote_path' },
     );
     expect(subject.templateInsert).not.toHaveBeenCalled();
+  });
+
+  it('repairs an incomplete cookie banner from index.html during import', async () => {
+    const brokenCookie =
+      '<div class="ck-cookie-w"><div fs-cc="banner" class="ck-modal"><div class="ck-modal__btns-w is--small">Aceitar Cookies</div></div></div>';
+    const fixedCookie =
+      '<div class="ck-cookie-w"><div fs-cc="banner" class="ck-modal"><div class="ck-modal__content-w is--small"><div class="ck-title is--small">Configurações de Cookie</div><div class="ck-desc">Texto</div></div><div class="ck-modal__btns-w is--small">Aceitar Cookies</div></div></div>';
+    const html = `<!DOCTYPE html><html><body><main>Banner</main><section>Old</section><footer>Footer</footer>${brokenCookie}<script src="site.js"></script></body></html>`;
+    const indexHtml = `<!DOCTYPE html><html><body>${fixedCookie}<script src="site.js"></script></body></html>`;
+    const subject = createSubject(html, indexHtml);
+
+    const result = await subject.service.importRemotePage(service);
+
+    expect(result.cookie_banner).toMatchObject({
+      status: 'content_missing',
+      repaired: true,
+    });
+    expect(subject.templateInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        original_html: expect.stringContaining('Configurações de Cookie'),
+        document_suffix: expect.stringContaining('ck-modal__content-w'),
+      }),
+    );
   });
 });

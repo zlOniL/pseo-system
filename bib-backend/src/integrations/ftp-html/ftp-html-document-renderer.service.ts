@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { renderVideoSection } from '../../common/html-assembler';
 
 export interface FtpHtmlTemplateVersion {
   document_prefix: string;
@@ -14,6 +15,7 @@ export interface FtpHtmlSeoFields {
 export interface FtpHtmlRenderInput {
   template: FtpHtmlTemplateVersion;
   fragmentHtml: string;
+  videoUrl?: string | null;
   seo?: FtpHtmlSeoFields;
   textReplacements?: Array<{ from: string; to: string }>;
 }
@@ -40,8 +42,9 @@ export class FtpHtmlDocumentRenderer {
       this.applySeo(input.template.document_prefix, input.seo ?? {}),
       input.textReplacements ?? [],
     );
+    const content = `${renderVideoSection(input.videoUrl)}${input.fragmentHtml}`;
     const document = this.applyContentLayout(
-      `${prefix}${input.fragmentHtml}${input.template.document_suffix}`,
+      `${prefix}${content}${input.template.document_suffix}`,
     );
 
     this.assertValidDocument(document);
@@ -71,7 +74,10 @@ export class FtpHtmlDocumentRenderer {
   }
 
   private assertValidFragment(fragment: string): void {
-    if (/<\s*!doctype\b/i.test(fragment) || FORBIDDEN_FRAGMENT_TAGS.test(fragment)) {
+    if (
+      /<\s*!doctype\b/i.test(fragment) ||
+      FORBIDDEN_FRAGMENT_TAGS.test(fragment)
+    ) {
       throw new BadRequestException(
         'Fragmento FTP invalido: contem tags de documento, navegacao, rodape, script ou metadados.',
       );
@@ -83,10 +89,20 @@ export class FtpHtmlDocumentRenderer {
     if (seo.title?.trim()) {
       next = replaceTagText(next, 'title', seo.title.trim());
       next = replaceMetaContent(next, 'property', 'og:title', seo.title.trim());
-      next = replaceMetaContent(next, 'name', 'twitter:title', seo.title.trim());
+      next = replaceMetaContent(
+        next,
+        'name',
+        'twitter:title',
+        seo.title.trim(),
+      );
     }
     if (seo.description?.trim()) {
-      next = replaceMetaContent(next, 'name', 'description', seo.description.trim());
+      next = replaceMetaContent(
+        next,
+        'name',
+        'description',
+        seo.description.trim(),
+      );
       next = replaceMetaContent(
         next,
         'property',
@@ -102,7 +118,12 @@ export class FtpHtmlDocumentRenderer {
     }
     if (seo.canonicalUrl?.trim()) {
       next = replaceLinkHref(next, 'canonical', seo.canonicalUrl.trim());
-      next = replaceMetaContent(next, 'property', 'og:url', seo.canonicalUrl.trim());
+      next = replaceMetaContent(
+        next,
+        'property',
+        'og:url',
+        seo.canonicalUrl.trim(),
+      );
     }
     return next;
   }
@@ -147,7 +168,9 @@ export class FtpHtmlDocumentRenderer {
     }
 
     if (/{{[^}]+}}|\[\[[^\]]+\]\]/.test(document)) {
-      throw new BadRequestException('Documento FTP invalido: placeholder pendente.');
+      throw new BadRequestException(
+        'Documento FTP invalido: placeholder pendente.',
+      );
     }
   }
 }

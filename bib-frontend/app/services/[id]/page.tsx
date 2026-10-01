@@ -23,6 +23,11 @@ export default async function ServiceDetailPage({ params }: Props) {
     .catch(() => ({ exists: false }));
   const hasMainContent = mainContentSummary.exists;
   const scaleHref = scaleGenerateHref({ serviceId: id, siteId: service.site_id });
+  const defaultRemotePath = `${service.slug}.html`;
+  const ftpTemplateStatus =
+    site?.integration_type === 'ftp_html'
+      ? await api.getFtpTemplateStatus(service.id, defaultRemotePath).catch(() => null)
+      : null;
 
   return (
     <div className="bib-page">
@@ -60,7 +65,8 @@ export default async function ServiceDetailPage({ params }: Props) {
         {site?.integration_type === 'ftp_html' && (
           <FtpRemotePagePanel
             serviceId={service.id}
-            defaultRemotePath={`${service.slug}.html`}
+            defaultRemotePath={defaultRemotePath}
+            initialStatus={ftpTemplateStatus}
           />
         )}
 

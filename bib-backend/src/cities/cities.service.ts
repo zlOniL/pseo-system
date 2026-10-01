@@ -4,6 +4,46 @@ import * as path from 'path';
 import { slugify } from '../common/slug';
 import { getLocationPreposition } from '../common/location-preposition';
 
+export const MAIN_LOCALITIES = [
+  'Lisboa',
+  'Cascais',
+  'Oeiras',
+  'Loures',
+  'Sintra',
+  'Amadora',
+  'Odivelas',
+  'Vila Franca de Xira',
+  'Margem Sul',
+  'Setubal',
+  'Montijo',
+  'Alcochete',
+  'Barreiro',
+  'Seixal',
+  'Almada',
+  'Quinta do Conde',
+  'Palmela',
+  'Pinhal Novo',
+  'Porto',
+  'Vila Nova de Gaia',
+  'Maia',
+  'Matosinhos',
+  'Valongo',
+  'Gondomar',
+  'Espinho',
+  'Braga',
+  'Guimaraes',
+  'Barcelos',
+  'Algarve',
+  'Lagos',
+  'Portimao',
+  'Loule',
+  'Quarteira',
+  'Albufeira',
+  'Vilamoura',
+  'Faro',
+  'Olhao',
+  'Almancil',
+];
 
 @Injectable()
 export class CitiesService implements OnModuleInit {
@@ -54,6 +94,14 @@ export class CitiesService implements OnModuleInit {
    */
   getCityNames(): string[] {
     return Array.from(this.regions.keys());
+  }
+
+  getMainLocalities(): string[] {
+    const all = new Map<string, string>();
+    for (const cities of this.regions.values()) {
+      for (const city of cities) all.set(normalizeCity(city), city);
+    }
+    return MAIN_LOCALITIES.map((city) => all.get(normalizeCity(city)) ?? city);
   }
 
   /**
@@ -174,4 +222,11 @@ export class CitiesService implements OnModuleInit {
 
     return result;
   }
+}
+
+function normalizeCity(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
 }

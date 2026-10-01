@@ -68,6 +68,7 @@ function commonRules(
 ): string {
   return `Regras globais:
 - Retorna apenas HTML valido. Sem markdown, sem explicacoes e sem cercas de codigo.
+- Nao escrevas titulo SEO, meta description ou resumo como texto visivel fora de tags HTML.
 - Usa portugues europeu, tom ${input.tone ?? 'profissional, confiavel e direto'}.
 - Palavra-chave principal: "${keyword(input)}".
 - Servico: "${input.service}".
@@ -100,8 +101,9 @@ function sectionInstructions(
   switch (sectionKey) {
     case 'intro':
       return `Gera o Modulo 1 - H1 / Topo da Pagina:
-- Comeca com comentario <!-- BIB_META: descricao SEO com 140-160 caracteres, citando atendimento 24h -->.
+- Comeca com comentario <!-- BIB_META: [descricao SEO real com 140-160 caracteres, citando atendimento 24h] -->.
 - Depois gera <h1 style="color: #320000;">${mainKeyword} | Tecnicos Especializados 24H/7</h1>.
+- Nao coloques nenhum texto visivel antes do H1.
 - Explica que a empresa e especializada no servico, com atendimento 24h/7, incluindo sabados, domingos e feriados.
 - Menciona casas, apartamentos, lojas, escritorios, condominios, alojamentos locais, empresas e espacos comerciais.
 - Reforca diagnostico antes do orcamento, orcamento justo e antecipado, materiais de qualidade, profissionais especializados e piquetes moveis por localidade.

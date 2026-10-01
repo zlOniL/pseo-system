@@ -2,7 +2,7 @@ import { LocalityLinksService } from './locality-links.service';
 
 function setup() {
   const cities = {
-    getCityNames: jest.fn(() => ['Lisboa', 'Porto', 'Amadora']),
+    getMainLocalities: jest.fn(() => ['Lisboa', 'Porto', 'Amadora']),
     findRegion: jest.fn((city: string) =>
       city === 'Lisboa' ? 'Lisboa' : null,
     ),
@@ -96,7 +96,7 @@ describe('LocalityLinksService', () => {
           input,
         ),
       ).toEqual(original);
-      expect(cities.getCityNames).not.toHaveBeenCalled();
+      expect(cities.getMainLocalities).not.toHaveBeenCalled();
       expect(sites.localityLinksBase).not.toHaveBeenCalled();
     },
   );
@@ -115,7 +115,7 @@ describe('LocalityLinksService', () => {
     expect(sites.localityLinksBase).toHaveBeenCalledWith(
       expect.objectContaining({ integration_type: 'ftp_html' }),
     );
-    expect(links[0].url).toBe('https://cdn.example.pt/janelas-em-lisboa/');
+    expect(links[0].url).toBe('https://cdn.example.pt/janelas-em-lisboa.html');
   });
   it('does not infer WordPress from an environment fallback when no site is selected', async () => {
     const { service, sites } = setup();

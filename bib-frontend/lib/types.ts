@@ -347,7 +347,19 @@ export interface FtpRemotePageCheckResult {
   public_url?: string;
   size?: number;
   modified_at?: string | null;
+  cookie_banner?: FtpCookieBannerCheck;
   error?: string;
+}
+
+export interface FtpCookieBannerCheck {
+  status:
+    | 'valid'
+    | 'missing_reference'
+    | 'missing_target'
+    | 'content_missing'
+    | 'different';
+  repaired: boolean;
+  message: string;
 }
 
 export interface FtpRemotePageImportResult {
@@ -372,8 +384,14 @@ export interface FtpRemotePageImportResult {
     source_encoding: string;
     status: 'active' | 'archived' | 'invalid';
   } | null;
+  cookie_banner?: FtpCookieBannerCheck;
   boundary_issue?: string;
   managed_content_preview?: string;
+}
+
+export interface FtpRemotePageTemplateStatus {
+  remote_page: FtpRemotePageImportResult['remote_page'] | null;
+  template_version: FtpRemotePageImportResult['template_version'];
 }
 
 export interface UpsertFtpSiteConfigInput {

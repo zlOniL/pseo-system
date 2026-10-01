@@ -37,14 +37,19 @@ export class LocalityLinksService {
       ? region
         ? this.cities.getLocalities(region, city)
         : []
-      : this.cities.getCityNames();
+      : this.cities.getMainLocalities();
     if (!localities.length) return [];
     const base = await this.sites.localityLinksBase(site);
     if (!base || !/^https?:\/\//i.test(base))
       throw new BadRequestException(
         'Configure o dominio publico do site para gerar os links de localidades.',
       );
-    return buildLocalityLinks(localities, input.service, base);
+    return buildLocalityLinks(
+      localities,
+      input.service,
+      base,
+      site.integration_type === 'ftp_html' ? '.html' : '/',
+    );
   }
 
   async html(

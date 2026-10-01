@@ -25,9 +25,10 @@ export function buildLocalityLinks(
   localities: string[],
   service: string,
   baseUrl: string,
-  trailingSlash = true,
+  suffix: string | boolean = '/',
 ): LocalityLink[] {
   const base = baseUrl.replace(/\/+$/, '');
+  const linkSuffix = typeof suffix === 'boolean' ? (suffix ? '/' : '') : suffix;
   const seen = new Set<string>();
   return localities.flatMap((locality) => {
     const city = locality.trim();
@@ -37,7 +38,7 @@ export function buildLocalityLinks(
     return [
       {
         label: buildLocalKeyword(service, city),
-        url: `${base}/${slug}${trailingSlash ? '/' : ''}`,
+        url: `${base}/${slug}${linkSuffix}`,
       },
     ];
   });

@@ -27,6 +27,7 @@ import {
   FtpConnectionTestResult,
   FtpRemotePageCheckResult,
   FtpRemotePageImportResult,
+  FtpRemotePageTemplateStatus,
   UpsertFtpSiteConfigInput,
 } from './types';
 
@@ -243,6 +244,13 @@ export const api = {
       `/services/${serviceId}/ftp-html/check-remote-page`,
       { method: 'POST', body: JSON.stringify(input ?? {}) },
     ),
+
+  getFtpTemplateStatus: (serviceId: string, remotePath?: string) => {
+    const qs = remotePath ? `?remote_path=${encodeURIComponent(remotePath)}` : '';
+    return request<FtpRemotePageTemplateStatus>(
+      `/services/${serviceId}/ftp-html/template-status${qs}`,
+    );
+  },
 
   importFtpRemotePage: (serviceId: string, input?: { remote_path?: string }) =>
     request<FtpRemotePageImportResult>(

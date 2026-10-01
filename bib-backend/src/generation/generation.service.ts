@@ -156,8 +156,11 @@ export class GenerationService {
       : await this.generateHtmlRawMonolithic(dto, feedback);
 
     const metaMatch = raw.match(/<!--\s*BIB_META:\s*([\s\S]*?)\s*-->/);
-    const metaDescription = metaMatch ? metaMatch[1].trim() : '';
+    let metaDescription = metaMatch ? metaMatch[1].trim() : '';
     let html = raw.replace(/<!--\s*BIB_META:[\s\S]*?-->\s*/g, '');
+    const cleaned = stripVisibleIntroMetadata(html, metaDescription);
+    html = cleaned.html;
+    metaDescription = cleaned.metaDescription;
 
     // When no city, strip any leftover {{CITY}} placeholders the AI may have missed
     if (!dto.city) {
@@ -477,6 +480,10 @@ export class GenerationService {
       .replace(/<!DOCTYPE[\s\S]*?<body[^>]*>/i, '')
       .replace(/<\/body>[\s\S]*$/i, '')
       .replace(/<\/?html[^>]*>/gi, '')
+      .replace(
+        new RegExp(`<!--\\s*/?BIB_SECTION:${sectionKey}\\s*-->`, 'gi'),
+        '',
+      )
       .trim();
 
     return `<!-- BIB_SECTION:${sectionKey} -->\n${html}\n<!-- /BIB_SECTION:${sectionKey} -->`;
@@ -741,4 +748,37 @@ export class GenerationService {
       );
     }
   }
+}
+
+function stripVisibleIntroMetadata(
+  html: string,
+  metaDescription: string,
+): { html: string; metaDescription: string } {
+  const h1Index = html.search(/<h1\b/i);
+  if (h1Index < 0) return { html, metaDescription };
+
+  const prefix = html.slice(0, h1Index);
+  const visiblePrefix = prefix
+    .replace(/<!--\s*\/?BIB_SECTION:[\s\S]*?-->/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .trim();
+
+  if (!visiblePrefix || /<[^>]+>/.test(visiblePrefix)) {
+    return { html, metaDescription };
+  }
+
+  const nextMeta = isPlaceholderMetaDescription(metaDescription)
+    ? visiblePrefix
+    : metaDescription;
+  return {
+    html: `${prefix.replace(visiblePrefix, '')}${html.slice(h1Index)}`,
+    metaDescription: nextMeta,
+  };
+}
+
+function isPlaceholderMetaDescription(value: string): boolean {
+  return (
+    !value.trim() ||
+    /descri[cç][aã]o\s+SEO|140-160|citando atendimento/i.test(value)
+  );
 }

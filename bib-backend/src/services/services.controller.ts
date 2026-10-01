@@ -66,6 +66,15 @@ export class ServicesController {
     return this.ftpHtmlImport.checkRemotePage(service, dto.remote_path);
   }
 
+  @Get(':id/ftp-html/template-status')
+  async getFtpTemplateStatus(
+    @Param('id') id: string,
+    @Query('remote_path') remotePath?: string,
+  ) {
+    const service = await this.servicesService.findById(id);
+    return this.ftpHtmlImport.getTemplateStatus(service, remotePath);
+  }
+
   @Post(':id/ftp-html/import-remote-page')
   async importFtpRemotePage(
     @Param('id') id: string,

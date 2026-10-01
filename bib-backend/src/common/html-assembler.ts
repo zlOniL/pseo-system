@@ -1,3 +1,10 @@
+export function renderVideoSection(videoUrl?: string | null): string {
+  const video = videoUrl?.trim() ?? '';
+  return video
+    ? `<section style="margin: 0; padding: 0;"><video src="${video}" style="width: 100%; height: auto; display: block;" autoplay="autoplay" loop="loop" muted="" controls="controls"></video></section>\n`
+    : '';
+}
+
 /**
  * Prepends the video block to a template page.
  * The template HTML is kept completely intact — no wrapper div, no extra styles.
@@ -7,11 +14,7 @@ export function assembleTemplateHtml(
   templateHtml: string,
   videoUrl?: string | null,
 ): string {
-  const video = videoUrl?.trim() ?? '';
-  const videoSection = video
-    ? `<section style="margin: 0; padding: 0;"><video src="${video}" style="width: 100%; height: auto; display: block;" autoplay="autoplay" loop="loop" muted="" controls="controls"></video></section>\n`
-    : '';
-
+  const videoSection = renderVideoSection(videoUrl);
   return `${videoSection}<div style="max-width: 1200px; margin: 0 auto; text-align: left; color: #320000;">\n${templateHtml}\n</div>`;
 }
 
@@ -24,11 +27,7 @@ export function assemblePageHtml(
   videoUrl?: string | null,
 ): string {
   const waLink = process.env.WP_WHATSAPP_LINK ?? '';
-  const video = videoUrl?.trim() ?? '';
-
-  const videoSection = video
-    ? `<section style="margin: 0; padding: 0;"><video src="${video}" style="width: 100%; height: auto; display: block;" autoplay="autoplay" loop="loop" muted="" controls="controls"></video></section>\n`
-    : '';
+  const videoSection = renderVideoSection(videoUrl);
 
   return `${videoSection}<div style="max-width: 1200px; margin: 0 auto; text-align: left; color: #320000;">
 ${contentHtml}

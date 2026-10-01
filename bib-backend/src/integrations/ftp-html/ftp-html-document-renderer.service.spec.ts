@@ -14,7 +14,8 @@ const template = {
     '<meta name="twitter:description" content="Descricao antiga">',
     '</head><body><nav>Menu</nav><main><h1>Reparação de Estores</h1></main>',
   ].join(''),
-  document_suffix: '<footer>Rodape</footer><script src="site.js"></script></body></html>',
+  document_suffix:
+    '<footer>Rodape</footer><script src="site.js"></script></body></html>',
 };
 
 describe('FtpHtmlDocumentRenderer', () => {
@@ -46,6 +47,19 @@ describe('FtpHtmlDocumentRenderer', () => {
     expect(html.match(/data-pseo-content-layout/g)).toHaveLength(1);
   });
 
+  it('prepends the configured video to FTP content', () => {
+    const html = renderer.render({
+      template,
+      fragmentHtml: '<section>Conteudo</section>',
+      videoUrl: 'https://cdn.example/video.mp4',
+    });
+
+    expect(html).toContain('<video src="https://cdn.example/video.mp4"');
+    expect(html.indexOf('<video')).toBeLessThan(
+      html.indexOf('<section>Conteudo</section>'),
+    );
+  });
+
   it('refreshes existing content layout styles', () => {
     const oldHtml = [
       '<!DOCTYPE html><html><head>',
@@ -68,7 +82,8 @@ describe('FtpHtmlDocumentRenderer', () => {
       seo: {
         title: 'Reparação de Estores em Lisboa',
         description: 'Assistência de estores em Lisboa.',
-        canonicalUrl: 'https://urgentreparacoes.pt/reparacao-de-estores-em-lisboa.html',
+        canonicalUrl:
+          'https://urgentreparacoes.pt/reparacao-de-estores-em-lisboa.html',
       },
       textReplacements: [
         {
