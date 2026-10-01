@@ -127,7 +127,7 @@ export default function MediaPickerModal({
   }
 
   function cleanFileTitle(filename: string) {
-    return filename.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim() || 'Imagem';
+    return filename.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim() || (mode === 'video' ? 'Vídeo' : 'Imagem');
   }
 
   function handleFilesSelected(files: FileList | null) {
@@ -237,6 +237,7 @@ export default function MediaPickerModal({
       await api.deleteSupabaseMedia(String(item.id));
       setItems((prev) => prev.filter((current) => String(current.id) !== String(item.id)));
       setSelectedImages((prev) => prev.filter((url) => url !== item.url));
+      if (selectedVideo === item.url) setSelectedVideo(null);
       if (editingItem && String(editingItem.id) === String(item.id)) setEditingItem(null);
     } catch (err) {
       setUploadError((err as Error).message);
@@ -308,7 +309,7 @@ export default function MediaPickerModal({
                         type="text"
                         value={item.alt}
                         onChange={(e) => updatePendingUpload(item.id, 'alt', e.target.value)}
-                        placeholder="Alt da imagem"
+                        placeholder={mode === 'video' ? 'Alt do vídeo' : 'Alt da imagem'}
                         className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-gray-400"
                       />
                       <button
@@ -356,48 +357,67 @@ export default function MediaPickerModal({
               {items.map((item) => {
                 const isSelected = selectedVideo === item.url;
                 return (
-                  <button
-                    type="button"
-                    key={item.id}
-                    onClick={() => handleVideoClick(item.url)}
-                    className={`relative aspect-video rounded-lg overflow-hidden border-2 transition-all bg-black ${
-                      isSelected
-                        ? 'border-gray-900 ring-2 ring-gray-900/20'
-                        : 'border-transparent hover:border-gray-400'
-                    }`}
-                  >
-                    {item.thumbnail ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={item.thumbnail}
-                        alt={item.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <video
-                        src={item.url}
-                        preload="metadata"
-                        muted
-                        className="w-full h-full object-cover"
-                      />
-                    )}
-                    {/* Play overlay */}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30">
-                      <svg className="w-8 h-8 text-white/80" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                      </svg>
-                      <span className="text-white text-xs mt-1 px-2 truncate max-w-full">
-                        {item.title || item.url.split('/').pop()}
-                      </span>
-                    </div>
-                    {isSelected && (
-                      <span className="absolute top-1 right-1 w-6 h-6 rounded-full bg-gray-900 flex items-center justify-center shadow">
-                        <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  <div key={item.id} className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => handleVideoClick(item.url)}
+                      className={`relative aspect-video w-full rounded-lg overflow-hidden border-2 transition-all bg-black ${
+                        isSelected
+                          ? 'border-gray-900 ring-2 ring-gray-900/20'
+                          : 'border-transparent hover:border-gray-400'
+                      }`}
+                    >
+                      {item.thumbnail ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={item.thumbnail}
+                          alt={item.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <video
+                          src={item.url}
+                          preload="metadata"
+                          muted
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                      {/* Play overlay */}
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30">
+                        <svg className="w-8 h-8 text-white/80" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
                         </svg>
-                      </span>
+                        <span className="text-white text-xs mt-1 px-2 truncate max-w-full">
+                          {item.title || item.url.split('/').pop()}
+                        </span>
+                      </div>
+                      {isSelected && (
+                        <span className="absolute top-1 right-1 w-6 h-6 rounded-full bg-gray-900 flex items-center justify-center shadow">
+                          <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </span>
+                      )}
+                    </button>
+                    {source === 'supabase' && (
+                      <div className="grid grid-cols-2 gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openEditor(item)}
+                          className="text-[11px] px-2 py-1 rounded border border-gray-200 hover:bg-gray-50"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void deleteItem(item)}
+                          className="text-[11px] px-2 py-1 rounded border border-red-100 text-red-600 hover:bg-red-50"
+                        >
+                          Excluir
+                        </button>
+                      </div>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -469,7 +489,7 @@ export default function MediaPickerModal({
                 type="text"
                 value={editingAlt}
                 onChange={(e) => setEditingAlt(e.target.value)}
-                placeholder="Alt da imagem"
+                placeholder={mode === 'video' ? 'Alt do vídeo' : 'Alt da imagem'}
                 className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-gray-400"
               />
               <button
