@@ -19,7 +19,7 @@ describe('generation includes locality links before persistence', () => {
         mode === 'sections' ? 'true' : 'false';
       process.env.SECTION_GENERATION_FORMATS = 'html';
       const raw =
-        '<!-- BIB_META: Descrição original --><h1>Janelas</h1><h2>Perguntas Frequentes</h2><p>Texto</p>';
+        '<!-- BIB_META: Descrição original --><h1>Janelas</h1><!-- BIB_SECTION:perguntas_frequentes --><h2>Perguntas Frequentes</h2><p>Texto</p><!-- /BIB_SECTION:perguntas_frequentes --><!-- BIB_SECTION:mais_sobre --><h2>Mais Sobre</h2><p>Fecho</p><!-- /BIB_SECTION:mais_sobre -->';
       const locality = new LocalityLinksService(
         { getMainLocalities: () => ['Lisboa', 'Porto'] } as never,
         {
@@ -51,13 +51,21 @@ describe('generation includes locality links before persistence', () => {
       };
       const result = await subject.buildHtmlRaw(dto);
       expect(result.metaDescription).toBe('Descrição original');
+      expect(result.html).toContain('Também Fazemos Janelas');
+      expect(result.html).toContain('https://site.pt/janelas-em-lisboa/');
       expect(result.html).toContain('https://site.pt/janelas-no-porto/');
-      expect(result.html.indexOf('Também atendemos')).toBeLessThan(
-        result.html.indexOf('Perguntas Frequentes'),
+      expect(result.html.indexOf('Também Fazemos Janelas')).toBeLessThan(
+        result.html.indexOf('BIB_SECTION:perguntas_frequentes'),
+      );
+      expect(result.html.indexOf('Também atendemos')).toBeGreaterThan(
+        result.html.indexOf('/BIB_SECTION:mais_sobre'),
       );
       expect(
         (await subject.buildHtmlRaw({ ...dto, skip_backlinks: true })).html,
       ).not.toContain('Também atendemos');
+      expect(
+        (await subject.buildHtmlRaw({ ...dto, skip_backlinks: true })).html,
+      ).not.toContain('Também Fazemos');
     },
   );
 

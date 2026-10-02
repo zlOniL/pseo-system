@@ -1,6 +1,7 @@
 import { parse } from 'node-html-parser';
 import {
   buildLocalityLinks,
+  buildOtherLocalityLinks,
   withLocalityLinksHtml,
   withLocalityLinksJson,
 } from './locality-links';
@@ -10,6 +11,10 @@ import { parseHtmlSections } from '../service-templates/html-section-parser';
 const links = buildLocalityLinks(
   ['Lisboa', 'Porto', 'Amadora'],
   'Reparação de Janelas',
+  'https://example.pt/',
+);
+const otherLinks = buildOtherLocalityLinks(
+  'Reparação de Estores',
   'https://example.pt/',
 );
 
@@ -29,24 +34,76 @@ describe('dynamic locality links', () => {
     ).toHaveLength(1);
   });
 
-  it('inserts outside editable markers and remains identical when refreshed twice', () => {
+  it('inserts outside editable markers after more-about and remains identical when refreshed twice', () => {
     const local =
       '<!-- BIB_SECTION:contexto_local --><h2>Contexto Local</h2><p>Texto local</p><!-- /BIB_SECTION:contexto_local -->';
     const faq =
       '<!-- BIB_SECTION:perguntas_frequentes --><h2>Perguntas Frequentes</h2><p>Resposta</p><!-- /BIB_SECTION:perguntas_frequentes -->';
-    const result = withLocalityLinksHtml(`<main>${local}${faq}</main>`, links);
+    const more =
+      '<!-- BIB_SECTION:mais_sobre --><h2>Mais Sobre</h2><p>Fecho</p><!-- /BIB_SECTION:mais_sobre -->';
+    const result = withLocalityLinksHtml(
+      `<main>${local}${faq}${more}</main>`,
+      links,
+    );
     expect(result).toContain(local);
     expect(result).toContain(faq);
     expect(result.indexOf('data-bib-locality-links')).toBeGreaterThan(
-      result.indexOf('/BIB_SECTION:contexto_local'),
-    );
-    expect(result.indexOf('data-bib-locality-links')).toBeLessThan(
-      result.indexOf('<!-- BIB_SECTION:perguntas'),
+      result.indexOf('/BIB_SECTION:mais_sobre'),
     );
     expect(withLocalityLinksHtml(result, links)).toBe(result);
     const { sections } = parseHtmlSections(result);
     for (const value of sections.values())
       expect(value).not.toContain('data-bib-locality-links');
+  });
+
+  it('inserts fixed service locality links between local context and FAQ', () => {
+    const local =
+      '<!-- BIB_SECTION:contexto_local --><h2>Contexto Local</h2><p>Texto local</p><!-- /BIB_SECTION:contexto_local -->';
+    const faq =
+      '<!-- BIB_SECTION:perguntas_frequentes --><h2>Perguntas Frequentes</h2><p>Resposta</p><!-- /BIB_SECTION:perguntas_frequentes -->';
+    const more =
+      '<!-- BIB_SECTION:mais_sobre --><h2>Mais Sobre</h2><p>Fecho</p><!-- /BIB_SECTION:mais_sobre -->';
+    const result = withLocalityLinksHtml(
+      `<main>${local}${faq}${more}</main>`,
+      links,
+      { service: 'Reparação de Estores', links: otherLinks },
+    );
+
+    expect(result).toContain(
+      'Também Fazemos Reparação de Estores noutras Localidades',
+    );
+    expect(result).toContain('Reparação de Estores Lisboa');
+    expect(result).toContain(
+      'https://example.pt/reparacao-de-estores-em-vila-nova-de-gaia/',
+    );
+    expect(result.indexOf('data-bib-other-locality-links')).toBeGreaterThan(
+      result.indexOf('/BIB_SECTION:contexto_local'),
+    );
+    expect(result.indexOf('data-bib-other-locality-links')).toBeLessThan(
+      result.indexOf('BIB_SECTION:perguntas_frequentes'),
+    );
+    expect(result.indexOf('data-bib-locality-links')).toBeGreaterThan(
+      result.indexOf('/BIB_SECTION:mais_sobre'),
+    );
+    expect(
+      withLocalityLinksHtml(result, links, {
+        service: 'Reparação de Estores',
+        links: otherLinks,
+      }),
+    ).toBe(result);
+  });
+
+  it('inserts after an unmarked more-about H2 block', () => {
+    const html =
+      '<main><h1>Janelas</h1><h2>Mais Sobre Janelas</h2><p>Fecho</p><h2>Rodape</h2><p>Depois</p></main>';
+    const result = withLocalityLinksHtml(html, links);
+
+    expect(result.indexOf('data-bib-locality-links')).toBeGreaterThan(
+      result.indexOf('<p>Fecho</p>'),
+    );
+    expect(result.indexOf('data-bib-locality-links')).toBeLessThan(
+      result.indexOf('<h2>Rodape</h2>'),
+    );
   });
 
   it.each([

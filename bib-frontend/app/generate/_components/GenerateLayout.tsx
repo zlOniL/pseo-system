@@ -82,7 +82,6 @@ export function GenerateLayout() {
         related_services: validRelated.length > 0 ? validRelated : undefined,
         images: hasAnyImage ? images : undefined,
         video_url: videoUrl.trim() || undefined,
-        skip_backlinks: true,
         wordpress_category: wpCategory || undefined,
         site_id: window.localStorage.getItem("bib-selected-site-id") || undefined,
       });

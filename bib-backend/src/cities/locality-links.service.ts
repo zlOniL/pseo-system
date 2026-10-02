@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { CitiesService } from './cities.service';
 import { SitesService, Site } from '../sites/sites.service';
 import {
+  buildOtherLocalityLinks,
   buildLocalityLinks,
   withLocalityLinksHtml,
   withLocalityLinksJson,
@@ -52,13 +53,35 @@ export class LocalityLinksService {
     );
   }
 
+  async otherLinks(input: LocalityLinksInput, knownSite?: Site) {
+    if (input.skip_backlinks) return [];
+    const site =
+      knownSite ??
+      (input.site_id ? await this.sites.findById(input.site_id) : null);
+    if (!site || !['wordpress', 'ftp_html'].includes(site.integration_type))
+      return [];
+    const base = await this.sites.localityLinksBase(site);
+    if (!base || !/^https?:\/\//i.test(base))
+      throw new BadRequestException(
+        'Configure o dominio publico do site para gerar os links de localidades.',
+      );
+    return buildOtherLocalityLinks(
+      input.service,
+      base,
+      site.integration_type === 'ftp_html' ? '.html' : '/',
+    );
+  }
+
   async html(
     html: string,
     input: LocalityLinksInput,
     site?: Site,
   ): Promise<string> {
     if (input.skip_backlinks) return stripLocalityBacklinksSection(html);
-    return withLocalityLinksHtml(html, await this.links(input, site));
+    return withLocalityLinksHtml(html, await this.links(input, site), {
+      service: input.service,
+      links: await this.otherLinks(input, site),
+    });
   }
 
   async json(

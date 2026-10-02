@@ -365,7 +365,6 @@ export function UnifiedLayout({ initialContent }: Props) {
       video_url: videoUrl.trim() || undefined,
       locality_notes: localityNotes.trim() || undefined,
       service_notes: serviceNotes.trim() || undefined,
-      skip_backlinks: true as const,
       wordpress_category: wpCategory || undefined,
       site_id: selectedSiteId || undefined,
     };

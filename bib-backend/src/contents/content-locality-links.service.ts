@@ -26,6 +26,7 @@ export class ContentLocalityLinksService {
       city: original.external_page_type === 'service' ? null : original.city,
     };
     const links = await this.localityLinks.links(input);
+    let linkCount = links.length;
     let content: Content;
     if (original.output_format === 'whitelabel_json') {
       const json = original.content_json as WhitelabelContentJson | null;
@@ -40,7 +41,15 @@ export class ContentLocalityLinksService {
     } else {
       if (!original.html?.trim())
         throw new BadRequestException('Conteudo sem HTML para atualizar.');
-      const html = withLocalityLinksHtml(original.html, links);
+      const otherLinks =
+        typeof this.localityLinks.otherLinks === 'function'
+          ? await this.localityLinks.otherLinks(input)
+          : [];
+      linkCount += otherLinks.length;
+      const html = withLocalityLinksHtml(original.html, links, {
+        service: input.service,
+        links: otherLinks,
+      });
       let minWords = 5000;
       if (original.service_id) {
         const { data, error } = (await this.supabase
@@ -69,7 +78,7 @@ export class ContentLocalityLinksService {
       JSON.stringify(content.content_json) !==
         JSON.stringify(original.content_json);
     if (changed) content.status = 'draft';
-    return { content, changed, link_count: links.length };
+    return { content, changed, link_count: linkCount };
   }
 
   /** Re-read the latest document; leave publication IDs and all other fields intact. */

@@ -16,7 +16,7 @@ export function stripLocalityBacklinksSection(html: string): string {
     ranges.push([range[0], end]);
   };
   for (const block of root.querySelectorAll(
-    '[data-bib-locality-links], #dynamic-neighborhood-links',
+    '[data-bib-locality-links], [data-bib-other-locality-links], #dynamic-neighborhood-links',
   ))
     addRange(block.range);
   for (const heading of root.querySelectorAll('h2')) {
