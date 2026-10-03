@@ -405,6 +405,7 @@ export class ContentsService {
       .select()
       .eq('service_id', serviceId)
       .eq('external_page_type', 'service')
+      .eq('city', '')
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()) as DbResult<Content>;
@@ -436,6 +437,7 @@ export class ContentsService {
       .select(select)
       .eq('service_id', serviceId)
       .eq('external_page_type', 'service')
+      .eq('city', '')
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()) as DbResult<Pick<Content, 'id' | 'status'>>;

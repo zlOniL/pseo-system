@@ -137,8 +137,27 @@ export class WordPressService {
     return site;
   }
 
+  private assertPublishableContent(content: Content): void {
+    const city = content.city?.trim() ?? '';
+    if (content.external_page_type === 'service' && city) {
+      throw new BadRequestException(
+        `Pagina principal "${content.main_keyword}" esta marcada com cidade "${city}". Corrija/recrie como pagina principal sem cidade antes de publicar.`,
+      );
+    }
+    if (content.external_page_type === 'service_location' && !city) {
+      throw new BadRequestException(
+        `Pagina de localidade "${content.main_keyword}" esta sem cidade. Corrija antes de publicar.`,
+      );
+    }
+  }
+
+  private publishSlug(content: Content): string {
+    return slugify(content.external_slug ?? content.main_keyword);
+  }
+
   async publish(contentId: string): Promise<Content> {
     const content = await this.contents.findById(contentId);
+    this.assertPublishableContent(content);
     const site = await this.siteForContent(content);
     const fullHtml =
       content.generation_mode === 'template'
@@ -146,7 +165,7 @@ export class WordPressService {
         : assemblePageHtml(content.html ?? '', content.video_url);
 
     const wpUrl = `${this.wpApiBase(site)}/post`;
-    const slug = slugify(content.main_keyword);
+    const slug = this.publishSlug(content);
     const title = content.main_keyword;
 
     // Load service once — used for both SEO and category resolution
@@ -250,7 +269,8 @@ export class WordPressService {
         ? assembleTemplateHtml(content.html ?? '', content.video_url)
         : assemblePageHtml(content.html ?? '', content.video_url);
 
-    const slug = slugify(content.main_keyword);
+    this.assertPublishableContent(content);
+    const slug = this.publishSlug(content);
     const title = content.main_keyword;
     let seoTitle = `${content.main_keyword} — Atendimento 24h`;
     let metaDescription = content.meta_description ?? '';

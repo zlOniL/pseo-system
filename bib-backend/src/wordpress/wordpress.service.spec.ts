@@ -38,6 +38,10 @@ const content: Content = {
   generation_mode: 'ai',
   wordpress_category: 'Estores',
   output_format: 'html',
+  render_mode: 'fragment',
+  ftp_remote_page_id: null,
+  deployment_status: 'not_deployed',
+  last_publish_run_id: null,
   content_json: null,
   external_page_type: null,
   external_slug: null,
@@ -162,5 +166,44 @@ describe('WordPressService', () => {
       InternalServerErrorException,
     );
     expect(contents.setPublished).not.toHaveBeenCalled();
+  });
+
+  it('refuses to publish a main service page that still has a city', async () => {
+    contents.findById.mockResolvedValueOnce({
+      ...content,
+      city: 'Porto',
+      external_page_type: 'service',
+    });
+
+    await expect(service.publish(content.id)).rejects.toThrow(
+      'esta marcada com cidade "Porto"',
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('uses the stored external slug when publishing', async () => {
+    contents.findById.mockResolvedValueOnce({
+      ...content,
+      main_keyword: 'Reparacao de Estores no Porto',
+      city: '',
+      external_page_type: 'service',
+      external_slug: 'reparacao-de-estores',
+    });
+    fetchMock
+      .mockResolvedValueOnce(okJson([{ id: 10, name: 'Blog', parent: 0 }]))
+      .mockResolvedValueOnce(okJson([{ id: 10, name: 'Blog', parent: 0 }]))
+      .mockResolvedValueOnce(okJson({ id: 11, name: 'Estores', parent: 10 }))
+      .mockResolvedValueOnce(
+        okJson({
+          id: 123,
+          link: 'https://urgentreparacoes.pt/reparacao-de-estores',
+        }),
+      );
+
+    await service.publish(content.id);
+
+    const publishCall = fetchMock.mock.calls.at(-1)!;
+    const payload = JSON.parse(publishCall[1].body as string);
+    expect(payload.slug).toBe('reparacao-de-estores');
   });
 });
