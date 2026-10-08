@@ -204,6 +204,8 @@ describe('WordPressService', () => {
 
     const publishCall = fetchMock.mock.calls.at(-1)!;
     const payload = JSON.parse(publishCall[1].body as string);
+    expect(payload.title).toBe('Reparacao de Estores');
+    expect(payload.seo_title).toBe('Reparacao de Estores — Atendimento 24h');
     expect(payload.slug).toBe('reparacao-de-estores');
   });
 });

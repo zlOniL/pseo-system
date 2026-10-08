@@ -152,7 +152,17 @@ export class WordPressService {
   }
 
   private publishSlug(content: Content): string {
-    return slugify(content.external_slug ?? content.main_keyword);
+    const fallback =
+      content.external_page_type === 'service'
+        ? content.service
+        : content.main_keyword;
+    return slugify(content.external_slug ?? fallback);
+  }
+
+  private publishTitle(content: Content): string {
+    return content.external_page_type === 'service'
+      ? content.service
+      : content.main_keyword;
   }
 
   async publish(contentId: string): Promise<Content> {
@@ -166,7 +176,7 @@ export class WordPressService {
 
     const wpUrl = `${this.wpApiBase(site)}/post`;
     const slug = this.publishSlug(content);
-    const title = content.main_keyword;
+    const title = this.publishTitle(content);
 
     // Load service once — used for both SEO and category resolution
     const service = content.service_id
@@ -175,7 +185,7 @@ export class WordPressService {
 
     // SEO title and description — source: service DB → default
     const city = content.city ?? '';
-    let seoTitle = `${content.main_keyword} — Atendimento 24h`;
+    let seoTitle = `${title} — Atendimento 24h`;
     let metaDescription = content.meta_description ?? '';
 
     if (service?.seo_title) {
@@ -271,8 +281,8 @@ export class WordPressService {
 
     this.assertPublishableContent(content);
     const slug = this.publishSlug(content);
-    const title = content.main_keyword;
-    let seoTitle = `${content.main_keyword} — Atendimento 24h`;
+    const title = this.publishTitle(content);
+    let seoTitle = `${title} — Atendimento 24h`;
     let metaDescription = content.meta_description ?? '';
 
     if (serviceSeo) {
