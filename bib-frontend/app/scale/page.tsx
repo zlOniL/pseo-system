@@ -37,10 +37,6 @@ const REVIEW_STATUSES: ReviewStatus[] = ['draft', 'approved', 'published'];
 const ALL_MODES: QueueMode[] = ['ai', 'template', 'library'];
 const SITE_STORAGE_KEY = 'bib-selected-site-id';
 
-function defaultPeriodForView(view: WorkView): PeriodPreset {
-  return view === 'review' ? 'all' : '24h';
-}
-
 const MAIN_LOCALITIES = [
   'Lisboa',
   'Cascais',
@@ -1021,7 +1017,6 @@ function ScalePageContent() {
   const shouldOpenGenerateModal = searchParams.get('modal') === 'generate' || requestedCreateMain;
   const requestedView: WorkView =
     searchParams.get('view') === 'review' ? 'review' : 'production';
-  const requestedPeriod = defaultPeriodForView(requestedView);
   const rawReviewStatus = searchParams.get('review_status');
   const requestedReviewStatus = REVIEW_STATUSES.includes(rawReviewStatus as ReviewStatus)
     ? (rawReviewStatus as ReviewStatus)
@@ -1047,7 +1042,7 @@ function ScalePageContent() {
     requestedReviewStatus ? [requestedReviewStatus] : [],
   );
   const [selectedModes, setSelectedModes] = useState<QueueMode[]>(ALL_MODES);
-  const [period, setPeriod] = useState<PeriodPreset>(requestedPeriod);
+  const [period, setPeriod] = useState<PeriodPreset>('24h');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [cityQuery, setCityQuery] = useState(requestedCity);
@@ -1061,7 +1056,7 @@ function ScalePageContent() {
       serviceId: requestedServiceId,
       selectedStatuses: [],
       selectedModes: ALL_MODES,
-      period: requestedPeriod,
+      period: '24h',
       fromDate: '',
       toDate: '',
       selectedLocality: null,
@@ -1244,9 +1239,6 @@ function ScalePageContent() {
     urlIntentRef.current = intent;
 
     setActiveView(requestedView);
-    setPeriod(requestedPeriod);
-    setFromDate('');
-    setToDate('');
     setSelectedProductionStatuses([]);
     setSelectedReviewStatuses(requestedReviewStatus ? [requestedReviewStatus] : []);
     setPage(1);
@@ -1261,9 +1253,6 @@ function ScalePageContent() {
     setAppliedFilters((current) => {
       const next = { ...current };
       delete next.status;
-      delete next.from;
-      delete next.to;
-      if (requestedPeriod === '24h') next.from = lastHoursIso(24);
       if (requestedSiteId) next.site_id = requestedSiteId;
       if (requestedServiceId) next.service_id = requestedServiceId;
       if (requestedCity) {
@@ -1280,7 +1269,6 @@ function ScalePageContent() {
     requestedReviewStatus,
     requestedServiceId,
     requestedSiteId,
-    requestedPeriod,
     requestedView,
     searchParams,
     shouldOpenGenerateModal,
@@ -1416,27 +1404,6 @@ function ScalePageContent() {
     setActiveView('production');
     setSelectedProductionStatuses((current) => toggleFilterValue(current, status));
     setPage(1);
-  }
-
-  function switchWorkView(nextView: WorkView) {
-    if (activeView === nextView) return;
-
-    const nextPeriod = defaultPeriodForView(nextView);
-    setSelectedProductionStatuses([]);
-    setSelectedReviewStatuses([]);
-    setActiveView(nextView);
-    setPeriod(nextPeriod);
-    setFromDate('');
-    setToDate('');
-    setPage(1);
-    setAppliedFilters((current) => {
-      const next = { ...current };
-      delete next.status;
-      delete next.from;
-      delete next.to;
-      if (nextPeriod === '24h') next.from = lastHoursIso(24);
-      return next;
-    });
   }
 
   async function retryItem(item: QueueItem) {
@@ -1592,7 +1559,14 @@ function ScalePageContent() {
             ].map((item) => (
             <button
               key={item.view}
-              onClick={() => switchWorkView(item.view)}
+              onClick={() => {
+                if (activeView !== item.view) {
+                  setSelectedProductionStatuses([]);
+                  setSelectedReviewStatuses([]);
+                }
+                setActiveView(item.view);
+                setPage(1);
+              }}
               className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
                 activeView === item.view
                   ? 'bg-gray-900 text-white'
