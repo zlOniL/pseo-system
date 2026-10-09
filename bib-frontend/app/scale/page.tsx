@@ -1334,6 +1334,7 @@ function ScalePageContent() {
   ]);
 
   const summary = filterStats(stats);
+  const productionPendingCount = (stats?.pending ?? 0) + (stats?.processing ?? 0);
   const totalPages = Math.max(1, Math.ceil(total / pageLimit));
   const selectedStatusCount =
     activeView === 'production'
@@ -1554,7 +1555,7 @@ function ScalePageContent() {
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
             {[
-              { view: 'production' as const, label: 'Producao', value: stats?.pending ?? 0 },
+              { view: 'production' as const, label: 'Producao', value: productionPendingCount },
               { view: 'review' as const, label: 'Revisao', value: reviewStats.draft },
             ].map((item) => (
             <button
@@ -1595,7 +1596,7 @@ function ScalePageContent() {
           {activeView === 'production' ? (
             <>
               {[
-                { label: 'Pendentes', value: stats?.pending ?? 0, color: 'text-gray-700', status: 'pending' as const },
+                { label: 'Pendentes', value: productionPendingCount, color: 'text-gray-700', status: 'pending' as const },
                 { label: 'Concluidas', value: stats?.done ?? 0, color: 'text-emerald-600', status: 'done' as const },
                 { label: 'Falhadas', value: stats?.failed ?? 0, color: 'text-red-600', status: 'failed' as const },
               ].map((card) => (

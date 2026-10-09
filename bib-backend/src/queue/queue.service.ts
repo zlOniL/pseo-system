@@ -285,6 +285,8 @@ export class QueueService {
       .getClient()
       .from('queue')
       .select('*')
+      // Descending text order keeps "processing" ahead of every other queue status.
+      .order('status', { ascending: false })
       .order('created_at', { ascending: false })
       .range(fromIndex, toIndex);
 
@@ -427,6 +429,7 @@ export class QueueService {
 
     if (filters.status) {
       const statuses = filters.status.split(',').filter(Boolean);
+      if (filters.status === 'pending') statuses.push('processing');
       next =
         statuses.length > 1
           ? next.in('status', statuses)
