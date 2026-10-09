@@ -11,6 +11,7 @@ function pathSupportsSiteFilter(pathname: string): boolean {
   return (
     pathname === '/services' ||
     pathname === '/services/new' ||
+    pathname === '/contents' ||
     pathname === '/scale'
   );
 }
