@@ -84,7 +84,7 @@ export class FtpHtmlDocumentRenderer {
     }
   }
 
-  private applySeo(prefix: string, seo: FtpHtmlSeoFields): string {
+  applySeo(prefix: string, seo: FtpHtmlSeoFields): string {
     let next = prefix;
     if (seo.title?.trim()) {
       next = replaceTagText(next, 'title', seo.title.trim());

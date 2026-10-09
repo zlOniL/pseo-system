@@ -61,6 +61,13 @@ export interface SaveContentOptions {
   external_page_url?: string | null;
 }
 
+export interface UpdateContentOptions extends SaveContentOptions {
+  external_page_type?: Content['external_page_type'];
+  external_slug?: string | null;
+  wp_post_url?: string | null;
+  last_publish_run_id?: string | null;
+}
+
 type CacheEntry = {
   total: number;
   pages: Map<number, Omit<Content, 'html'>[]>;
@@ -178,6 +185,7 @@ export class ContentsService {
       Pick<GenerateDto, 'video_url' | 'images' | 'related_services'>
     >,
     metaDescription?: string,
+    options: UpdateContentOptions = {},
   ): Promise<Content> {
     const { data, error } = (await this.supabase
       .getClient()
@@ -194,6 +202,30 @@ export class ContentsService {
         }),
         ...(metaDescription !== undefined && {
           meta_description: metaDescription,
+        }),
+        ...(options.ftp_remote_page_id !== undefined && {
+          ftp_remote_page_id: options.ftp_remote_page_id,
+        }),
+        ...(options.render_mode !== undefined && {
+          render_mode: options.render_mode,
+        }),
+        ...(options.deployment_status !== undefined && {
+          deployment_status: options.deployment_status,
+        }),
+        ...(options.external_page_url !== undefined && {
+          external_page_url: options.external_page_url,
+        }),
+        ...(options.external_page_type !== undefined && {
+          external_page_type: options.external_page_type,
+        }),
+        ...(options.external_slug !== undefined && {
+          external_slug: options.external_slug,
+        }),
+        ...(options.wp_post_url !== undefined && {
+          wp_post_url: options.wp_post_url,
+        }),
+        ...(options.last_publish_run_id !== undefined && {
+          last_publish_run_id: options.last_publish_run_id,
         }),
       })
       .eq('id', id)

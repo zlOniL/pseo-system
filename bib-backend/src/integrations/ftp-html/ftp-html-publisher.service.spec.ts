@@ -70,7 +70,10 @@ function createRemoteClient(initial: Record<string, Buffer>) {
   };
 }
 
-function createSupabase(remoteHash = sha256(oldHtml)) {
+function createSupabase(
+  remoteHash = sha256(oldHtml),
+  remotePageOverrides: Record<string, unknown> = {},
+) {
   const updates: Record<string, jest.Mock> = {
     contents: jest.fn(),
     ftp_remote_pages: jest.fn(),
@@ -90,6 +93,7 @@ function createSupabase(remoteHash = sha256(oldHtml)) {
     last_seen_size: Buffer.byteLength(oldHtml),
     last_seen_modified_at: '2026-09-25T00:00:00.000Z',
     active_template_version_id: null,
+    ...remotePageOverrides,
   };
 
   const client = {
@@ -149,11 +153,17 @@ function createSupabase(remoteHash = sha256(oldHtml)) {
   return { supabase: { getClient: () => client }, updates, inserts };
 }
 
-function createSubject(remoteHash = sha256(oldHtml)) {
+function createSubject(
+  remoteHash = sha256(oldHtml),
+  options: {
+    content?: Record<string, unknown>;
+    remotePage?: Record<string, unknown>;
+  } = {},
+) {
   const remoteClient = createRemoteClient({
     'reparacao-de-estores.html': Buffer.from(oldHtml),
   });
-  const supabase = createSupabase(remoteHash);
+  const supabase = createSupabase(remoteHash, options.remotePage);
   const contents = {
     findById: jest.fn().mockResolvedValue({
       id: 'content-1',
@@ -162,8 +172,13 @@ function createSubject(remoteHash = sha256(oldHtml)) {
       status: 'approved',
       html: newHtml,
       render_mode: 'full_document',
+      service_id: 'service-1',
+      service: 'Reparacao de Estores',
+      city: '',
       main_keyword: 'Reparacao de Estores',
       meta_description: 'Descricao',
+      external_page_type: 'service',
+      ...options.content,
     }),
   };
   const ftpConfigs = {
@@ -173,6 +188,7 @@ function createSubject(remoteHash = sha256(oldHtml)) {
   const ftpClientFactory = { create: jest.fn().mockReturnValue(remoteClient) };
   const renderer = {
     render: jest.fn(),
+    applySeo: jest.fn((html: string) => html),
     applyContentLayout: jest.fn((html: string) => html),
   };
 
@@ -185,6 +201,7 @@ function createSubject(remoteHash = sha256(oldHtml)) {
       renderer as never,
     ),
     remoteClient,
+    renderer,
     ...supabase,
   };
 }
@@ -209,6 +226,39 @@ describe('FtpHtmlPublisherService', () => {
     await expect(subject.service.publish('content-1')).rejects.toBeInstanceOf(
       BadRequestException,
     );
+  });
+
+  it('blocks a main page linked to a locality FTP destination', async () => {
+    process.env.FTP_HTML_INTEGRATION_ENABLED = 'true';
+    const subject = createSubject(sha256(oldHtml), {
+      remotePage: {
+        remote_path: 'reparacao-de-estores-em-oeiras.html',
+        public_url:
+          'https://urgentreparacoes.pt/reparacao-de-estores-em-oeiras.html',
+      },
+    });
+
+    await expect(subject.service.publish('content-1')).rejects.toThrow(
+      'destino FTP incorreto',
+    );
+    expect(subject.remoteClient.upload).not.toHaveBeenCalled();
+    expect(subject.inserts.ftp_publish_runs).not.toHaveBeenCalled();
+  });
+
+  it('blocks a locality page linked to the main FTP destination', async () => {
+    process.env.FTP_HTML_INTEGRATION_ENABLED = 'true';
+    const subject = createSubject(sha256(oldHtml), {
+      content: {
+        city: 'Oeiras',
+        main_keyword: 'Reparacao de Estores em Oeiras',
+        external_page_type: 'service_location',
+      },
+    });
+
+    await expect(subject.service.publish('content-1')).rejects.toThrow(
+      'destino FTP incorreto',
+    );
+    expect(subject.remoteClient.upload).not.toHaveBeenCalled();
   });
 
   it('backs up, uploads a temporary file, swaps and marks content as published', async () => {
@@ -238,6 +288,13 @@ describe('FtpHtmlPublisherService', () => {
         render_mode: 'full_document',
         deployment_status: 'published',
         external_page_url: 'https://urgentreparacoes.pt/reparacao-de-estores.html',
+      }),
+    );
+    expect(subject.renderer.applySeo).toHaveBeenCalledWith(
+      newHtml,
+      expect.objectContaining({
+        title: 'Reparacao de Estores',
+        canonicalUrl: 'https://urgentreparacoes.pt/reparacao-de-estores.html',
       }),
     );
     expect(result.status).toBe('published');

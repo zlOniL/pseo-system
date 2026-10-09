@@ -601,6 +601,16 @@ export class GenerationService {
         related_services: dto.related_services,
       },
       metaDescription,
+      {
+        ftp_remote_page_id: composed.remotePage.id,
+        render_mode: 'full_document',
+        deployment_status: 'not_deployed',
+        external_page_url: composed.externalUrl,
+        external_page_type: dto.city ? 'service_location' : 'service',
+        external_slug: composed.externalSlug,
+        wp_post_url: null,
+        last_publish_run_id: null,
+      },
     );
     await this.persistHtmlSections(content.id, composed.html);
     this.logger.log(

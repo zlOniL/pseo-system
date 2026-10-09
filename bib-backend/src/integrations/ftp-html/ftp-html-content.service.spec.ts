@@ -40,19 +40,19 @@ function createSubject() {
     document_suffix: '<footer>Footer</footer></body></html>',
   };
   const remoteUpsert = jest.fn();
+  const remoteSelectEq = jest.fn().mockReturnThis();
+  const remoteSelect = {
+    eq: remoteSelectEq,
+    maybeSingle: jest.fn().mockResolvedValue({
+      data: remotePage,
+      error: null,
+    }),
+  };
   const client = {
     from: jest.fn((table: string) => {
       if (table === 'ftp_remote_pages') {
         return {
-          select: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnThis(),
-            order: jest.fn().mockReturnThis(),
-            limit: jest.fn().mockReturnThis(),
-            maybeSingle: jest.fn().mockResolvedValue({
-              data: remotePage,
-              error: null,
-            }),
-          }),
+          select: jest.fn().mockReturnValue(remoteSelect),
           upsert: remoteUpsert.mockImplementation((row) => ({
             select: jest.fn().mockReturnValue({
               single: jest.fn().mockResolvedValue({
@@ -88,6 +88,7 @@ function createSubject() {
       new FtpHtmlDocumentRenderer(),
     ),
     remoteUpsert,
+    remoteSelectEq,
   };
 }
 
@@ -107,6 +108,10 @@ describe('FtpHtmlContentService', () => {
     expect(result.html).toContain('content="Descricao nova"');
     expect(result.html).toContain('<section>Conteudo PSEO</section>');
     expect(subject.remoteUpsert).not.toHaveBeenCalled();
+    expect(subject.remoteSelectEq).toHaveBeenCalledWith(
+      'remote_path',
+      'reparacao-de-estores.html',
+    );
   });
 
   it('creates a locality remote page using the service template', async () => {

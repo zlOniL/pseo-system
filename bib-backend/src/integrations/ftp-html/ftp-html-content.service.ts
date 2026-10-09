@@ -129,20 +129,20 @@ export class FtpHtmlContentService {
   private async findBaseRemotePage(
     service: Service,
   ): Promise<FtpHtmlRemotePage> {
+    const expectedRemotePath = normalizeRemotePath(`${service.slug}.html`);
     const { data, error } = (await this.supabase
       .getClient()
       .from('ftp_remote_pages')
       .select('*')
       .eq('service_id', service.id)
       .eq('site_id', service.site_id)
-      .order('updated_at', { ascending: false })
-      .limit(1)
+      .eq('remote_path', expectedRemotePath)
       .maybeSingle()) as DbResult<FtpHtmlRemotePage>;
 
     if (error) throw new BadRequestException(error.message);
     if (!data) {
       throw new BadRequestException(
-        'Importe a pagina FTP do servico antes de gerar conteudo.',
+        `Importe a pagina FTP principal "${expectedRemotePath}" antes de gerar conteudo.`,
       );
     }
     return data;

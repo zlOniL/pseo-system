@@ -10,6 +10,8 @@ import { BasicFtpRemoteFileClientFactory } from './basic-ftp-remote-file.client'
 import { FtpSiteConfigsService } from './ftp-site-configs.service';
 import { RemoteFileClient } from './remote-file-client';
 import { FtpHtmlDocumentRenderer } from './ftp-html-document-renderer.service';
+import { normalizeRemotePath } from './ftp-path';
+import { slugify } from '../../common/slug';
 
 interface FtpRemotePageRow {
   id: string;
@@ -81,11 +83,44 @@ export class FtpHtmlPublisherService implements ContentPublisher {
     }
 
     const remotePage = await this.findRemotePage(content.ftp_remote_page_id);
+    this.assertRemotePageMatchesContent(content, remotePage);
     const lockKey = `${remotePage.site_id}:${remotePage.remote_path}`;
 
     return this.withLock(lockKey, () =>
       this.publishLocked(content, remotePage, options),
     );
+  }
+
+  private assertRemotePageMatchesContent(
+    content: Content,
+    remotePage: FtpRemotePageRow,
+  ): void {
+    if (remotePage.site_id !== content.site_id) {
+      throw new BadRequestException(
+        'A pagina remota FTP pertence a outro site. Gere ou regenere o conteudo antes de publicar.',
+      );
+    }
+    if (
+      content.service_id &&
+      remotePage.service_id &&
+      remotePage.service_id !== content.service_id
+    ) {
+      throw new BadRequestException(
+        'A pagina remota FTP pertence a outro servico. Gere ou regenere o conteudo antes de publicar.',
+      );
+    }
+
+    const isMainPage = !content.city?.trim();
+    const expectedSlug = slugify(
+      isMainPage ? content.service : content.main_keyword,
+    );
+    const expectedRemotePath = normalizeRemotePath(`${expectedSlug}.html`);
+    if (remotePage.remote_path !== expectedRemotePath) {
+      const pageLabel = isMainPage ? 'principal' : 'de localidade';
+      throw new BadRequestException(
+        `A pagina ${pageLabel} aponta para o destino FTP incorreto "${remotePage.remote_path}". O destino esperado e "${expectedRemotePath}". Regenere o conteudo antes de publicar.`,
+      );
+    }
   }
 
   private async publishLocked(
@@ -222,7 +257,13 @@ export class FtpHtmlPublisherService implements ContentPublisher {
 
     if (content.render_mode === 'full_document') {
       this.assertNoPreviewArtifacts(content.html);
-      return this.renderer.applyContentLayout(content.html);
+      return this.renderer.applyContentLayout(
+        this.renderer.applySeo(content.html, {
+          title: content.main_keyword,
+          description: content.meta_description,
+          canonicalUrl: remotePage.public_url,
+        }),
+      );
     }
 
     if (!remotePage.active_template_version_id) {
