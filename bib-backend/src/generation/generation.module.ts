@@ -10,6 +10,7 @@ import { SitesModule } from '../sites/sites.module';
 import { WhitelabelApiModule } from '../integrations/whitelabel-api/whitelabel-api.module';
 import { PromptContextModule } from '../prompt-context/prompt-context.module';
 import { FtpHtmlModule } from '../integrations/ftp-html/ftp-html.module';
+import { ServicesModule } from '../services/services.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { FtpHtmlModule } from '../integrations/ftp-html/ftp-html.module';
     SitesModule,
     PromptContextModule,
     FtpHtmlModule,
+    forwardRef(() => ServicesModule),
     forwardRef(() => WhitelabelApiModule),
   ],
   providers: [GenerationService],

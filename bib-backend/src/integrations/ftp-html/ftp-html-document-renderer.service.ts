@@ -16,6 +16,8 @@ export interface FtpHtmlRenderInput {
   template: FtpHtmlTemplateVersion;
   fragmentHtml: string;
   videoUrl?: string | null;
+  bannerImageUrl?: string | null;
+  bannerImageAlt?: string | null;
   seo?: FtpHtmlSeoFields;
   textReplacements?: Array<{ from: string; to: string }>;
 }
@@ -39,7 +41,11 @@ export class FtpHtmlDocumentRenderer {
     this.assertValidFragment(input.fragmentHtml);
 
     const prefix = this.applyTextReplacements(
-      this.applySeo(input.template.document_prefix, input.seo ?? {}),
+      this.applyBanner(
+        this.applySeo(input.template.document_prefix, input.seo ?? {}),
+        input.bannerImageUrl,
+        input.bannerImageAlt,
+      ),
       input.textReplacements ?? [],
     );
     const content = `${renderVideoSection(input.videoUrl)}${input.fragmentHtml}`;
@@ -49,6 +55,20 @@ export class FtpHtmlDocumentRenderer {
 
     this.assertValidDocument(document);
     return document;
+  }
+
+  private applyBanner(
+    html: string,
+    imageUrl?: string | null,
+    imageAlt?: string | null,
+  ): string {
+    if (!html.includes('{{BANNER_SECTION}}')) return html;
+    if (!imageUrl?.trim()) return html.replace(/\{\{BANNER_SECTION\}\}/g, '');
+
+    const alt = escapeHtml(imageAlt?.trim() || 'Imagem do serviço');
+    const url = escapeHtml(imageUrl.trim());
+    const section = `<section class="pseo-template-banner"><img src="${url}" alt="${alt}" loading="eager"></section>`;
+    return html.replace(/\{\{BANNER_SECTION\}\}/g, section);
   }
 
   applyContentLayout(document: string): string {

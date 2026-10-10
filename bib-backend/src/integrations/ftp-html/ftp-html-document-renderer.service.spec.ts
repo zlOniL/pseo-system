@@ -60,6 +60,26 @@ describe('FtpHtmlDocumentRenderer', () => {
     );
   });
 
+  it('renders the configured banner when the base template has a banner slot', () => {
+    const html = renderer.render({
+      template: {
+        document_prefix: template.document_prefix.replace(
+          '</main>',
+          '{{BANNER_SECTION}}</main>',
+        ),
+        document_suffix: template.document_suffix,
+      },
+      fragmentHtml: '<section>Conteudo</section>',
+      bannerImageUrl: 'https://cdn.example/termoacumuladores.webp',
+      bannerImageAlt: 'Reparação de termoacumuladores',
+    });
+
+    expect(html).toContain(
+      '<img src="https://cdn.example/termoacumuladores.webp" alt="Reparação de termoacumuladores"',
+    );
+    expect(html).not.toContain('{{BANNER_SECTION}}');
+  });
+
   it('refreshes existing content layout styles', () => {
     const oldHtml = [
       '<!DOCTYPE html><html><head>',

@@ -6,6 +6,8 @@ import { slugify } from '../../common/slug';
 import { normalizeRemotePath } from './ftp-path';
 import { FtpHtmlDocumentRenderer } from './ftp-html-document-renderer.service';
 import { FtpSiteConfigsService } from './ftp-site-configs.service';
+import { createHash } from 'crypto';
+import { FTP_BASE_TEMPLATE } from './ftp-base-template';
 
 export interface FtpHtmlRemotePage {
   id: string;
@@ -35,6 +37,7 @@ export interface ComposedFtpHtml {
   remotePage: FtpHtmlRemotePage;
   externalSlug: string;
   externalUrl: string | null;
+  templateSource: 'ftp' | 'base_template';
 }
 
 @Injectable()
@@ -52,9 +55,7 @@ export class FtpHtmlContentService {
 
     const remotePage = await this.resolveRemotePage(input.service, input);
     if (!remotePage.active_template_version_id) {
-      throw new BadRequestException(
-        'Importe a pagina FTP do servico antes de gerar conteudo.',
-      );
+      throw new BadRequestException('Template FTP ativo nao encontrado.');
     }
 
     const template = await this.findTemplate(
@@ -75,6 +76,9 @@ export class FtpHtmlContentService {
         },
       ],
       videoUrl: input.service.video_url,
+      bannerImageUrl: this.getBannerUrl(input.service),
+      bannerImageAlt:
+        input.service.featured_image_alt ?? `${input.service.name} - assistência profissional`,
     });
 
     return {
@@ -82,6 +86,9 @@ export class FtpHtmlContentService {
       remotePage,
       externalSlug: stripHtmlExtension(remotePage.remote_path),
       externalUrl: remotePage.public_url,
+      templateSource: template.document_prefix.includes('{{BANNER_SECTION}}')
+        ? 'base_template'
+        : 'ftp',
     };
   }
 
@@ -140,12 +147,62 @@ export class FtpHtmlContentService {
       .maybeSingle()) as DbResult<FtpHtmlRemotePage>;
 
     if (error) throw new BadRequestException(error.message);
-    if (!data) {
-      throw new BadRequestException(
-        `Importe a pagina FTP principal "${expectedRemotePath}" antes de gerar conteudo.`,
-      );
+    if (data) return data;
+
+    const config = await this.ftpConfigs.findRawBySiteId(service.site_id!);
+    if (!config) throw new BadRequestException('Configuracao FTP nao encontrada.');
+
+    const publicUrl = `${config.public_base_url.replace(/\/+$/, '')}/${expectedRemotePath
+      .split('/')
+      .map(encodeURIComponent)
+      .join('/')}`;
+    const client = this.supabase.getClient();
+    const remoteInsert = (await client
+      .from('ftp_remote_pages')
+      .insert({
+        site_id: service.site_id,
+        service_id: service.id,
+        remote_path: expectedRemotePath,
+        public_url: publicUrl,
+        import_status: 'imported',
+      })
+      .select()
+      .single()) as DbResult<FtpHtmlRemotePage>;
+    if (remoteInsert.error || !remoteInsert.data) {
+      throw new BadRequestException(remoteInsert.error?.message ?? 'Falha ao criar pagina FTP base.');
     }
-    return data;
+
+    const originalHtml = `${FTP_BASE_TEMPLATE.documentPrefix}${FTP_BASE_TEMPLATE.documentSuffix}`;
+    const templateInsert = (await client
+      .from('ftp_template_versions')
+      .insert({
+        remote_page_id: remoteInsert.data.id,
+        version: 1,
+        original_html: originalHtml,
+        document_prefix: FTP_BASE_TEMPLATE.documentPrefix,
+        document_suffix: FTP_BASE_TEMPLATE.documentSuffix,
+        source_hash: createHash('sha256').update(originalHtml).digest('hex'),
+        source_encoding: 'utf-8',
+        boundary_config: { source: 'base_template' },
+        editable_fields: { banner: true },
+        status: 'active',
+      })
+      .select('id')
+      .single()) as DbResult<{ id: string }>;
+    if (templateInsert.error || !templateInsert.data) {
+      throw new BadRequestException(templateInsert.error?.message ?? 'Falha ao criar template FTP base.');
+    }
+
+    const updated = (await client
+      .from('ftp_remote_pages')
+      .update({ active_template_version_id: templateInsert.data.id })
+      .eq('id', remoteInsert.data.id)
+      .select()
+      .single()) as DbResult<FtpHtmlRemotePage>;
+    if (updated.error || !updated.data) {
+      throw new BadRequestException(updated.error?.message ?? 'Falha ao ativar template FTP base.');
+    }
+    return updated.data;
   }
 
   private async findTemplate(id: string): Promise<FtpTemplateVersionRow> {
@@ -160,6 +217,10 @@ export class FtpHtmlContentService {
       throw new BadRequestException('Template FTP ativo nao encontrado.');
     }
     return data;
+  }
+
+  private getBannerUrl(service: Service): string | null {
+    return service.featured_image_url ?? service.images?.find(Boolean) ?? null;
   }
 }
 

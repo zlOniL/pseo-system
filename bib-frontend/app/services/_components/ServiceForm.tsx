@@ -287,7 +287,9 @@ export default function ServiceForm({ initialData, siteId, initialSite = null }:
       } else {
         const service = await api.createService(input);
         if (isFtpHtml) {
-          toast.success('Serviço criado. Importe o HTML via FTP para criar o template.');
+          toast.success(
+            'Serviço criado. Se não houver página no FTP, será usado o template-base automaticamente.',
+          );
         } else {
           toast.success('Serviço criado. Crie a página principal para depois gerar localidades.', {
             action: {
@@ -310,14 +312,11 @@ export default function ServiceForm({ initialData, siteId, initialSite = null }:
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {error && <p className="bib-error">{error}</p>}
-      {isWhitelabel && (
+      {(isWhitelabel || isFtpHtml) && (
         <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-          Este serviço pertence a um site API Whitelabel. Os templates gerados serão textuais/JSON e publicados pela API do site.
-        </p>
-      )}
-      {isFtpHtml && !isEdit && (
-        <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-          Depois de criar o serviço, abra a página dele para importar o HTML remoto via FTP e transformar essa página em template.
+          {isFtpHtml
+            ? 'Este serviço pertence a um site HTML via FTP. Se não houver página remota, a geração usará o template-base.'
+            : 'Este serviço pertence a um site API Whitelabel. Os templates gerados serão textuais/JSON e publicados pela API do site.'}
         </p>
       )}
 
@@ -362,11 +361,11 @@ export default function ServiceForm({ initialData, siteId, initialSite = null }:
 
       <div className="bib-divider" />
 
-      {isWhitelabel && (
+      {(isWhitelabel || isFtpHtml) && (
         <>
           <div>
             <label className="bib-label">
-              Imagem principal WhiteLabel <span className="bib-label-hint">(enviada na criação do serviço)</span>
+            {isFtpHtml ? 'Banner do template FTP' : 'Imagem principal WhiteLabel'} <span className="bib-label-hint">(imagem principal do serviço)</span>
             </label>
             <div className="grid gap-3 sm:grid-cols-[96px_1fr]">
               <div className="w-24 h-24 rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
@@ -394,9 +393,11 @@ export default function ServiceForm({ initialData, siteId, initialSite = null }:
                   placeholder="Alt da imagem principal"
                 />
                 <p className="text-xs text-gray-400">
-                  Esta imagem será enviada para a API WhiteLabel no endpoint da página principal do serviço.
+                  {isFtpHtml
+                    ? 'Será usada no banner quando o serviço for criado pelo template-base FTP.'
+                    : 'Esta imagem será enviada para a API WhiteLabel no endpoint da página principal do serviço.'}
                 </p>
-                {isEdit && initialData && (
+                {isEdit && initialData && isWhitelabel && (
                   <button
                     type="button"
                     disabled={syncingImage || !featuredImageAssetId}

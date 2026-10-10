@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { AiService } from '../ai/ai.service';
 import { ValidationService } from '../validation/validation.service';
 import { ContentsService, Content } from '../contents/contents.service';
@@ -19,6 +19,7 @@ import { Service } from '../services/services.service';
 import { PromptContextService } from '../prompt-context/prompt-context.service';
 import { PromptContext } from '../prompt-context/prompt-context.types';
 import { FtpHtmlContentService } from '../integrations/ftp-html/ftp-html-content.service';
+import { ServicesService } from '../services/services.service';
 import { runWithConcurrency } from '../common/run-with-concurrency';
 import {
   HtmlSectionKey,
@@ -52,6 +53,8 @@ export class GenerationService {
     private readonly promptContext: PromptContextService,
     private readonly localityLinks: LocalityLinksService,
     private readonly ftpHtmlContent: FtpHtmlContentService,
+    @Inject(forwardRef(() => ServicesService))
+    private readonly services: ServicesService,
   ) {}
 
   async generate(dto: GenerateDto): Promise<Content> {
@@ -522,7 +525,7 @@ export class GenerationService {
 
   private async generateFtpHtml(dto: GenerateDto): Promise<Content> {
     const { html: fragmentHtml, metaDescription } = await this.buildHtml(dto);
-    const service = this.buildSyntheticService(dto);
+    const service = await this.buildFtpService(dto);
     if (!service.id) {
       throw new BadRequestException(
         'Selecione um servico cadastrado antes de gerar HTML via FTP.',
@@ -571,7 +574,7 @@ export class GenerationService {
       dto,
       dto.feedback,
     );
-    const service = this.buildSyntheticService(dto);
+    const service = await this.buildFtpService(dto);
     if (!service.id) {
       throw new BadRequestException(
         'Selecione um servico cadastrado antes de regenerar HTML via FTP.',
@@ -729,6 +732,21 @@ export class GenerationService {
       template_base_city: null,
       seo_title: null,
       seo_description: null,
+    };
+  }
+
+  private async buildFtpService(dto: GenerateDto): Promise<Service> {
+    if (!dto.service_id) return this.buildSyntheticService(dto);
+    const persisted = await this.services.findById(dto.service_id);
+    return {
+      ...persisted,
+      name: dto.service || persisted.name,
+      video_url: dto.video_url ?? persisted.video_url,
+      images: dto.images ?? persisted.images,
+      related_services: dto.related_services ?? persisted.related_services,
+      service_notes: dto.service_notes ?? persisted.service_notes,
+      tone: dto.tone ?? persisted.tone,
+      min_words: dto.min_words ?? persisted.min_words,
     };
   }
 
