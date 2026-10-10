@@ -9,6 +9,7 @@ import { injectImages } from '../common/image-injector';
 import { LocalityLinksService } from '../cities/locality-links.service';
 import { SitesService } from '../sites/sites.service';
 import { WhitelabelContentService } from '../integrations/whitelabel-api/whitelabel-content.service';
+import { FtpHtmlContentService } from '../integrations/ftp-html/ftp-html-content.service';
 import {
   buildLocalKeyword,
   formatLocationPhrase,
@@ -29,6 +30,7 @@ export class SectionAssemblerService {
     private readonly sites: SitesService,
     private readonly whitelabelContent: WhitelabelContentService,
     private readonly localityLinks: LocalityLinksService,
+    private readonly ftpHtmlContent: FtpHtmlContentService,
   ) {}
 
   async assemble(input: AssembleInput): Promise<Content> {
@@ -103,6 +105,50 @@ export class SectionAssemblerService {
       service.name,
       city,
     );
+
+    if (site?.integration_type === 'ftp_html') {
+      const composed = await this.ftpHtmlContent.compose({
+        service,
+        fragmentHtml: html,
+        mainKeyword,
+        city,
+      });
+      const validationResult = this.validation.validate(
+        composed.html,
+        mainKeyword,
+        service.min_words ?? 5000,
+      );
+
+      return this.contents.save(
+        {
+          main_keyword: mainKeyword,
+          service: service.name,
+          city,
+          video_url: service.video_url ?? undefined,
+          images: service.images?.length ? service.images : undefined,
+          related_services: service.related_services?.length
+            ? service.related_services
+            : undefined,
+          service_notes: service.service_notes ?? undefined,
+          tone: service.tone ?? undefined,
+          min_words: service.min_words,
+          service_id: service.id,
+          site_id: service.site_id ?? undefined,
+          external_page_type: 'service_location',
+          external_slug: composed.externalSlug,
+        },
+        composed.html,
+        validationResult,
+        '',
+        'library',
+        {
+          ftp_remote_page_id: composed.remotePage.id,
+          render_mode: 'full_document',
+          deployment_status: 'not_deployed',
+          external_page_url: composed.externalUrl,
+        },
+      );
+    }
 
     const validationResult = this.validation.validate(
       html,

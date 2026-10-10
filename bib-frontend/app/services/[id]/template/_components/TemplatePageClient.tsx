@@ -499,6 +499,8 @@ export default function TemplatePageClient({ service }: Props) {
   const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
   const [showQueueModal, setShowQueueModal] = useState(false);
   const [showIssuesModal, setShowIssuesModal] = useState(false);
+  const [ftpPublicBaseUrl, setFtpPublicBaseUrl] = useState('');
+  const [isFtpHtml, setIsFtpHtml] = useState(false);
 
   async function reload() {
     const [tpls, sum, main] = await Promise.all([
@@ -522,6 +524,30 @@ export default function TemplatePageClient({ service }: Props) {
     reload().finally(() => { if (mountedRef.current) setLoading(false); });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!service.site_id) {
+      setFtpPublicBaseUrl('');
+      setIsFtpHtml(false);
+      return;
+    }
+
+    api.getSite(service.site_id)
+      .then((site) => {
+        if (site.integration_type !== 'ftp_html') {
+          setFtpPublicBaseUrl('');
+          setIsFtpHtml(false);
+          return;
+        }
+        setIsFtpHtml(true);
+        return api.getFtpSiteConfig(service.site_id!).then((config) => {
+          if (mountedRef.current) setFtpPublicBaseUrl(config?.public_base_url ?? '');
+        });
+      })
+      .catch(() => {
+        if (mountedRef.current) setFtpPublicBaseUrl('');
+      });
+  }, [service.site_id]);
 
   function handleStartGeneration(input: GenerateTemplateInput) {
     const targetTemplate = editingTemplate;
@@ -786,7 +812,9 @@ export default function TemplatePageClient({ service }: Props) {
               </span>
               {previewTemplate.output_format !== 'whitelabel_json' && <button
                 onClick={() => {
-                  navigator.clipboard.writeText(buildPreviewHtml(previewTemplate.html ?? '', previewTemplate.video_url ?? undefined, 'ai'))
+                    navigator.clipboard.writeText(isFtpHtml
+                      ? previewTemplate.html ?? ''
+                      : buildPreviewHtml(previewTemplate.html ?? '', previewTemplate.video_url ?? undefined, 'template'))
                     .then(() => toast.success('HTML copiado para a área de transferência.'))
                     .catch(() => toast.error('Não foi possível copiar o HTML.'));
                 }}
@@ -837,7 +865,14 @@ export default function TemplatePageClient({ service }: Props) {
               {previewTemplate.output_format === 'whitelabel_json' ? (
                 <WhitelabelTextPreview content={previewTemplate.content_json} />
               ) : (
-                <PreviewPane html={previewTemplate.html ?? null} videoUrl={previewTemplate.video_url ?? undefined} loading={false} generationMode="ai" />
+                <PreviewPane
+                  html={previewTemplate.html ?? null}
+                  videoUrl={previewTemplate.video_url ?? undefined}
+                  loading={false}
+                  generationMode="template"
+                  renderMode={isFtpHtml ? 'full_document' : 'fragment'}
+                  publicBaseUrl={ftpPublicBaseUrl}
+                />
               )}
             </div>
           </>
