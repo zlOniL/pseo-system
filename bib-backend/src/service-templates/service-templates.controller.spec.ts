@@ -62,4 +62,61 @@ describe('ServiceTemplatesController FTP templates', () => {
       }),
     );
   });
+
+  it('rejects a second template generation while one is still running', async () => {
+    let releaseService!: (value: Record<string, unknown>) => void;
+    const pendingService = new Promise<Record<string, unknown>>((resolve) => {
+      releaseService = resolve;
+    });
+    const templates = {
+      create: jest.fn(async () => ({
+        id: 'template-1',
+        version: 1,
+        is_main_page: true,
+      })),
+    };
+    const generation = {
+      buildHtmlRaw: jest.fn(async () => ({
+        html: '<section>Conteudo</section>',
+        metaDescription: 'SEO',
+      })),
+    };
+    const services = {
+      findById: jest.fn(() => pendingService),
+    };
+    const controller = new ServiceTemplatesController(
+      templates as never,
+      {} as never,
+      generation as never,
+      services as never,
+      { save: jest.fn(async () => ({ id: 'content-1' })) } as never,
+      { replaceHtmlSections: jest.fn() } as never,
+      { validate: jest.fn(() => ({ score: 90, issues: [] })) } as never,
+      { findById: jest.fn(async () => ({ integration_type: 'wordpress' })) } as never,
+      {} as never,
+      {} as never,
+    );
+
+    const first = controller.generate('service-1', { is_main_page: true });
+
+    await expect(
+      controller.generate('service-2', { is_main_page: true }),
+    ).rejects.toMatchObject({ status: 409 });
+
+    releaseService({
+      id: 'service-1',
+      site_id: 'site-1',
+      name: 'Canalizador',
+      images: [],
+      video_url: null,
+      related_services: [],
+      service_notes: null,
+      tone: '',
+      min_words: 5000,
+    });
+    await expect(first).resolves.toMatchObject({
+      template: { id: 'template-1' },
+      content: { id: 'content-1' },
+    });
+  });
 });

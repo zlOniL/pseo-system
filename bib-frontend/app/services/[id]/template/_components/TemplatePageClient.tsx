@@ -135,13 +135,14 @@ function GenerateForm({ service, template, onSubmit, onCancel }: GenerateFormPro
 interface TemplateCardProps {
   template: ServiceTemplate;
   service: Service;
+  disabled: boolean;
   onRegenerate: (t: ServiceTemplate) => void;
   onDelete: (id: string) => void;
   onPreview: (t: ServiceTemplate) => void;
   onRename: (id: string, label: string) => void;
 }
 
-function TemplateCard({ template, onRegenerate, onDelete, onPreview, onRename }: TemplateCardProps) {
+function TemplateCard({ template, disabled, onRegenerate, onDelete, onPreview, onRename }: TemplateCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editingLabel, setEditingLabel] = useState(false);
@@ -235,7 +236,8 @@ function TemplateCard({ template, onRegenerate, onDelete, onPreview, onRename }:
           <div className="relative shrink-0" ref={menuRef}>
             <button
               onClick={() => setMenuOpen((v) => !v)}
-              className="text-gray-400 hover:text-gray-700 transition-colors w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-lg leading-none font-bold"
+              disabled={disabled}
+              className="text-gray-400 hover:text-gray-700 transition-colors w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-lg leading-none font-bold disabled:cursor-not-allowed disabled:opacity-30"
               title="Mais opções"
             >
               ···
@@ -267,42 +269,6 @@ function TemplateCard({ template, onRegenerate, onDelete, onPreview, onRename }:
       </div>
 
       <button onClick={() => onPreview(template)} className="bib-btn bib-btn-secondary text-xs w-full">Pré-visualizar</button>
-    </div>
-  );
-}
-
-// ── QueueModal ────────────────────────────────────────────────────────────────
-
-function QueueModal({ jobs, onClose }: { jobs: ActiveJob[]; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div
-        className="bg-white rounded-xl shadow-xl w-[420px] max-w-[92vw] p-6 space-y-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-900">Fila de Geração</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 transition-colors text-lg leading-none">✕</button>
-        </div>
-
-        <div className="divide-y divide-gray-100">
-          {jobs.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-6">Nenhuma geração em progresso.</p>
-          ) : jobs.map((job, i) => (
-            <div key={job.id} className="flex items-center gap-3 py-3">
-              <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-800 truncate">{job.label}</p>
-                <p className="text-xs text-gray-400">#{i + 1} na fila · a gerar...</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <p className="text-xs text-gray-400 border-t border-gray-100 pt-3">
-          Podes navegar livremente — as gerações continuam em segundo plano.
-        </p>
-      </div>
     </div>
   );
 }
@@ -450,25 +416,13 @@ function TemplateIssuesModal({
 
 // ── GeneratingBanner ──────────────────────────────────────────────────────────
 
-function GeneratingBanner({ jobs, onOpenQueue }: { jobs: ActiveJob[]; onOpenQueue: () => void }) {
-  if (jobs.length === 0) return null;
+function GeneratingBanner({ job }: { job: ActiveJob | null }) {
+  if (!job) return null;
 
   return (
     <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
       <div className="w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin shrink-0" />
-      {jobs.length === 1 ? (
-        <span className="flex-1 truncate">A gerar: <strong>{jobs[0].label}</strong>...</span>
-      ) : (
-        <>
-          <span className="flex-1"><strong>{jobs.length}</strong> gerações em progresso</span>
-          <button
-            onClick={onOpenQueue}
-            className="shrink-0 text-amber-700 underline hover:no-underline font-medium"
-          >
-            Ver fila
-          </button>
-        </>
-      )}
+      <span className="flex-1 truncate">A gerar: <strong>{job.label}</strong>...</span>
     </div>
   );
 }
@@ -481,6 +435,7 @@ interface Props {
 
 export default function TemplatePageClient({ service }: Props) {
   const mountedRef = useRef(true);
+  const generationInFlightRef = useRef(false);
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
@@ -496,8 +451,7 @@ export default function TemplatePageClient({ service }: Props) {
   const [mainContent, setMainContent] = useState<Content | null>(null);
   const [reextracting, setReextracting] = useState(false);
   const [mainActionLoading, setMainActionLoading] = useState(false);
-  const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
-  const [showQueueModal, setShowQueueModal] = useState(false);
+  const [activeJob, setActiveJob] = useState<ActiveJob | null>(null);
   const [showIssuesModal, setShowIssuesModal] = useState(false);
   const [ftpPublicBaseUrl, setFtpPublicBaseUrl] = useState('');
   const [isFtpHtml, setIsFtpHtml] = useState(false);
@@ -550,6 +504,11 @@ export default function TemplatePageClient({ service }: Props) {
   }, [service.site_id]);
 
   function handleStartGeneration(input: GenerateTemplateInput) {
+    if (generationInFlightRef.current) {
+      toast.info('Aguarde a geração atual terminar antes de iniciar outro template.');
+      return;
+    }
+
     const targetTemplate = editingTemplate;
     const label = targetTemplate
       ? `Regeneração Template #${targetTemplate.version}`
@@ -558,7 +517,8 @@ export default function TemplatePageClient({ service }: Props) {
 
     setShowForm(false);
     setEditingTemplate(undefined);
-    setActiveJobs((prev) => [...prev, { id: jobId, label }]);
+    generationInFlightRef.current = true;
+    setActiveJob({ id: jobId, label });
 
     const promise = targetTemplate
       ? api.regenerateTemplate(service.id, targetTemplate.id, input)
@@ -593,8 +553,9 @@ export default function TemplatePageClient({ service }: Props) {
         toast.error(`Erro ao gerar template: ${msg}`);
       })
       .finally(() => {
+        generationInFlightRef.current = false;
         if (mountedRef.current) {
-          setActiveJobs((prev) => prev.filter((j) => j.id !== jobId));
+          setActiveJob(null);
         }
       });
   }
@@ -656,7 +617,7 @@ export default function TemplatePageClient({ service }: Props) {
 
   const sectionsReady = summary.filter((s) => s.version_count >= 1).length;
   const totalSections = summary.length;
-  const isGenerating = activeJobs.length > 0;
+  const isGenerating = activeJob !== null;
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
@@ -682,7 +643,7 @@ export default function TemplatePageClient({ service }: Props) {
               </Link>
             </div>
 
-            <GeneratingBanner jobs={activeJobs} onOpenQueue={() => setShowQueueModal(true)} />
+            <GeneratingBanner job={activeJob} />
 
             <div className="flex items-center justify-between">
               <div>
@@ -696,7 +657,11 @@ export default function TemplatePageClient({ service }: Props) {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {!showForm && !editingTemplate && (
-                  <button onClick={() => setShowForm(true)} className="bib-btn bib-btn-primary text-xs px-3 py-1.5">
+                  <button
+                    onClick={() => setShowForm(true)}
+                    disabled={isGenerating}
+                    className="bib-btn bib-btn-primary text-xs px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
                     + Novo
                   </button>
                 )}
@@ -732,7 +697,11 @@ export default function TemplatePageClient({ service }: Props) {
               <div className="text-center py-10 space-y-3">
                 <p className="text-sm text-gray-500">Ainda não há templates.</p>
                 <p className="text-xs text-gray-400">Cria o primeiro para começar a biblioteca de secções.</p>
-                <button onClick={() => setShowForm(true)} className="bib-btn bib-btn-primary text-xs px-4 py-2">
+                <button
+                  onClick={() => setShowForm(true)}
+                  disabled={isGenerating}
+                  className="bib-btn bib-btn-primary text-xs px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40"
+                >
                   + Gerar primeiro template
                 </button>
               </div>
@@ -743,6 +712,7 @@ export default function TemplatePageClient({ service }: Props) {
                     key={t.id}
                     template={t}
                     service={service}
+                    disabled={isGenerating}
                     onRegenerate={(tpl) => { setEditingTemplate(tpl); setShowForm(false); }}
                     onDelete={handleDelete}
                     onPreview={handlePreviewTemplate}
@@ -756,7 +726,7 @@ export default function TemplatePageClient({ service }: Props) {
                       <p className="text-xs font-medium text-gray-600">Biblioteca de Secções</p>
                       <button
                         onClick={handleReextract}
-                        disabled={reextracting || templates.length === 0}
+                        disabled={isGenerating || reextracting || templates.length === 0}
                         className="text-xs text-gray-400 hover:text-gray-700 underline disabled:opacity-40"
                         title="Re-extrai todas as secções dos templates guardados (útil após correcção de bugs)"
                       >
@@ -892,19 +862,7 @@ export default function TemplatePageClient({ service }: Props) {
             {isGenerating ? (
               <div className="flex flex-col items-center gap-2 text-center">
                 <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-                <span>
-                  {activeJobs.length === 1
-                    ? 'A gerar template... podes navegar enquanto esperas.'
-                    : `${activeJobs.length} templates a gerar... podes navegar enquanto esperas.`}
-                </span>
-                {activeJobs.length > 1 && (
-                  <button
-                    onClick={() => setShowQueueModal(true)}
-                    className="text-xs text-amber-600 underline hover:no-underline"
-                  >
-                    Ver fila de geração
-                  </button>
-                )}
+                <span>A gerar template... aguarde a conclusão para iniciar outro.</span>
               </div>
             ) : (
               <span>Clica em &quot;Pré-visualizar&quot; num template para ver o conteúdo aqui.</span>
@@ -913,10 +871,6 @@ export default function TemplatePageClient({ service }: Props) {
         )}
       </main>
 
-      {/* ── Modal de fila ── */}
-      {showQueueModal && (
-        <QueueModal jobs={activeJobs} onClose={() => setShowQueueModal(false)} />
-      )}
       {showIssuesModal && previewTemplate && (
         <TemplateIssuesModal
           template={previewTemplate}

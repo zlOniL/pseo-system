@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
   Delete,
   Get,
@@ -33,6 +34,7 @@ import { buildLocalKeyword } from '../common/location-preposition';
 @Controller('services/:serviceId/templates')
 export class ServiceTemplatesController {
   private readonly logger = new Logger(ServiceTemplatesController.name);
+  private templateGenerationActive = false;
 
   constructor(
     private readonly templates: ServiceTemplatesService,
@@ -168,6 +170,29 @@ export class ServiceTemplatesController {
   // ── Private ──────────────────────────────────────────────────────────────
 
   private async generateAndSave(
+    serviceId: string,
+    dto: GenerateTemplateDto,
+    existingTemplateId?: string,
+  ) {
+    if (this.templateGenerationActive) {
+      throw new ConflictException(
+        'Ja existe uma geracao de template em andamento. Aguarde a conclusao antes de iniciar outra.',
+      );
+    }
+
+    this.templateGenerationActive = true;
+    try {
+      return await this.generateAndSaveUnlocked(
+        serviceId,
+        dto,
+        existingTemplateId,
+      );
+    } finally {
+      this.templateGenerationActive = false;
+    }
+  }
+
+  private async generateAndSaveUnlocked(
     serviceId: string,
     dto: GenerateTemplateDto,
     existingTemplateId?: string,

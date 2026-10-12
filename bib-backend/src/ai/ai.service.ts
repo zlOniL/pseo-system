@@ -48,6 +48,11 @@ export class AiService {
     return Number.isFinite(value) && value > 0 ? value : 65536;
   }
 
+  private getRequestTimeoutMs(): number {
+    const value = Number(process.env.OPENROUTER_TIMEOUT_MS);
+    return Number.isFinite(value) && value > 0 ? value : 180_000;
+  }
+
   private getProviderRouting(model: string): OpenRouterProviderRouting | null {
     if (!model.toLowerCase().startsWith('deepseek/')) {
       return null;
@@ -229,7 +234,10 @@ export class AiService {
       const attemptStartedAt = Date.now();
       let response: Response;
       try {
-        response = await fetch(url, init);
+        response = await fetch(url, {
+          ...init,
+          signal: AbortSignal.timeout(this.getRequestTimeoutMs()),
+        });
       } catch (err) {
         const detail = (err as Error).message || 'falha de rede';
         this.logger.warn(

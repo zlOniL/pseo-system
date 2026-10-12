@@ -13,6 +13,7 @@ import { buildLocalKeyword } from '../common/location-preposition';
 export class QueueWorker implements OnModuleInit {
   private readonly logger = new Logger(QueueWorker.name);
   private isRunning = false;
+  private rerunRequested = false;
 
   private readonly concurrency = {
     ai: parseInt(process.env.QUEUE_CONCURRENCY_AI ?? '1'),
@@ -44,18 +45,24 @@ export class QueueWorker implements OnModuleInit {
 
   async processQueue(): Promise<void> {
     if (!this.isEnabled()) return;
-    if (this.isRunning) return;
+    if (this.isRunning) {
+      this.rerunRequested = true;
+      return;
+    }
     this.isRunning = true;
 
     const spawn = (mode: 'ai' | 'template' | 'library', n: number) =>
       Array.from({ length: n }, () => this.runWorkerLoop(mode));
 
     try {
-      await Promise.all([
-        ...spawn('ai', this.concurrency.ai),
-        ...spawn('template', this.concurrency.template),
-        ...spawn('library', this.concurrency.library),
-      ]);
+      do {
+        this.rerunRequested = false;
+        await Promise.all([
+          ...spawn('ai', this.concurrency.ai),
+          ...spawn('template', this.concurrency.template),
+          ...spawn('library', this.concurrency.library),
+        ]);
+      } while (this.rerunRequested);
     } finally {
       this.isRunning = false;
       this.logger.log('Queue vazia — todos os workers terminaram.');
