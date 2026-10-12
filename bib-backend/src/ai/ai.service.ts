@@ -18,6 +18,11 @@ type OpenRouterResponse = {
   }>;
 };
 
+type OpenRouterHttpResult = {
+  response: Response;
+  body: string;
+};
+
 type OpenRouterProviderRouting = {
   order: string[];
   allow_fallbacks: boolean;
@@ -162,7 +167,7 @@ export class AiService {
     this.logger.log(`Calling OpenRouter model: ${model}`);
     const provider = this.getProviderRouting(model);
 
-    const response = await this.fetchWithTransientRetry(
+    const { response, body } = await this.fetchWithTransientRetry(
       this.openRouterUrl,
       {
         method: 'POST',
@@ -184,18 +189,16 @@ export class AiService {
     );
 
     if (response.status === 429) {
-      const body = await response.text();
       this.logger.warn(`Rate limit em ${model}: ${body}`);
       throw new RateLimitError();
     }
 
     if (!response.ok) {
-      const error = await response.text();
       this.logger.error(
-        `OpenRouter error ${response.status} (${model}): ${error}`,
+        `OpenRouter error ${response.status} (${model}): ${body}`,
       );
       if (response.status >= 500 || response.status === 408) {
-        throw new TransientAiError(this.compactError(error));
+        throw new TransientAiError(this.compactError(body));
       }
       if (response.status === 401 || response.status === 403) {
         throw new BadRequestException(
@@ -203,11 +206,11 @@ export class AiService {
         );
       }
       throw new BadRequestException(
-        `OpenRouter ${response.status}: ${this.compactError(error)}`,
+        `OpenRouter ${response.status}: ${this.compactError(body)}`,
       );
     }
 
-    const data = (await response.json()) as OpenRouterResponse;
+    const data = JSON.parse(body) as OpenRouterResponse;
     const choice = data.choices?.[0];
     const content = choice?.message?.content ?? '';
 
@@ -228,7 +231,7 @@ export class AiService {
     url: string,
     init: RequestInit,
     model: string,
-  ): Promise<Response> {
+  ): Promise<OpenRouterHttpResult> {
     const maxAttempts = 3;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const attemptStartedAt = Date.now();
@@ -238,6 +241,23 @@ export class AiService {
           ...init,
           signal: AbortSignal.timeout(this.getRequestTimeoutMs()),
         });
+        const body = await response.text();
+        this.logger.log(
+          `[PERF] ai_http_attempt model=${model} attempt=${attempt}/${maxAttempts} status=${response.status} duration_ms=${Date.now() - attemptStartedAt}`,
+        );
+        if (
+          !(
+            response.status === 408 ||
+            response.status === 429 ||
+            response.status >= 500
+          ) ||
+          attempt === maxAttempts
+        ) {
+          return { response, body };
+        }
+        this.logger.warn(
+          `OpenRouter transient ${response.status} (${model}) attempt ${attempt}/${maxAttempts}: ${this.compactError(body)}`,
+        );
       } catch (err) {
         const detail = (err as Error).message || 'falha de rede';
         this.logger.warn(
@@ -251,19 +271,6 @@ export class AiService {
         await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
         continue;
       }
-      this.logger.log(
-        `[PERF] ai_http_attempt model=${model} attempt=${attempt}/${maxAttempts} status=${response.status} duration_ms=${Date.now() - attemptStartedAt}`,
-      );
-      if (
-        ![408, 500, 502, 503, 504].includes(response.status) ||
-        attempt === maxAttempts
-      ) {
-        return response;
-      }
-      const body = await response.text();
-      this.logger.warn(
-        `OpenRouter transient ${response.status} (${model}) attempt ${attempt}/${maxAttempts}: ${this.compactError(body)}`,
-      );
       await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
     }
     throw new ServiceUnavailableException(

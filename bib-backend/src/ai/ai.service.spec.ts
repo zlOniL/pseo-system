@@ -35,6 +35,47 @@ describe('AiService', () => {
       expect.objectContaining({ signal }),
     );
   });
+
+  it('retries when the timeout happens while reading the response body', async () => {
+    process.env.OPENROUTER_KEY = 'test-key';
+    process.env.OPENROUTER_MODELS = 'test/model';
+    jest.spyOn(global, 'fetch')
+      .mockResolvedValueOnce({
+        status: 200,
+        text: jest.fn().mockRejectedValue(new Error('body timed out')),
+      } as unknown as Response)
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ choices: [{ message: { content: 'resultado' } }] }),
+          { status: 200 },
+        ),
+      );
+
+    await expect(new AiService().generateText('system', 'user')).resolves.toBe(
+      'resultado',
+    );
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries OpenRouter timeout status 524', async () => {
+    process.env.OPENROUTER_KEY = 'test-key';
+    process.env.OPENROUTER_MODELS = 'test/model';
+    jest.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(new Response('upstream timeout', { status: 524 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ choices: [{ message: { content: 'resultado' } }] }),
+          { status: 200 },
+        ),
+      );
+
+    await expect(new AiService().generateText('system', 'user')).resolves.toBe(
+      'resultado',
+    );
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
 });
 
 function restoreEnv(name: string, value: string | undefined): void {
