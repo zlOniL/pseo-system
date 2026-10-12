@@ -20,23 +20,14 @@ export class SectionLibraryService {
     baseCity: string,
     siteId?: string | null,
   ): Promise<void> {
-    for (const [sectionKey, html] of sections) {
-      const nextVersion = await this.nextVersion(serviceId, sectionKey);
-      const { error } = await this.supabase
-        .getClient()
-        .from('section_library')
-        .insert({
-          service_id: serviceId,
-          site_id: siteId ?? null,
-          template_id: templateId,
-          section_key: sectionKey,
-          version: nextVersion,
-          html,
-          base_city: baseCity,
-          output_format: 'html',
-        });
-      if (error) this.throwFriendlyLibraryError(error);
-    }
+    await this.saveBatch(
+      serviceId,
+      templateId,
+      sections,
+      baseCity,
+      siteId,
+      'html',
+    );
   }
 
   async saveAllJson(
@@ -46,28 +37,14 @@ export class SectionLibraryService {
     baseCity: string,
     siteId?: string | null,
   ): Promise<void> {
-    for (const [sectionKey, contentJson] of sections) {
-      const nextVersion = await this.nextVersion(
-        serviceId,
-        sectionKey,
-        'whitelabel_json',
-      );
-      const { error } = await this.supabase
-        .getClient()
-        .from('section_library')
-        .insert({
-          service_id: serviceId,
-          site_id: siteId ?? null,
-          template_id: templateId,
-          section_key: sectionKey,
-          version: nextVersion,
-          html: null,
-          content_json: contentJson,
-          base_city: baseCity,
-          output_format: 'whitelabel_json',
-        });
-      if (error) this.throwFriendlyLibraryError(error);
-    }
+    await this.saveBatch(
+      serviceId,
+      templateId,
+      sections,
+      baseCity,
+      siteId,
+      'whitelabel_json',
+    );
   }
 
   async deleteByTemplate(templateId: string): Promise<void> {
@@ -157,24 +134,54 @@ export class SectionLibraryService {
       : SECTION_KEYS;
   }
 
-  private async nextVersion(
+  private async saveBatch(
     serviceId: string,
-    sectionKey: string,
-    outputFormat: 'html' | 'whitelabel_json' = 'html',
-  ): Promise<number> {
-    const { data, error } = (await this.supabase
-      .getClient()
+    templateId: string,
+    sections: Map<SectionKey, unknown>,
+    baseCity: string,
+    siteId: string | null | undefined,
+    outputFormat: 'html' | 'whitelabel_json',
+  ): Promise<void> {
+    if (sections.size === 0) return;
+
+    const client = this.supabase.getClient();
+    const entries = [...sections.entries()];
+    const { data, error } = (await client
       .from('section_library')
-      .select('version')
+      .select('section_key, version')
       .eq('service_id', serviceId)
-      .eq('section_key', sectionKey)
       .eq('output_format', outputFormat)
-      .order('version', { ascending: false })
-      .limit(1)
-      .maybeSingle()) as DbResult<{ version: number }>;
+      .in(
+        'section_key',
+        entries.map(([sectionKey]) => sectionKey),
+      )) as DbResult<Array<{ section_key: SectionKey; version: number }>>;
 
     if (error) this.throwFriendlyLibraryError(error);
-    return (data?.version ?? 0) + 1;
+
+    const latestVersion = new Map<SectionKey, number>();
+    for (const row of data ?? []) {
+      latestVersion.set(
+        row.section_key,
+        Math.max(latestVersion.get(row.section_key) ?? 0, row.version),
+      );
+    }
+
+    const rows = entries.map(([sectionKey, content]) => ({
+      service_id: serviceId,
+      site_id: siteId ?? null,
+      template_id: templateId,
+      section_key: sectionKey,
+      version: (latestVersion.get(sectionKey) ?? 0) + 1,
+      html: outputFormat === 'html' ? (content as string) : null,
+      content_json: outputFormat === 'whitelabel_json' ? content : null,
+      base_city: baseCity,
+      output_format: outputFormat,
+    }));
+
+    const { error: insertError } = await client
+      .from('section_library')
+      .insert(rows);
+    if (insertError) this.throwFriendlyLibraryError(insertError);
   }
 
   private throwFriendlyLibraryError(error: DbError): never {
