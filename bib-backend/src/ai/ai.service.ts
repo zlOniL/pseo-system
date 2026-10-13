@@ -49,7 +49,7 @@ export class AiService {
 
   private getRequestTimeoutMs(): number {
     const value = Number(process.env.OPENROUTER_TIMEOUT_MS);
-    return Number.isFinite(value) && value > 0 ? value : 180_000;
+    return Number.isFinite(value) && value > 0 ? value : 300_000;
   }
   private isExhausted(model: string): boolean {
     const until = this.exhaustedUntil.get(model);
@@ -243,6 +243,13 @@ export class AiService {
         this.logger.warn(
           `OpenRouter network error (${model}) attempt ${attempt}/${maxAttempts}: ${detail}`,
         );
+        // A timeout can still represent a request accepted and billed upstream.
+        // Retrying it blindly may create duplicate paid generations.
+        if (this.isTimeoutError(err)) {
+          throw new ServiceUnavailableException(
+            `OpenRouter demorou mais de ${Math.round(this.getRequestTimeoutMs() / 1000)}s para responder. A requisicao nao sera repetida para evitar cobranca duplicada.`,
+          );
+        }
         if (attempt === maxAttempts) {
           throw new ServiceUnavailableException(
             `Falha de conexao com a IA. Tente novamente; se persistir, verifique a rede e a OPENROUTER_KEY. Detalhe: ${detail}`,
@@ -260,6 +267,16 @@ export class AiService {
 
   private compactError(error: string): string {
     return error.replace(/\s+/g, ' ').trim().slice(0, 1200);
+  }
+
+  private isTimeoutError(error: unknown): boolean {
+    const candidate = error as { name?: string; message?: string };
+    return (
+      candidate?.name === 'TimeoutError' ||
+      /aborted due to timeout|signal timed out|timeout/i.test(
+        candidate?.message ?? '',
+      )
+    );
   }
 
   private stripMarkdown(raw: string): string {

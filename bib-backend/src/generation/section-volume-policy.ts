@@ -39,7 +39,7 @@ export function getSectionVolumeConfig(): SectionVolumeConfig {
       'SECTION_FINAL_EXPANSION_SECTIONS',
       4,
     ),
-    sectionConcurrency: integerFromEnv('SECTION_GENERATION_CONCURRENCY', 5),
+    sectionConcurrency: integerFromEnv('SECTION_GENERATION_CONCURRENCY', 2),
   };
 }
 
