@@ -22,12 +22,6 @@ type OpenRouterHttpResult = {
   response: Response;
   body: string;
 };
-
-type OpenRouterProviderRouting = {
-  order: string[];
-  allow_fallbacks: boolean;
-};
-
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
@@ -57,18 +51,6 @@ export class AiService {
     const value = Number(process.env.OPENROUTER_TIMEOUT_MS);
     return Number.isFinite(value) && value > 0 ? value : 180_000;
   }
-
-  private getProviderRouting(model: string): OpenRouterProviderRouting | null {
-    if (!model.toLowerCase().startsWith('deepseek/')) {
-      return null;
-    }
-
-    return {
-      order: ['deepseek', 'deepinfra'],
-      allow_fallbacks: true,
-    };
-  }
-
   private isExhausted(model: string): boolean {
     const until = this.exhaustedUntil.get(model);
     return until !== undefined && Date.now() < until;
@@ -165,7 +147,6 @@ export class AiService {
     userPrompt: string,
   ): Promise<string> {
     this.logger.log(`Calling OpenRouter model: ${model}`);
-    const provider = this.getProviderRouting(model);
 
     const { response, body } = await this.fetchWithTransientRetry(
       this.openRouterUrl,
@@ -182,7 +163,6 @@ export class AiService {
             { role: 'user', content: userPrompt },
           ],
           max_tokens: this.getMaxTokens(),
-          ...(provider ? { provider } : {}),
         }),
       },
       model,
