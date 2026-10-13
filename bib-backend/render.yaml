@@ -17,7 +17,7 @@ services:
       - key: OPENROUTER_TIMEOUT_MS
         value: 300000
       - key: SECTION_GENERATION_CONCURRENCY
-        value: 2
+        value: 5
       - key: QUEUE_WORKER_ENABLED
         value: true
       - key: WP_BASE_URL
