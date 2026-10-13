@@ -46,6 +46,18 @@ function buildServiceUrl(site: Site | null, service: Service | null): string {
   return `${normalizeBaseUrl(site)}/${service.slug}/`;
 }
 
+function serviceFileName(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+  return slug ? `${slug}.html` : '';
+}
+
 export default function ServiceForm({ initialData, siteId, initialSite = null }: ServiceFormProps) {
   const router = useRouter();
   const isEdit = !!initialData;
@@ -74,6 +86,8 @@ export default function ServiceForm({ initialData, siteId, initialSite = null }:
   const [wpCatError, setWpCatError] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showNewCategory, setShowNewCategory] = useState(false);
+  const [ftpRemotePath, setFtpRemotePath] = useState('');
+  const [ftpRemotePathEdited, setFtpRemotePathEdited] = useState(false);
 
   const [mediaModal, setMediaModal] = useState<{ open: boolean; mode: 'video' | 'images'; target?: 'gallery' | 'featured' } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -122,6 +136,12 @@ export default function ServiceForm({ initialData, siteId, initialSite = null }:
       .catch((err: Error) => setWpCatError(err.message))
       .finally(() => setWpCatLoading(false));
   }, [effectiveSiteId, isWhitelabel, isFtpHtml, site]);
+
+  useEffect(() => {
+    if (!isEdit && isFtpHtml && !ftpRemotePathEdited) {
+      setFtpRemotePath(serviceFileName(name));
+    }
+  }, [ftpRemotePathEdited, isEdit, isFtpHtml, name]);
 
   function addRelated() {
     setRelatedServices((prev) => [...prev, { name: '', url: '', serviceId: '', useService: false }]);
@@ -287,9 +307,37 @@ export default function ServiceForm({ initialData, siteId, initialSite = null }:
       } else {
         const service = await api.createService(input);
         if (isFtpHtml) {
-          toast.success(
-            'Serviço criado. Se não houver página no FTP, será usado o template-base automaticamente.',
-          );
+          const remotePath = ftpRemotePath.trim() || undefined;
+          try {
+            const check = await api.checkFtpRemotePage(service.id, {
+              remote_path: remotePath,
+            });
+
+            if (check.status === 'found') {
+              const imported = await api.importFtpRemotePage(service.id, {
+                remote_path: remotePath,
+              });
+              if (imported.status === 'imported') {
+                toast.success('Serviço criado e template FTP importado.');
+              } else {
+                toast.error(
+                  'Serviço criado, mas o template exige revisão manual das fronteiras.',
+                );
+              }
+            } else if (check.status === 'not_found') {
+              toast.error(
+                'Serviço criado, mas a página remota não foi encontrada. Pode tentar novamente na edição.',
+              );
+            } else {
+              toast.error(
+                `Serviço criado, mas não foi possível verificar o FTP: ${check.error ?? 'FTP indisponível.'}`,
+              );
+            }
+          } catch (ftpError) {
+            toast.error(
+              `Serviço criado, mas o template FTP não foi importado: ${(ftpError as Error).message}`,
+            );
+          }
         } else {
           toast.success('Serviço criado. Crie a página principal para depois gerar localidades.', {
             action: {
@@ -738,6 +786,30 @@ export default function ServiceForm({ initialData, siteId, initialSite = null }:
       </div>
 
       {/* Template */}
+      {!isEdit && isFtpHtml && (
+        <>
+          <div className="bib-divider" />
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <label className="bib-label">Verificar e criar template FTP</label>
+            <p className="mb-3 text-xs text-gray-500">
+              Ao criar o serviço, a página remota será verificada e, se encontrada,
+              importada como template. O nome do arquivo é preenchido automaticamente
+              a partir do serviço e pode ser alterado.
+            </p>
+            <label className="bib-label">Nome do arquivo no FTP</label>
+            <input
+              className="bib-input"
+              value={ftpRemotePath}
+              onChange={(event) => {
+                setFtpRemotePath(event.target.value);
+                setFtpRemotePathEdited(Boolean(event.target.value));
+              }}
+              placeholder="slug-do-serviço.html"
+            />
+          </div>
+        </>
+      )}
+
       {isEdit && initialData && (
         <>
           <div className="bib-divider" />
@@ -763,7 +835,15 @@ export default function ServiceForm({ initialData, siteId, initialSite = null }:
         disabled={loading}
         className="bib-btn bib-btn-primary w-full py-2.5"
       >
-        {loading ? 'A guardar...' : isEdit ? 'Guardar Alterações' : 'Criar Serviço'}
+        {loading
+          ? !isEdit && isFtpHtml
+            ? 'A criar e verificar...'
+            : 'A guardar...'
+          : isEdit
+            ? 'Guardar Alterações'
+            : isFtpHtml
+              ? 'Criar Serviço e Template'
+              : 'Criar Serviço'}
       </button>
 
       {/* MediaPickerModal */}
