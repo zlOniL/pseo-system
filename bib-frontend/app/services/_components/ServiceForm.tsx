@@ -407,6 +407,27 @@ export default function ServiceForm({ initialData, siteId, initialSite = null }:
         />
       </div>
 
+      {!isEdit && isFtpHtml && (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <label className="bib-label">Puxar template existente do FTP</label>
+          <p className="mb-3 text-xs text-gray-500">
+            Ao criar o serviço, a página remota será verificada e, se encontrada,
+            importada como template. O nome do arquivo é preenchido automaticamente
+            a partir do serviço e pode ser alterado.
+          </p>
+          <label className="bib-label">Nome do arquivo no FTP</label>
+          <input
+            className="bib-input"
+            value={ftpRemotePath}
+            onChange={(event) => {
+              setFtpRemotePath(event.target.value);
+              setFtpRemotePathEdited(Boolean(event.target.value));
+            }}
+            placeholder="slug-do-serviço.html"
+          />
+        </div>
+      )}
+
       <div className="bib-divider" />
 
       {(isWhitelabel || isFtpHtml) && (
@@ -786,30 +807,6 @@ export default function ServiceForm({ initialData, siteId, initialSite = null }:
       </div>
 
       {/* Template */}
-      {!isEdit && isFtpHtml && (
-        <>
-          <div className="bib-divider" />
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <label className="bib-label">Verificar e criar template FTP</label>
-            <p className="mb-3 text-xs text-gray-500">
-              Ao criar o serviço, a página remota será verificada e, se encontrada,
-              importada como template. O nome do arquivo é preenchido automaticamente
-              a partir do serviço e pode ser alterado.
-            </p>
-            <label className="bib-label">Nome do arquivo no FTP</label>
-            <input
-              className="bib-input"
-              value={ftpRemotePath}
-              onChange={(event) => {
-                setFtpRemotePath(event.target.value);
-                setFtpRemotePathEdited(Boolean(event.target.value));
-              }}
-              placeholder="slug-do-serviço.html"
-            />
-          </div>
-        </>
-      )}
-
       {isEdit && initialData && (
         <>
           <div className="bib-divider" />
