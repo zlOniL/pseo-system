@@ -661,6 +661,16 @@ function NewGenerationModal({
       return;
     }
 
+    if (
+      mode === 'ai' &&
+      selectedCities.size > 50 &&
+      !window.confirm(
+        `Serão geradas ${selectedCities.size} páginas com IA e adicionadas à fila. Deseja continuar?`,
+      )
+    ) {
+      return;
+    }
+
     setEnqueueing(true);
     try {
       await api.enqueue({
