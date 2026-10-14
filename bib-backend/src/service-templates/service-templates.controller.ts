@@ -66,14 +66,22 @@ export class ServiceTemplatesController {
   }
 
   @Get('main-content')
-  mainContent(@Param('serviceId') serviceId: string) {
-    return this.contents.findLatestMainPageByService(serviceId);
+  async mainContent(@Param('serviceId') serviceId: string) {
+    return (
+      (await this.contents.findLatestMainPageByService(
+        serviceId,
+        'published',
+      )) ?? this.contents.findLatestMainPageByService(serviceId)
+    );
   }
 
   @Get('main-content/summary')
   async mainContentSummary(@Param('serviceId') serviceId: string) {
     const content =
-      await this.contents.findLatestMainPageSummaryByService(serviceId);
+      (await this.contents.findLatestMainPageSummaryByService(
+        serviceId,
+        'published',
+      )) ?? (await this.contents.findLatestMainPageSummaryByService(serviceId));
     return { exists: Boolean(content), status: content?.status ?? null };
   }
 

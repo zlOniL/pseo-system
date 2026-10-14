@@ -88,8 +88,11 @@ export class QueueService {
       );
     }
 
-    const mainPage = await this.contents.findLatestMainPageByService(serviceId);
-    if (mainPage?.status !== 'published') {
+    const mainPage = await this.contents.findLatestMainPageByService(
+      serviceId,
+      'published',
+    );
+    if (!mainPage) {
       throw new BadRequestException(
         'Publique a pagina principal deste servico antes de gerar paginas de localidade.',
       );

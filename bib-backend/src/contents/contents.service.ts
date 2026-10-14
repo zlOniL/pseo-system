@@ -430,65 +430,135 @@ export class ContentsService {
 
   async findLatestMainPageByService(
     serviceId: string,
+    status?: Content['status'],
   ): Promise<Content | null> {
-    const { data, error } = (await this.supabase
-      .getClient()
-      .from('contents')
-      .select()
-      .eq('service_id', serviceId)
-      .eq('external_page_type', 'service')
-      .eq('city', '')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()) as DbResult<Content>;
-
-    if (error) this.throwFriendlyContentError(error);
-    if (data) return data;
-
-    const fallback = (await this.supabase
-      .getClient()
-      .from('contents')
-      .select()
-      .eq('service_id', serviceId)
-      .eq('city', '')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()) as DbResult<Content>;
-
-    if (fallback.error) this.throwFriendlyContentError(fallback.error);
-    return fallback.data ?? null;
+    return this.findMainPageByService<Content>(serviceId, '*', status);
   }
 
   async findLatestMainPageSummaryByService(
     serviceId: string,
+    status?: Content['status'],
   ): Promise<Pick<Content, 'id' | 'status'> | null> {
-    const select = 'id, status';
-    const { data, error } = (await this.supabase
+    return this.findMainPageByService<Pick<Content, 'id' | 'status'>>(
+      serviceId,
+      'id, status',
+      status,
+    );
+  }
+
+  private async findMainPageByService<T>(
+    serviceId: string,
+    select: string,
+    status?: Content['status'],
+  ): Promise<T | null> {
+    let typedQuery = this.supabase
       .getClient()
       .from('contents')
       .select(select)
       .eq('service_id', serviceId)
       .eq('external_page_type', 'service')
-      .eq('city', '')
+      .eq('city', '');
+    if (status) typedQuery = typedQuery.eq('status', status);
+
+    const { data, error } = (await typedQuery
       .order('created_at', { ascending: false })
       .limit(1)
-      .maybeSingle()) as DbResult<Pick<Content, 'id' | 'status'>>;
+      .maybeSingle()) as DbResult<T>;
 
     if (error) this.throwFriendlyContentError(error);
     if (data) return data;
 
-    const fallback = (await this.supabase
+    let linkedQuery = this.supabase
       .getClient()
       .from('contents')
       .select(select)
       .eq('service_id', serviceId)
-      .eq('city', '')
+      .eq('city', '');
+    if (status) linkedQuery = linkedQuery.eq('status', status);
+
+    const linked = (await linkedQuery
       .order('created_at', { ascending: false })
       .limit(1)
-      .maybeSingle()) as DbResult<Pick<Content, 'id' | 'status'>>;
+      .maybeSingle()) as DbResult<T>;
 
-    if (fallback.error) this.throwFriendlyContentError(fallback.error);
-    return fallback.data ?? null;
+    if (linked.error) this.throwFriendlyContentError(linked.error);
+    if (linked.data) return linked.data;
+
+    const serviceResult = (await this.supabase
+      .getClient()
+      .from('services')
+      .select('name, site_id, wordpress_category')
+      .eq('id', serviceId)
+      .maybeSingle()) as DbResult<{
+      name: string;
+      site_id: string | null;
+      wordpress_category: string | null;
+    }>;
+
+    if (serviceResult.error)
+      this.throwFriendlyContentError(serviceResult.error);
+    if (!serviceResult.data) return null;
+
+    let unlinkedQuery = this.supabase
+      .getClient()
+      .from('contents')
+      .select(select)
+      .is('service_id', null)
+      .ilike('service', serviceResult.data.name)
+      .eq('city', '');
+    unlinkedQuery = serviceResult.data.site_id
+      ? unlinkedQuery.eq('site_id', serviceResult.data.site_id)
+      : unlinkedQuery.is('site_id', null);
+    if (status) unlinkedQuery = unlinkedQuery.eq('status', status);
+
+    const unlinked = (await unlinkedQuery
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()) as DbResult<T>;
+
+    if (unlinked.error) this.throwFriendlyContentError(unlinked.error);
+    if (unlinked.data) return unlinked.data;
+
+    // shortcut: WordPress category is the shared service identity until services support an explicit canonical-page link.
+    const category = serviceResult.data.wordpress_category;
+    if (!category) return null;
+
+    let relatedServicesQuery = this.supabase
+      .getClient()
+      .from('services')
+      .select('id')
+      .eq('wordpress_category', category);
+    relatedServicesQuery = serviceResult.data.site_id
+      ? relatedServicesQuery.eq('site_id', serviceResult.data.site_id)
+      : relatedServicesQuery.is('site_id', null);
+
+    const relatedServices = (await relatedServicesQuery) as DbResult<
+      Array<{ id: string }>
+    >;
+    if (relatedServices.error)
+      this.throwFriendlyContentError(relatedServices.error);
+
+    const relatedServiceIds = (relatedServices.data ?? []).map(
+      (service) => service.id,
+    );
+    if (relatedServiceIds.length === 0) return null;
+
+    let categoryQuery = this.supabase
+      .getClient()
+      .from('contents')
+      .select(select)
+      .in('service_id', relatedServiceIds)
+      .eq('external_page_type', 'service')
+      .eq('city', '');
+    if (status) categoryQuery = categoryQuery.eq('status', status);
+
+    const categoryPage = (await categoryQuery
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()) as DbResult<T>;
+
+    if (categoryPage.error) this.throwFriendlyContentError(categoryPage.error);
+    return categoryPage.data ?? null;
   }
 
   async forceDelete(id: string): Promise<void> {
