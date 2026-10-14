@@ -423,6 +423,9 @@ function NewGenerationModal({
   const [templates, setTemplates] = useState<ServiceTemplate[]>([]);
   const [templateId, setTemplateId] = useState('');
   const [previousItems, setPreviousItems] = useState<QueueItem[]>([]);
+  const [previousContents, setPreviousContents] = useState<ContentSummary[]>([]);
+  const [historyReady, setHistoryReady] = useState(false);
+  const [historyError, setHistoryError] = useState(false);
   const [mainContent, setMainContent] = useState<Content | null>(null);
   const [citySearch, setCitySearch] = useState('');
   const [expandedRegions, setExpandedRegions] = useState<Set<string>>(new Set());
@@ -465,6 +468,9 @@ function NewGenerationModal({
       setTemplates([]);
       setTemplateId('');
       setPreviousItems([]);
+      setPreviousContents([]);
+      setHistoryReady(false);
+      setHistoryError(false);
       setMainContent(null);
       return;
     }
@@ -480,10 +486,22 @@ function NewGenerationModal({
         setTemplateId('');
       });
 
-    api
-      .listQueue({ service_id: serviceId, site_id: siteId || undefined, limit: 1000 })
-      .then((result) => setPreviousItems(normalizeQueueResult(result).data))
-      .catch(() => setPreviousItems([]));
+    setHistoryReady(false);
+    setHistoryError(false);
+    Promise.allSettled([
+      api.listQueue({ service_id: serviceId, site_id: siteId || undefined, limit: 1000 }),
+      api.listContents({ service_id: serviceId, site_id: siteId || undefined, limit: 1000 }),
+    ]).then(([queueResult, contentResult]) => {
+      const failed = queueResult.status === 'rejected' || contentResult.status === 'rejected';
+      setHistoryError(failed);
+      setPreviousItems(
+        queueResult.status === 'fulfilled' ? normalizeQueueResult(queueResult.value).data : [],
+      );
+      setPreviousContents(
+        contentResult.status === 'fulfilled' ? contentResult.value.data : [],
+      );
+      setHistoryReady(true);
+    });
 
     api
       .getMainTemplateContent(serviceId)
@@ -492,8 +510,13 @@ function NewGenerationModal({
   }, [open, serviceId, siteId]);
 
   const itemByCity = useMemo(
-    () => new Map(previousItems.map((item) => [item.city, item])),
+    () => new Map(previousItems.map((item) => [normalize(item.city.trim()), item])),
     [previousItems],
+  );
+
+  const contentCityKeys = useMemo(
+    () => new Set(previousContents.map((content) => normalize(content.city.trim()))),
+    [previousContents],
   );
 
   const visibleRegions = useMemo(() => {
@@ -543,7 +566,14 @@ function NewGenerationModal({
   }
 
   function selectNotGenerated() {
-    selectCities(regions.flatMap((region) => region.cities).filter((city) => !itemByCity.has(city)));
+    selectCities(
+      regions
+        .flatMap((region) => region.cities)
+        .filter((city) => {
+          const cityKey = normalize(city.trim());
+          return !itemByCity.has(cityKey) && !contentCityKeys.has(cityKey);
+        }),
+    );
   }
 
   function toggleRegionLocalities(region: RegionWithCities) {
@@ -784,7 +814,12 @@ function NewGenerationModal({
               <button disabled={localitiesDisabled} onClick={selectFailed} className="bib-btn bib-btn-secondary justify-center text-xs disabled:opacity-40">
                 Falhadas anteriormente
               </button>
-              <button disabled={localitiesDisabled} onClick={selectNotGenerated} className="bib-btn bib-btn-secondary justify-center text-xs disabled:opacity-40">
+              <button
+                disabled={localitiesDisabled || !historyReady || historyError}
+                onClick={selectNotGenerated}
+                className="bib-btn bib-btn-secondary justify-center text-xs disabled:opacity-40"
+                title={historyError ? 'Nao foi possivel carregar o historico de paginas.' : undefined}
+              >
                 Ainda nao geradas
               </button>
               <button

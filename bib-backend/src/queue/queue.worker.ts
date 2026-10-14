@@ -102,6 +102,18 @@ export class QueueWorker implements OnModuleInit {
         service.id,
         item.city,
       );
+
+      // A published page is already the final result for this locality.
+      // Keep it intact if the city is accidentally queued again.
+      const published = existing.find((content) => content.status === 'published');
+      if (published) {
+        await this.queue.markDone(item.id, published.id);
+        this.logger.log(
+          `Skipped regeneration for published content ${published.id} at ${item.city}`,
+        );
+        return;
+      }
+
       const content = await this.generateContentForItem(
         item,
         mode,
