@@ -240,6 +240,10 @@ function modeLabel(mode: QueueMode) {
   }[mode];
 }
 
+function queueJobLabel(item: QueueItem) {
+  return item.job_type === 'template' ? 'Criação de template' : modeLabel(item.mode);
+}
+
 function StatusBadge({ item }: { item: QueueItem }) {
   const stuck = isStuck(item);
   const classes = stuck
@@ -510,7 +514,11 @@ function NewGenerationModal({
   }, [open, serviceId, siteId]);
 
   const itemByCity = useMemo(
-    () => new Map(previousItems.map((item) => [normalize(item.city.trim()), item])),
+    () => new Map(
+      previousItems
+        .filter((item): item is QueueItem & { city: string } => Boolean(item.city))
+        .map((item) => [normalize(item.city.trim()), item]),
+    ),
     [previousItems],
   );
 
@@ -562,7 +570,11 @@ function NewGenerationModal({
   }
 
   function selectFailed() {
-    selectCities(previousItems.filter((item) => item.status === 'failed').map((item) => item.city));
+    selectCities(
+      previousItems
+        .filter((item): item is QueueItem & { city: string } => item.status === 'failed' && Boolean(item.city))
+        .map((item) => item.city),
+    );
   }
 
   function selectNotGenerated() {
@@ -1907,7 +1919,7 @@ function ScalePageContent() {
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Servico</th>
                     <th className="px-4 py-3">Cidade</th>
-                    <th className="px-4 py-3">Modo</th>
+                    <th className="px-4 py-3">Tipo</th>
                     <th className="px-4 py-3">Tent.</th>
                     <th className="px-4 py-3">Criado</th>
                     <th className="px-4 py-3">Duracao</th>
@@ -1962,9 +1974,9 @@ function ScalePageContent() {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-gray-700">{item.city}</td>
+                      <td className="px-4 py-3 text-gray-700">{item.city ?? 'Página principal'}</td>
                       <td className="px-4 py-3">
-                        <span className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-600">{modeLabel(item.mode)}</span>
+                        <span className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-600">{queueJobLabel(item)}</span>
                       </td>
                       <td className="px-4 py-3 text-gray-500">{item.attempts}</td>
                       <td className="px-4 py-3 text-gray-500">{formatDate(item.created_at)}</td>

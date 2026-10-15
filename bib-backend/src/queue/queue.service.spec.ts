@@ -5,9 +5,12 @@ function queryBuilder(result: unknown) {
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
     in: jest.fn().mockReturnThis(),
+    delete: jest.fn().mockReturnThis(),
     update: jest.fn().mockReturnThis(),
+    upsert: jest.fn().mockReturnThis(),
     order: jest.fn().mockReturnThis(),
     range: jest.fn().mockReturnThis(),
+    single: jest.fn().mockReturnThis(),
     then: jest.fn((resolve, reject) =>
       Promise.resolve(result).then(resolve, reject),
     ),
@@ -67,5 +70,49 @@ describe('QueueService', () => {
     expect(dataQuery.order).toHaveBeenNthCalledWith(2, 'created_at', {
       ascending: false,
     });
+  });
+
+  it('enqueues template jobs with their generation payload', async () => {
+    const serviceQuery = queryBuilder({
+      data: { site_id: 'site-1' },
+      error: null,
+    });
+    const cleanupQuery = queryBuilder({ data: null, error: null });
+    const insertQuery = queryBuilder({
+      data: [{ id: 'job-1', job_type: 'template' }],
+      error: null,
+    });
+    const client = {
+      from: jest
+        .fn()
+        .mockReturnValueOnce(serviceQuery)
+        .mockReturnValueOnce(cleanupQuery)
+        .mockReturnValueOnce(insertQuery),
+    };
+    const service = new QueueService(
+      { getClient: jest.fn().mockReturnValue(client) } as never,
+      {} as never,
+    );
+
+    const result = await service.enqueueTemplates('service-1', [
+      { base_city: 'Porto', label: 'Variação Porto' },
+    ]);
+
+    expect(result).toEqual([{ id: 'job-1', job_type: 'template' }]);
+    expect(insertQuery.upsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          service_id: 'service-1',
+          site_id: 'site-1',
+          city: 'Porto',
+          job_type: 'template',
+          payload: expect.objectContaining({ label: 'Variação Porto' }),
+        }),
+      ],
+      {
+        onConflict: 'service_id,city,job_type',
+        ignoreDuplicates: true,
+      },
+    );
   });
 });

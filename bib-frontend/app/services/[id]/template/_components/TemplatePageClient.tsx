@@ -12,6 +12,7 @@ import {
   GenerateTemplateInput,
   SectionLibrarySummary,
   RelatedService,
+  QueueItem,
 } from '@/lib/types';
 import { scaleReviewHref } from '@/lib/routes';
 import { PreviewPane, buildPreviewHtml } from '@/app/generate/_components/PreviewPane';
@@ -19,24 +20,19 @@ import { WhitelabelTextPreview } from '@/app/_components/WhitelabelTextPreview';
 
 // ── tipos locais ──────────────────────────────────────────────────────────────
 
-interface ActiveJob {
-  id: string;
-  label: string;
-}
-
 // ── GenerateForm ──────────────────────────────────────────────────────────────
 
 interface GenerateFormProps {
   service: Service;
   template?: ServiceTemplate;
-  onSubmit: (input: GenerateTemplateInput) => void;
+  onSubmit: (inputs: GenerateTemplateInput[]) => void;
   onCancel: () => void;
 }
 
 function GenerateForm({ service, template, onSubmit, onCancel }: GenerateFormProps) {
   const isRegen = !!template;
   const [isMainPage, setIsMainPage] = useState(template?.is_main_page ?? false);
-  const [baseCity, setBaseCity] = useState(template?.base_city ?? service.template_base_city ?? 'Lisboa');
+  const [baseCities, setBaseCities] = useState(template?.base_city ?? service.template_base_city ?? 'Lisboa');
   const [serviceNotes, setServiceNotes] = useState(service.service_notes ?? '');
   const [feedback, setFeedback] = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
@@ -52,13 +48,16 @@ function GenerateForm({ service, template, onSubmit, onCancel }: GenerateFormPro
 
   function handleSubmit() {
     const validRelated = relatedServices.filter((s) => s.name.trim() && s.url.trim());
-    onSubmit({
-      base_city: isMainPage ? undefined : (baseCity || 'Lisboa'),
+    const cities = isMainPage
+      ? [undefined]
+      : baseCities.split(/\r?\n/).map((city) => city.trim()).filter(Boolean);
+    onSubmit((cities.length ? cities : ['Lisboa']).map((base_city) => ({
+      base_city,
       service_notes: serviceNotes.trim() || undefined,
       feedback: feedback.trim() || undefined,
       related_services: validRelated.length > 0 ? validRelated : undefined,
       is_main_page: isMainPage,
-    });
+    })));
   }
 
   return (
@@ -79,8 +78,8 @@ function GenerateForm({ service, template, onSubmit, onCancel }: GenerateFormPro
 
       {!isMainPage && (
         <div>
-          <label className="bib-label">Cidade Base <span className="bib-label-hint">(substituída ao gerar para outras cidades)</span></label>
-          <input className="bib-input" value={baseCity} onChange={(e) => setBaseCity(e.target.value)} placeholder="Lisboa" />
+          <label className="bib-label">Cidades base <span className="bib-label-hint">(uma por linha)</span></label>
+          <textarea className="bib-textarea" rows={template ? 2 : 4} value={baseCities} onChange={(e) => setBaseCities(e.target.value)} placeholder={'Lisboa\nPorto\nBraga'} />
         </div>
       )}
 
@@ -122,7 +121,7 @@ function GenerateForm({ service, template, onSubmit, onCancel }: GenerateFormPro
 
       <div className="flex gap-2">
         <button type="button" onClick={handleSubmit} className="bib-btn bib-btn-primary flex-1 py-2.5">
-          {isRegen ? 'Regenerar Template' : 'Gerar Template'}
+          {isRegen ? 'Adicionar regeneração à fila' : 'Adicionar templates à fila'}
         </button>
         <button type="button" onClick={onCancel} className="bib-btn bib-btn-secondary px-4">← Voltar</button>
       </div>
@@ -416,13 +415,15 @@ function TemplateIssuesModal({
 
 // ── GeneratingBanner ──────────────────────────────────────────────────────────
 
-function GeneratingBanner({ job }: { job: ActiveJob | null }) {
-  if (!job) return null;
+function GeneratingBanner({ jobs }: { jobs: QueueItem[] }) {
+  const pending = jobs.filter((job) => job.status === 'pending').length;
+  const processing = jobs.filter((job) => job.status === 'processing').length;
+  if (!pending && !processing) return null;
 
   return (
     <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
       <div className="w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin shrink-0" />
-      <span className="flex-1 truncate">A gerar: <strong>{job.label}</strong>...</span>
+      <span className="flex-1 truncate">{processing ? 'A gerar 1 template' : 'Templates aguardando'}{pending ? ` · ${pending} na fila` : ''}</span>
     </div>
   );
 }
@@ -435,7 +436,6 @@ interface Props {
 
 export default function TemplatePageClient({ service }: Props) {
   const mountedRef = useRef(true);
-  const generationInFlightRef = useRef(false);
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
@@ -451,23 +451,25 @@ export default function TemplatePageClient({ service }: Props) {
   const [mainContent, setMainContent] = useState<Content | null>(null);
   const [reextracting, setReextracting] = useState(false);
   const [mainActionLoading, setMainActionLoading] = useState(false);
-  const [activeJob, setActiveJob] = useState<ActiveJob | null>(null);
+  const [templateJobs, setTemplateJobs] = useState<QueueItem[]>([]);
   const [showIssuesModal, setShowIssuesModal] = useState(false);
   const [ftpPublicBaseUrl, setFtpPublicBaseUrl] = useState('');
   const [isFtpHtml, setIsFtpHtml] = useState(false);
 
-  async function reload() {
-    const [tpls, sum, main] = await Promise.all([
+  const reload = useCallback(async () => {
+    const [tpls, sum, main, jobs] = await Promise.all([
       api.listTemplates(service.id),
       api.getLibrarySummary(service.id),
       api.getMainTemplateContent(service.id),
+      api.getQueueForService(service.id),
     ]);
     if (mountedRef.current) {
       setTemplates(tpls);
       setSummary(sum);
       setMainContent(main);
+      setTemplateJobs(jobs.filter((job) => job.job_type === 'template'));
     }
-  }
+  }, [service.id]);
 
   function handlePreviewTemplate(template: ServiceTemplate) {
     setShowIssuesModal(false);
@@ -476,8 +478,7 @@ export default function TemplatePageClient({ service }: Props) {
 
   useEffect(() => {
     reload().finally(() => { if (mountedRef.current) setLoading(false); });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [reload]);
 
   useEffect(() => {
     if (!service.site_id) {
@@ -503,60 +504,32 @@ export default function TemplatePageClient({ service }: Props) {
       });
   }, [service.site_id]);
 
-  function handleStartGeneration(input: GenerateTemplateInput) {
-    if (generationInFlightRef.current) {
-      toast.info('Aguarde a geração atual terminar antes de iniciar outro template.');
-      return;
-    }
+  useEffect(() => {
+    if (!templateJobs.some((job) => ['pending', 'processing'].includes(job.status))) return;
+    const interval = window.setInterval(() => void reload(), 2500);
+    return () => window.clearInterval(interval);
+  }, [templateJobs, reload]);
 
+  function handleStartGeneration(inputs: GenerateTemplateInput[]) {
     const targetTemplate = editingTemplate;
-    const label = targetTemplate
-      ? `Regeneração Template #${targetTemplate.version}`
-      : `Novo template (${service.name})`;
-    const jobId = crypto.randomUUID();
 
     setShowForm(false);
     setEditingTemplate(undefined);
-    generationInFlightRef.current = true;
-    setActiveJob({ id: jobId, label });
+    const requests = targetTemplate
+      ? [{ ...inputs[0], template_id: targetTemplate.id }]
+      : inputs;
 
-    const promise = targetTemplate
-      ? api.regenerateTemplate(service.id, targetTemplate.id, input)
-      : api.createTemplate(service.id, input);
-
-    promise
-      .then((res) => {
-        if (res.generation_issues.length > 0) {
-          const failed = res.generation_issues.filter(
-            (issue) => issue.severity === 'error',
-          ).length;
-          toast.warning(
-            `Template #${res.template.version} concluído com ${res.generation_issues.length} aviso${res.generation_issues.length === 1 ? '' : 's'}${failed ? ` e ${failed} secção${failed === 1 ? '' : 'ões'} falhada${failed === 1 ? '' : 's'}` : ''}.`,
-            {
-              description: res.generation_issues
-                .map((issue) => `${issue.section_key}: ${issue.message}`)
-                .join('\n'),
-              duration: 20000,
-            },
-          );
-        } else {
-          toast.success(`Template #${res.template.version} guardado com ${res.sections_saved} secções extraídas.`);
-        }
+    api.enqueueTemplates(service.id, requests)
+      .then((jobs) => {
+        toast.success(`${jobs.length} template${jobs.length !== 1 ? 's' : ''} adicionado${jobs.length !== 1 ? 's' : ''} à fila.`);
         if (mountedRef.current) {
-          setPreviewTemplate(res.template);
-          if (res.template.is_main_page) setMainContent(res.content);
+          setTemplateJobs((current) => [...current, ...jobs]);
           void reload();
         }
       })
       .catch((err) => {
         const msg = err instanceof Error ? err.message : 'Erro desconhecido';
-        toast.error(`Erro ao gerar template: ${msg}`);
-      })
-      .finally(() => {
-        generationInFlightRef.current = false;
-        if (mountedRef.current) {
-          setActiveJob(null);
-        }
+        toast.error(`Erro ao adicionar templates à fila: ${msg}`);
       });
   }
 
@@ -617,7 +590,7 @@ export default function TemplatePageClient({ service }: Props) {
 
   const sectionsReady = summary.filter((s) => s.version_count >= 1).length;
   const totalSections = summary.length;
-  const isGenerating = activeJob !== null;
+  const isGenerating = templateJobs.some((job) => job.status === 'processing');
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
@@ -643,7 +616,7 @@ export default function TemplatePageClient({ service }: Props) {
               </Link>
             </div>
 
-            <GeneratingBanner job={activeJob} />
+            <GeneratingBanner jobs={templateJobs} />
 
             <div className="flex items-center justify-between">
               <div>
@@ -659,8 +632,7 @@ export default function TemplatePageClient({ service }: Props) {
                 {!showForm && !editingTemplate && (
                   <button
                     onClick={() => setShowForm(true)}
-                    disabled={isGenerating}
-                    className="bib-btn bib-btn-primary text-xs px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="bib-btn bib-btn-primary text-xs px-3 py-1.5"
                   >
                     + Novo
                   </button>
@@ -699,8 +671,7 @@ export default function TemplatePageClient({ service }: Props) {
                 <p className="text-xs text-gray-400">Cria o primeiro para começar a biblioteca de secções.</p>
                 <button
                   onClick={() => setShowForm(true)}
-                  disabled={isGenerating}
-                  className="bib-btn bib-btn-primary text-xs px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="bib-btn bib-btn-primary text-xs px-4 py-2"
                 >
                   + Gerar primeiro template
                 </button>

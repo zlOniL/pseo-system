@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { QueueService } from './queue.service';
 import { QueueWorker } from './queue.worker';
-import { EnqueueDto } from './dto/enqueue.dto';
+import { EnqueueDto, EnqueueTemplatesDto } from './dto/enqueue.dto';
 import { BulkActionDto } from '../contents/dto/bulk-action.dto';
 
 @Controller('queue')
@@ -34,12 +34,24 @@ export class QueueController {
     return items;
   }
 
+  @Post('enqueue-templates')
+  @HttpCode(201)
+  async enqueueTemplates(@Body() dto: EnqueueTemplatesDto) {
+    const items = await this.queueService.enqueueTemplates(
+      dto.service_id,
+      dto.templates,
+    );
+    void this.worker.processQueue();
+    return items;
+  }
+
   @Get('stats')
   getStats(
     @Query('status') status?: string,
     @Query('site_id') site_id?: string,
     @Query('service_id') service_id?: string,
     @Query('mode') mode?: string,
+    @Query('job_type') job_type?: string,
     @Query('city') city?: string,
     @Query('cities') cities?: string,
     @Query('from') from?: string,
@@ -51,6 +63,7 @@ export class QueueController {
       site_id,
       service_id,
       mode,
+      job_type,
       city,
       cities,
       from,
@@ -70,6 +83,7 @@ export class QueueController {
     @Query('site_id') site_id?: string,
     @Query('service_id') service_id?: string,
     @Query('mode') mode?: string,
+    @Query('job_type') job_type?: string,
     @Query('city') city?: string,
     @Query('cities') cities?: string,
     @Query('from') from?: string,
@@ -84,6 +98,7 @@ export class QueueController {
         site_id,
         service_id,
         mode,
+        job_type,
         city,
         cities,
         from,

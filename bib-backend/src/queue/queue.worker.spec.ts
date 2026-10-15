@@ -48,6 +48,12 @@ describe('QueueWorker', () => {
         }
       });
 
+    jest
+      .spyOn(worker as never, 'runTemplateGenerationLoop' as never)
+      .mockImplementation(async () => {
+        calls.push('template-generation');
+      });
+
     const processing = worker.processQueue();
     await templateEntered;
     await worker.processQueue();
@@ -57,6 +63,7 @@ describe('QueueWorker', () => {
     expect(calls.filter((mode) => mode === 'ai')).toHaveLength(2);
     expect(calls.filter((mode) => mode === 'template')).toHaveLength(2);
     expect(calls.filter((mode) => mode === 'library')).toHaveLength(2);
+    expect(calls.filter((mode) => mode === 'template-generation')).toHaveLength(2);
   });
 });
 

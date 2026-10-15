@@ -8,6 +8,7 @@ import { ServiceTemplatesService } from '../service-templates/service-templates.
 import { Content, ContentsService } from '../contents/contents.service';
 import { SitesService } from '../sites/sites.service';
 import { buildLocalKeyword } from '../common/location-preposition';
+import { ServiceTemplatesController } from '../service-templates/service-templates.controller';
 
 @Injectable()
 export class QueueWorker implements OnModuleInit {
@@ -19,6 +20,7 @@ export class QueueWorker implements OnModuleInit {
     ai: parseInt(process.env.QUEUE_CONCURRENCY_AI ?? '1'),
     template: parseInt(process.env.QUEUE_CONCURRENCY_TEMPLATE ?? '8'),
     library: parseInt(process.env.QUEUE_CONCURRENCY_LIBRARY ?? '10'),
+    templateGeneration: 1,
   };
 
   constructor(
@@ -30,6 +32,7 @@ export class QueueWorker implements OnModuleInit {
     private readonly serviceTemplates: ServiceTemplatesService,
     private readonly contents: ContentsService,
     private readonly sites: SitesService,
+    private readonly templateGeneration: ServiceTemplatesController,
   ) {}
 
   onModuleInit() {
@@ -61,6 +64,9 @@ export class QueueWorker implements OnModuleInit {
           ...spawn('ai', this.concurrency.ai),
           ...spawn('template', this.concurrency.template),
           ...spawn('library', this.concurrency.library),
+          ...Array.from({ length: this.concurrency.templateGeneration }, () =>
+            this.runTemplateGenerationLoop(),
+          ),
         ]);
       } while (this.rerunRequested);
     } finally {
@@ -83,6 +89,41 @@ export class QueueWorker implements OnModuleInit {
     }
   }
 
+  private async runTemplateGenerationLoop(): Promise<void> {
+    while (true) {
+      const item = await this.queue.pickAndClaim('ai', 'template');
+      if (!item) {
+        if (!(await this.queue.hasPending(undefined, 'template'))) break;
+        await new Promise((r) => setTimeout(r, 100));
+        continue;
+      }
+      await this.processTemplateItem(item);
+    }
+  }
+
+  private async processTemplateItem(item: QueueItem): Promise<void> {
+    const startedAt = Date.now();
+    try {
+      const payload = item.payload;
+      if (!payload) throw new Error('Job de template sem payload.');
+      const result = await this.templateGeneration.generateQueued(
+        item.service_id,
+        payload,
+        item.template_id ?? undefined,
+      );
+      await this.queue.markDone(item.id, result.content.id, result.template.id);
+      this.logger.log(
+        `[PERF] template_job_done id=${item.id} template=${result.template.id} duration_ms=${Date.now() - startedAt}`,
+      );
+    } catch (err) {
+      const msg = this.userFacingError(err);
+      await this.queue.markFailed(item.id, msg);
+      this.logger.error(
+        `[PERF] template_job_failed id=${item.id} duration_ms=${Date.now() - startedAt} error=${msg}`,
+      );
+    }
+  }
+
   private async processItem(item: QueueItem): Promise<void> {
     const mode = item.mode ?? 'ai';
     const startedAt = Date.now();
@@ -90,8 +131,10 @@ export class QueueWorker implements OnModuleInit {
       `[PERF] queue_item_start id=${item.id} mode=${mode} city=${item.city}`,
     );
     try {
+      const city = item.city;
+      if (!city) throw new Error('Job de pagina sem cidade.');
       const service = await this.services.findById(item.service_id);
-      const mainKeyword = buildLocalKeyword(service.name, item.city);
+      const mainKeyword = buildLocalKeyword(service.name, city);
       const site = service.site_id
         ? await this.sites.findById(service.site_id)
         : null;
@@ -100,7 +143,7 @@ export class QueueWorker implements OnModuleInit {
 
       const existing = await this.contents.findByServiceAndCity(
         service.id,
-        item.city,
+        city,
       );
 
       // A published page is already the final result for this locality.
@@ -109,7 +152,7 @@ export class QueueWorker implements OnModuleInit {
       if (published) {
         await this.queue.markDone(item.id, published.id);
         this.logger.log(
-          `Skipped regeneration for published content ${published.id} at ${item.city}`,
+          `Skipped regeneration for published content ${published.id} at ${city}`,
         );
         return;
       }
@@ -125,7 +168,7 @@ export class QueueWorker implements OnModuleInit {
       for (const old of existing) {
         await this.contents.forceDelete(old.id);
         this.logger.log(
-          `Deleted old content ${old.id} for ${item.city} (status: ${old.status})`,
+          `Deleted old content ${old.id} for ${city} (status: ${old.status})`,
         );
       }
 
@@ -152,7 +195,7 @@ export class QueueWorker implements OnModuleInit {
     if (mode === 'library' || (mode === 'template' && isWhitelabelApiSite)) {
       return this.assembler.assemble({
         service,
-        city: item.city,
+        city: item.city!,
         serviceId: service.id,
       });
     }
@@ -165,7 +208,7 @@ export class QueueWorker implements OnModuleInit {
 
       return this.templateEngine.generate({
         service,
-        city: item.city,
+        city: item.city!,
         templateHtml,
       });
     }
@@ -173,7 +216,7 @@ export class QueueWorker implements OnModuleInit {
     return this.generation.generate({
       main_keyword: mainKeyword,
       service: service.name,
-      city: item.city,
+      city: item.city!,
       video_url: service.video_url ?? undefined,
       images: service.images.length ? service.images : undefined,
       related_services: service.related_services.length

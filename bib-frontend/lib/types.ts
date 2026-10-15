@@ -191,10 +191,12 @@ export interface QueueItem {
   created_at: string;
   site_id: string | null;
   service_id: string;
-  city: string;
+  city: string | null;
   status: 'pending' | 'processing' | 'done' | 'failed';
+  job_type: 'page' | 'template';
   mode: 'ai' | 'template' | 'library';
   template_id: string | null;
+  payload: GenerateTemplateInput | null;
   content_id: string | null;
   error: string | null;
   started_at: string | null;
@@ -226,6 +228,7 @@ export interface QueueFilters {
   site_id?: string;
   service_id?: string;
   mode?: string;
+  job_type?: 'page' | 'template';
   city?: string;
   cities?: string[];
   from?: string;

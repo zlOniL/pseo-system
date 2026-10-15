@@ -347,6 +347,15 @@ export const api = {
       `/services/${serviceId}/templates/main-content/summary`,
     ),
 
+  enqueueTemplates: (
+    serviceId: string,
+    templates: Array<GenerateTemplateInput & { template_id?: string }>,
+  ) =>
+    request<QueueItem[]>('/queue/enqueue-templates', {
+      method: 'POST',
+      body: JSON.stringify({ service_id: serviceId, templates }),
+    }),
+
   // ── Cities ───────────────────────────────────────────────────────────────────
 
   getCities: () => request<RegionWithCities[]>('/cities'),
@@ -370,6 +379,7 @@ export const api = {
     if (params?.site_id) qs.set('site_id', params.site_id);
     if (params?.service_id) qs.set('service_id', params.service_id);
     if (params?.mode) qs.set('mode', params.mode);
+    if (params?.job_type) qs.set('job_type', params.job_type);
     if (params?.city) qs.set('city', params.city);
     if (params?.cities?.length) qs.set('cities', params.cities.join(','));
     if (params?.from) qs.set('from', params.from);
@@ -391,6 +401,7 @@ export const api = {
     if (params?.site_id) qs.set('site_id', params.site_id);
     if (params?.service_id) qs.set('service_id', params.service_id);
     if (params?.mode) qs.set('mode', params.mode);
+    if (params?.job_type) qs.set('job_type', params.job_type);
     if (params?.city) qs.set('city', params.city);
     if (params?.cities?.length) qs.set('cities', params.cities.join(','));
     if (params?.from) qs.set('from', params.from);

@@ -29,12 +29,14 @@ import { FtpHtmlModule } from '../integrations/ftp-html/ftp-html.module';
     ServiceTemplatesService,
     SectionLibraryService,
     SectionAssemblerService,
+    ServiceTemplatesController,
   ],
   controllers: [ServiceTemplatesController],
   exports: [
     ServiceTemplatesService,
     SectionLibraryService,
     SectionAssemblerService,
+    ServiceTemplatesController,
   ],
 })
 export class ServiceTemplatesModule {}

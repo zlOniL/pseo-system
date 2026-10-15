@@ -6,16 +6,25 @@ import {
 import { SupabaseService } from '../common/supabase.service';
 import { DbCountResult, DbResult } from '../common/supabase.types';
 import { ContentsService } from '../contents/contents.service';
+import { GenerateTemplateDto } from '../services/dto/generate-template.dto';
+
+export type QueueJobType = 'page' | 'template';
+
+export interface TemplateQueuePayload extends GenerateTemplateDto {
+  template_id?: string;
+}
 
 export interface QueueItem {
   id: string;
   created_at: string;
   site_id: string | null;
   service_id: string;
-  city: string;
+  city: string | null;
   status: 'pending' | 'processing' | 'done' | 'failed';
+  job_type: QueueJobType;
   mode: 'ai' | 'template' | 'library';
   template_id: string | null;
+  payload: TemplateQueuePayload | null;
   content_id: string | null;
   error: string | null;
   started_at: string | null;
@@ -43,6 +52,7 @@ export interface QueueFilters {
   site_id?: string;
   service_id?: string;
   mode?: string;
+  job_type?: string;
   city?: string;
   cities?: string;
   from?: string;
@@ -105,6 +115,7 @@ export class QueueService {
       .from('queue')
       .delete()
       .eq('service_id', serviceId)
+      .eq('job_type', 'page')
       .in('city', cities)
       .in('status', ['failed', 'done']);
 
@@ -113,6 +124,7 @@ export class QueueService {
       site_id: service?.site_id ?? null,
       city,
       status: 'pending',
+      job_type: 'page',
       mode,
       template_id: templateId ?? null,
     }));
@@ -120,7 +132,86 @@ export class QueueService {
     const { data, error } = (await this.supabase
       .getClient()
       .from('queue')
-      .upsert(rows, { onConflict: 'service_id,city', ignoreDuplicates: true })
+      .upsert(rows, {
+        onConflict: 'service_id,city,job_type',
+        ignoreDuplicates: true,
+      })
+      .select()) as DbResult<QueueItem[]>;
+
+    if (error) throw new BadRequestException(error.message);
+    return data ?? [];
+  }
+
+  async enqueueTemplates(
+    serviceId: string,
+    templates: TemplateQueuePayload[],
+  ): Promise<QueueItem[]> {
+    const { data: service, error: serviceError } = (await this.supabase
+      .getClient()
+      .from('services')
+      .select('site_id')
+      .eq('id', serviceId)
+      .single()) as DbResult<{ site_id: string | null }>;
+
+    if (serviceError) {
+      throw new NotFoundException(
+        `Servico ${serviceId} nao encontrado. Selecione um servico valido antes de criar templates.`,
+      );
+    }
+
+    const seenTemplateTargets = new Set<string>();
+    const uniqueTemplates = templates.filter((template) => {
+      const city = template.is_main_page
+        ? '__main__'
+        : template.base_city?.trim() || 'Lisboa';
+      const key = `${template.is_main_page ? 'main' : 'city'}:${city}`;
+      if (seenTemplateTargets.has(key)) return false;
+      seenTemplateTargets.add(key);
+      return true;
+    });
+
+    const cities = uniqueTemplates
+      .filter((template) => !template.is_main_page)
+      .map((template) => template.base_city?.trim() || 'Lisboa');
+
+    if (cities.length > 0) {
+      await this.supabase
+        .getClient()
+        .from('queue')
+        .delete()
+        .eq('service_id', serviceId)
+        .eq('job_type', 'template')
+        .in('city', cities)
+        .in('status', ['failed', 'done']);
+    }
+
+    const rows = uniqueTemplates.map((template) => {
+      const isMainPage = template.is_main_page ?? false;
+      const city = isMainPage ? null : template.base_city?.trim() || 'Lisboa';
+      return {
+        service_id: serviceId,
+        site_id: service?.site_id ?? null,
+        city,
+        status: 'pending',
+        job_type: 'template' as const,
+        // The column remains non-null for backwards compatibility with page jobs.
+        mode: 'ai' as const,
+        template_id: template.template_id ?? null,
+        payload: {
+          ...template,
+          base_city: city ?? undefined,
+          is_main_page: isMainPage,
+        },
+      };
+    });
+
+    const { data, error } = (await this.supabase
+      .getClient()
+      .from('queue')
+      .upsert(rows, {
+        onConflict: 'service_id,city,job_type',
+        ignoreDuplicates: true,
+      })
       .select()) as DbResult<QueueItem[]>;
 
     if (error) throw new BadRequestException(error.message);
@@ -143,6 +234,7 @@ export class QueueService {
 
   async pickAndClaim(
     mode: 'ai' | 'template' | 'library',
+    jobType: QueueJobType = 'page',
   ): Promise<QueueItem | null> {
     const modeFilter =
       mode === 'ai' ? 'mode.eq.ai,mode.is.null' : `mode.eq.${mode}`;
@@ -152,6 +244,7 @@ export class QueueService {
       .from('queue')
       .select()
       .eq('status', 'pending')
+      .eq('job_type', jobType)
       .or(modeFilter)
       .order('created_at', { ascending: true })
       .limit(1)
@@ -175,12 +268,16 @@ export class QueueService {
     return claimed ?? null;
   }
 
-  async hasPending(mode?: 'ai' | 'template' | 'library'): Promise<boolean> {
+  async hasPending(
+    mode?: 'ai' | 'template' | 'library',
+    jobType: QueueJobType = 'page',
+  ): Promise<boolean> {
     let query = this.supabase
       .getClient()
       .from('queue')
       .select('id', { count: 'exact', head: true })
-      .eq('status', 'pending');
+      .eq('status', 'pending')
+      .eq('job_type', jobType);
 
     if (mode) {
       query =
@@ -213,13 +310,18 @@ export class QueueService {
       .eq('id', id);
   }
 
-  async markDone(id: string, contentId: string): Promise<void> {
+  async markDone(
+    id: string,
+    contentId: string,
+    templateId?: string,
+  ): Promise<void> {
     await this.supabase
       .getClient()
       .from('queue')
       .update({
         status: 'done',
         content_id: contentId,
+        ...(templateId && { template_id: templateId }),
         finished_at: new Date().toISOString(),
       })
       .eq('id', id);
@@ -466,6 +568,7 @@ export class QueueService {
           ? next.in('mode', modes)
           : next.eq('mode', filters.mode);
     }
+    if (filters.job_type) next = next.eq('job_type', filters.job_type);
     if (filters.cities) {
       const cities = filters.cities.split(',').filter(Boolean);
       if (cities.length > 0) next = next.in('city', cities);

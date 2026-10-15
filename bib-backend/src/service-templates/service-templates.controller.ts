@@ -103,6 +103,16 @@ export class ServiceTemplatesController {
     return this.generateAndSave(serviceId, dto, templateId);
   }
 
+  /** Used by the persistent queue; HTTP creation remains backwards-compatible. */
+  async generateQueued(
+    serviceId: string,
+    dto: GenerateTemplateDto,
+    existingTemplateId?: string,
+  ) {
+    if (existingTemplateId) await this.library.deleteByTemplate(existingTemplateId);
+    return this.generateAndSave(serviceId, dto, existingTemplateId);
+  }
+
   @Post(':templateId/reextract')
   @HttpCode(200)
   async reextract(
