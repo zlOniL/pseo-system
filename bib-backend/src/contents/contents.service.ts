@@ -76,6 +76,8 @@ type ContentSummary = Omit<Content, 'html'>;
 
 const VALID_LIMITS = [10, 25, 50, 100, 250, 500, 1000];
 const DEFAULT_LIMIT = 10;
+// Keeps PostgREST filters below reverse-proxy URL limits.
+const SUPABASE_IN_CHUNK_SIZE = 25;
 
 @Injectable()
 export class ContentsService {
@@ -355,14 +357,22 @@ export class ContentsService {
   }
 
   async findByIds(ids: string[]): Promise<Content[]> {
-    const { data, error } = (await this.supabase
-      .getClient()
-      .from('contents')
-      .select('*')
-      .in('id', ids)) as DbResult<Content[]>;
+    const contents: Content[] = [];
 
-    if (error) this.throwFriendlyContentError(error);
-    return data ?? [];
+    for (let i = 0; i < ids.length; i += SUPABASE_IN_CHUNK_SIZE) {
+      const { data, error } = (await this.supabase
+        .getClient()
+        .from('contents')
+        .select('*')
+        .in('id', ids.slice(i, i + SUPABASE_IN_CHUNK_SIZE))) as DbResult<
+        Content[]
+      >;
+
+      if (error) this.throwFriendlyContentError(error);
+      contents.push(...(data ?? []));
+    }
+
+    return contents;
   }
 
   async findById(id: string): Promise<Content> {
@@ -576,32 +586,36 @@ export class ContentsService {
     ids: string[],
   ): Promise<{ deleted: number; skipped: number }> {
     // Filter out published contents — those cannot be deleted
-    const CHUNK_SIZE = 100;
     let deleted = 0;
     let skipped = 0;
 
-    for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
-      const chunk = ids.slice(i, i + CHUNK_SIZE);
+    for (let i = 0; i < ids.length; i += SUPABASE_IN_CHUNK_SIZE) {
+      const chunk = ids.slice(i, i + SUPABASE_IN_CHUNK_SIZE);
 
       // Fetch statuses for this chunk
-      const { data: rows } = (await this.supabase
+      const { data: rows, error: findError } = (await this.supabase
         .getClient()
         .from('contents')
         .select('id, status')
         .in('id', chunk)) as DbResult<Array<{ id: string; status: string }>>;
 
-      const deletableIds = (rows ?? []).map((row) => row.id);
+      if (findError) this.throwFriendlyContentError(findError);
+
+      const deletableIds = (rows ?? [])
+        .filter((row) => row.status !== 'published')
+        .map((row) => row.id);
 
       skipped += chunk.length - deletableIds.length;
 
       if (deletableIds.length === 0) continue;
 
       // Remove queue items first (FK constraint)
-      await this.supabase
+      const { error: queueError } = await this.supabase
         .getClient()
         .from('queue')
         .delete()
         .in('content_id', deletableIds);
+      if (queueError) this.throwFriendlyContentError(queueError);
 
       const { error } = await this.supabase
         .getClient()
@@ -621,12 +635,11 @@ export class ContentsService {
     ids: string[],
     status: 'approved' | 'published',
   ): Promise<Content[]> {
-    // PostgREST has a URL length limit — chunk large batches to avoid 400 errors
-    const CHUNK_SIZE = 100;
+    // PostgREST filters are encoded in the URL, so keep batches compact.
     const results: Content[] = [];
 
-    for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
-      const chunk = ids.slice(i, i + CHUNK_SIZE);
+    for (let i = 0; i < ids.length; i += SUPABASE_IN_CHUNK_SIZE) {
+      const chunk = ids.slice(i, i + SUPABASE_IN_CHUNK_SIZE);
       const { data, error } = (await this.supabase
         .getClient()
         .from('contents')

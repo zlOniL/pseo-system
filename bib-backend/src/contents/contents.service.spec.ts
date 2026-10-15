@@ -9,6 +9,7 @@ function queryBuilder(result: unknown) {
     ilike: jest.fn().mockReturnThis(),
     order: jest.fn().mockReturnThis(),
     limit: jest.fn().mockReturnThis(),
+    delete: jest.fn().mockReturnThis(),
     maybeSingle: jest.fn().mockResolvedValue(result),
     then: jest.fn(
       (
@@ -20,6 +21,60 @@ function queryBuilder(result: unknown) {
 }
 
 describe('ContentsService main page lookup', () => {
+  it('splits large ID lookups into URL-safe batches', async () => {
+    const ids = Array.from({ length: 26 }, (_, index) => `content-${index}`);
+    const firstQuery = queryBuilder({ data: [{ id: ids[0] }], error: null });
+    const secondQuery = queryBuilder({ data: [{ id: ids[25] }], error: null });
+    const client = {
+      from: jest
+        .fn()
+        .mockReturnValueOnce(firstQuery)
+        .mockReturnValueOnce(secondQuery),
+    };
+    const service = new ContentsService({
+      getClient: jest.fn().mockReturnValue(client),
+    } as never);
+
+    const result = await service.findByIds(ids);
+
+    expect(result).toEqual([{ id: ids[0] }, { id: ids[25] }]);
+    expect(firstQuery.in).toHaveBeenCalledWith('id', ids.slice(0, 25));
+    expect(secondQuery.in).toHaveBeenCalledWith('id', ids.slice(25));
+  });
+
+  it('keeps published content out of a bulk delete', async () => {
+    const ids = Array.from({ length: 26 }, (_, index) => `content-${index}`);
+    const selected = queryBuilder({
+      data: ids.slice(0, 25).map((id) => ({ id, status: 'draft' })),
+      error: null,
+    });
+    const queueDelete = queryBuilder({ data: null, error: null });
+    const contentsDelete = queryBuilder({ data: null, error: null });
+    const published = queryBuilder({
+      data: [{ id: ids[25], status: 'published' }],
+      error: null,
+    });
+    const client = {
+      from: jest
+        .fn()
+        .mockReturnValueOnce(selected)
+        .mockReturnValueOnce(queueDelete)
+        .mockReturnValueOnce(contentsDelete)
+        .mockReturnValueOnce(published),
+    };
+    const service = new ContentsService({
+      getClient: jest.fn().mockReturnValue(client),
+    } as never);
+
+    await expect(service.bulkDelete(ids)).resolves.toEqual({
+      deleted: 25,
+      skipped: 1,
+    });
+    expect(selected.in).toHaveBeenCalledWith('id', ids.slice(0, 25));
+    expect(published.in).toHaveBeenCalledWith('id', ids.slice(25));
+    expect(contentsDelete.in).toHaveBeenCalledWith('id', ids.slice(0, 25));
+  });
+
   it('finds a published production page without a service_id', async () => {
     const typedQuery = queryBuilder({ data: null, error: null });
     const linkedQuery = queryBuilder({ data: null, error: null });

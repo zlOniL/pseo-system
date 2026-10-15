@@ -16,6 +16,10 @@ services:
         value: gemini-2.0-flash
       - key: QUEUE_WORKER_ENABLED
         value: true
+      - key: FTP_HTML_INTEGRATION_ENABLED
+        sync: false
+      - key: FTP_CREDENTIALS_KEY
+        sync: false
       - key: WP_BASE_URL
         sync: false
       - key: WP_SECRET
