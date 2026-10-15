@@ -17,6 +17,7 @@ export interface FtpSiteConfigRow {
   backup_root: string;
   public_base_url: string;
   passive_mode: boolean;
+  default_template_remote_path?: string | null;
   connection_status: 'untested' | 'ok' | 'failed';
   created_at: string;
   updated_at: string;
@@ -70,6 +71,13 @@ export class FtpSiteConfigsService {
       backup_root: this.cleanRelativePath(dto.backup_root, 'backup_root'),
       public_base_url: dto.public_base_url.trim().replace(/\/+$/, ''),
       passive_mode: dto.passive_mode ?? true,
+      default_template_remote_path:
+        dto.default_template_remote_path !== undefined
+          ? this.cleanRelativePath(
+              dto.default_template_remote_path,
+              'default_template_remote_path',
+            )
+          : existing?.default_template_remote_path ?? null,
       connection_status: 'untested',
       updated_at: new Date().toISOString(),
     };

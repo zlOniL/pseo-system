@@ -28,6 +28,7 @@ export default function SiteForm({ initialData }: { initialData?: Site }) {
     initialData?.domain ? `https://${initialData.domain}` : '',
   );
   const [ftpPassiveMode, setFtpPassiveMode] = useState(true);
+  const [ftpDefaultTemplatePath, setFtpDefaultTemplatePath] = useState('');
   const [hasFtpPassword, setHasFtpPassword] = useState(false);
   const [ftpConnectionStatus, setFtpConnectionStatus] = useState<'untested' | 'ok' | 'failed'>('untested');
   const [loading, setLoading] = useState(false);
@@ -49,6 +50,7 @@ export default function SiteForm({ initialData }: { initialData?: Site }) {
         setFtpBackupRoot(config.backup_root);
         setFtpPublicBaseUrl(config.public_base_url);
         setFtpPassiveMode(config.passive_mode);
+        setFtpDefaultTemplatePath(config.default_template_remote_path ?? '');
         setHasFtpPassword(config.has_ftp_password);
         setFtpConnectionStatus(config.connection_status);
       })
@@ -66,6 +68,9 @@ export default function SiteForm({ initialData }: { initialData?: Site }) {
       backup_root: ftpBackupRoot.trim(),
       public_base_url: ftpPublicBaseUrl.trim(),
       passive_mode: ftpPassiveMode,
+      ...(ftpDefaultTemplatePath.trim() && {
+        default_template_remote_path: ftpDefaultTemplatePath.trim(),
+      }),
     };
   }
 
@@ -257,6 +262,19 @@ export default function SiteForm({ initialData }: { initialData?: Site }) {
           <div>
             <label className="bib-label">URL pública base</label>
             <input className="bib-input" value={ftpPublicBaseUrl} onChange={(e) => setFtpPublicBaseUrl(e.target.value)} placeholder="https://urgentreparacoes.pt" required />
+          </div>
+
+          <div>
+            <label className="bib-label">Página modelo para novos serviços</label>
+            <input
+              className="bib-input"
+              value={ftpDefaultTemplatePath}
+              onChange={(e) => setFtpDefaultTemplatePath(e.target.value)}
+              placeholder="picheleiros.html"
+            />
+            <p className="mt-1 text-xs text-gray-400">
+              Arquivo FTP já importado cujo banner, números e rodapé serão copiados para novos serviços.
+            </p>
           </div>
 
           <label className="flex items-center gap-2 text-sm text-gray-700">

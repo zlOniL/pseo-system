@@ -62,12 +62,19 @@ export class FtpHtmlDocumentRenderer {
     imageUrl?: string | null,
     imageAlt?: string | null,
   ): string {
+    const image = imageUrl?.trim();
+    if (html.includes('{{BANNER_BACKGROUND_STYLE}}')) {
+      const background = image
+        ? `background-image:linear-gradient(rgba(0,0,0,.52),rgba(0,0,0,.52)),url(&quot;${escapeHtml(image)}&quot;);background-size:cover;background-position:center;background-repeat:no-repeat`
+        : '';
+      return html.replace(/\{\{BANNER_BACKGROUND_STYLE\}\}/g, background);
+    }
     if (!html.includes('{{BANNER_SECTION}}')) return html;
-    if (!imageUrl?.trim()) return html.replace(/\{\{BANNER_SECTION\}\}/g, '');
+    if (!image) return html.replace(/\{\{BANNER_SECTION\}\}/g, '');
 
     const alt = escapeHtml(imageAlt?.trim() || 'Imagem do serviço');
-    const url = escapeHtml(imageUrl.trim());
-    const section = `<section class="pseo-template-banner"><img src="${url}" alt="${alt}" loading="eager"></section>`;
+    const url = escapeHtml(image);
+    const section = `<section class="pseo-template-banner" style="width:100%;max-width:1120px;margin:0 auto;padding:24px 16px 0"><img src="${url}" alt="${alt}" loading="eager" style="display:block;width:100%;max-height:360px;object-fit:cover;border-radius:12px"></section>`;
     return html.replace(/\{\{BANNER_SECTION\}\}/g, section);
   }
 

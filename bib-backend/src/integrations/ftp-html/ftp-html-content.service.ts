@@ -24,6 +24,12 @@ interface FtpTemplateVersionRow {
   document_suffix: string;
 }
 
+interface FtpTemplateReference {
+  document_prefix: string;
+  document_suffix: string;
+  remote_path: string;
+}
+
 export interface ComposeFtpHtmlInput {
   service: Service;
   fragmentHtml: string;
@@ -70,6 +76,10 @@ export class FtpHtmlContentService {
         canonicalUrl: remotePage.public_url,
       },
       textReplacements: [
+        {
+          from: '{{SERVICE_NAME}}',
+          to: input.mainKeyword,
+        },
         {
           from: input.service.name,
           to: input.mainKeyword,
@@ -156,6 +166,16 @@ export class FtpHtmlContentService {
       .split('/')
       .map(encodeURIComponent)
       .join('/')}`;
+    const reference = await this.findTemplateReference(
+      service.site_id!,
+      config.default_template_remote_path,
+    );
+    const template = reference
+      ? {
+          documentPrefix: reference.document_prefix,
+          documentSuffix: reference.document_suffix,
+        }
+      : FTP_BASE_TEMPLATE;
     const client = this.supabase.getClient();
     const remoteInsert = (await client
       .from('ftp_remote_pages')
@@ -172,18 +192,23 @@ export class FtpHtmlContentService {
       throw new BadRequestException(remoteInsert.error?.message ?? 'Falha ao criar pagina FTP base.');
     }
 
-    const originalHtml = `${FTP_BASE_TEMPLATE.documentPrefix}${FTP_BASE_TEMPLATE.documentSuffix}`;
+    const originalHtml = `${template.documentPrefix}${template.documentSuffix}`;
     const templateInsert = (await client
       .from('ftp_template_versions')
       .insert({
         remote_page_id: remoteInsert.data.id,
         version: 1,
         original_html: originalHtml,
-        document_prefix: FTP_BASE_TEMPLATE.documentPrefix,
-        document_suffix: FTP_BASE_TEMPLATE.documentSuffix,
+        document_prefix: template.documentPrefix,
+        document_suffix: template.documentSuffix,
         source_hash: createHash('sha256').update(originalHtml).digest('hex'),
         source_encoding: 'utf-8',
-        boundary_config: { source: 'base_template' },
+        boundary_config: reference
+          ? {
+              source: 'site_reference',
+              reference_remote_path: reference.remote_path,
+            }
+          : { source: 'base_template' },
         editable_fields: { banner: true },
         status: 'active',
       })
@@ -215,6 +240,85 @@ export class FtpHtmlContentService {
 
     if (error || !data) {
       throw new BadRequestException('Template FTP ativo nao encontrado.');
+    }
+    return data;
+  }
+
+  private async findTemplateReference(
+    siteId: string,
+    remotePath?: string | null,
+  ): Promise<FtpTemplateReference | null> {
+    if (!remotePath) return null;
+
+    const { data: remotePage, error: remoteError } = (await this.supabase
+      .getClient()
+      .from('ftp_remote_pages')
+      .select('service_id, active_template_version_id')
+      .eq('site_id', siteId)
+      .eq('remote_path', remotePath)
+      .maybeSingle()) as DbResult<{
+      service_id: string | null;
+      active_template_version_id: string | null;
+    }>;
+    if (remoteError) throw new BadRequestException(remoteError.message);
+    if (!remotePage?.service_id || !remotePage.active_template_version_id) {
+      throw new BadRequestException(
+        `Template visual FTP "${remotePath}" nao esta importado ou ativo.`,
+      );
+    }
+
+    const [template, service] = await Promise.all([
+      this.findTemplate(remotePage.active_template_version_id),
+      this.findReferenceService(remotePage.service_id),
+    ]);
+    const documentPrefix = template.document_prefix.split(service.name).join(
+      '{{SERVICE_NAME}}',
+    );
+    if (!documentPrefix.includes('{{SERVICE_NAME}}')) {
+      throw new BadRequestException(
+        `Template visual FTP "${remotePath}" nao contem o nome do servico de referencia.`,
+      );
+    }
+    if (!/<\/main>\s*$/i.test(documentPrefix)) {
+      throw new BadRequestException(
+        `Template visual FTP "${remotePath}" nao termina no banner principal.`,
+      );
+    }
+
+    const prefixWithBannerBackground = documentPrefix.replace(
+      /<main\b([^>]*)>/i,
+      (main, attributes: string) => {
+        if (/\sstyle\s*=/i.test(attributes)) {
+          return main.replace(
+            /(\sstyle\s*=\s*["'])([^"']*)(["'])/i,
+            '$1$2;{{BANNER_BACKGROUND_STYLE}}$3',
+          );
+        }
+        return `<main${attributes} style="{{BANNER_BACKGROUND_STYLE}}">`;
+      },
+    );
+    if (!prefixWithBannerBackground.includes('{{BANNER_BACKGROUND_STYLE}}')) {
+      throw new BadRequestException(
+        `Template visual FTP "${remotePath}" nao contem o banner principal.`,
+      );
+    }
+
+    return {
+      document_prefix: prefixWithBannerBackground,
+      document_suffix: template.document_suffix,
+      remote_path: remotePath,
+    };
+  }
+
+  private async findReferenceService(id: string): Promise<{ name: string }> {
+    const { data, error } = (await this.supabase
+      .getClient()
+      .from('services')
+      .select('name')
+      .eq('id', id)
+      .single()) as DbResult<{ name: string }>;
+    if (error || !data?.name) {
+      throw new BadRequestException('Servico do template visual FTP nao encontrado.');
     }
     return data;
   }

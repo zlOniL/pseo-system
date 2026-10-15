@@ -15,6 +15,7 @@ describe('UpsertFtpSiteConfigDto', () => {
       backup_root: 'backups/pseo',
       public_base_url: 'https://urgentreparacoes.pt',
       passive_mode: true,
+      default_template_remote_path: 'picheleiros.html',
     });
 
     await expect(validate(dto)).resolves.toHaveLength(0);

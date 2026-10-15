@@ -69,6 +69,7 @@ describe('FtpSiteConfigsService', () => {
     backup_root: '/backups/pseo',
     public_base_url: 'https://urgentreparacoes.pt/',
     passive_mode: true,
+    default_template_remote_path: 'picheleiros.html',
   };
 
   it('encrypts the FTP password and redacts it from public responses', async () => {
@@ -86,6 +87,7 @@ describe('FtpSiteConfigsService', () => {
       remote_root: 'public_html',
       backup_root: 'backups/pseo',
       public_base_url: 'https://urgentreparacoes.pt',
+      default_template_remote_path: 'picheleiros.html',
       has_ftp_password: true,
     });
     expect(result).not.toHaveProperty('password_encrypted');

@@ -327,6 +327,7 @@ export interface FtpSiteConfig {
   backup_root: string;
   public_base_url: string;
   passive_mode: boolean;
+  default_template_remote_path: string | null;
   connection_status: 'untested' | 'ok' | 'failed';
   has_ftp_password: boolean;
   created_at: string;
@@ -404,6 +405,7 @@ export interface UpsertFtpSiteConfigInput {
   backup_root: string;
   public_base_url: string;
   passive_mode?: boolean;
+  default_template_remote_path?: string;
 }
 
 export interface WhitelabelContentJson {

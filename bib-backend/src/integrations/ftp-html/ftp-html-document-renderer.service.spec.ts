@@ -80,6 +80,29 @@ describe('FtpHtmlDocumentRenderer', () => {
     expect(html).not.toContain('{{BANNER_SECTION}}');
   });
 
+  it('uses the service image as the background of a reference banner', () => {
+    const html = renderer.render({
+      template: {
+        document_prefix:
+          '<!DOCTYPE html><html><head><title>Old</title></head><body><main style="{{BANNER_BACKGROUND_STYLE}}"><h1>{{SERVICE_NAME}} 24h</h1><div class="numbers">915 463 419</div></main>',
+        document_suffix: '<footer>Footer</footer></body></html>',
+      },
+      fragmentHtml: '<section>Conteudo</section>',
+      videoUrl: 'https://cdn.example/video.mp4',
+      bannerImageUrl: 'https://cdn.example/service.webp',
+      textReplacements: [
+        { from: '{{SERVICE_NAME}}', to: 'Reparação de Termoacumuladores' },
+      ],
+    });
+
+    expect(html).toContain('<h1>Reparação de Termoacumuladores 24h</h1>');
+    expect(html).toContain('915 463 419');
+    expect(html).toContain('background-image:linear-gradient');
+    expect(html).toContain('url(&quot;https://cdn.example/service.webp&quot;)');
+    expect(html).not.toContain('class="pseo-template-banner"');
+    expect(html.indexOf('915 463 419')).toBeLessThan(html.indexOf('<video'));
+  });
+
   it('refreshes existing content layout styles', () => {
     const oldHtml = [
       '<!DOCTYPE html><html><head>',

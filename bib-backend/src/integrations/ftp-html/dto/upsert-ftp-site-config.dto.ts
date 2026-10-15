@@ -50,4 +50,8 @@ export class UpsertFtpSiteConfigDto {
   @IsOptional()
   @IsBoolean()
   passive_mode?: boolean;
+
+  @IsOptional()
+  @IsString()
+  default_template_remote_path?: string;
 }
