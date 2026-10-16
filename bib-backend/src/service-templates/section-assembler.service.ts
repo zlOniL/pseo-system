@@ -85,7 +85,8 @@ export class SectionAssemblerService {
 
     const parts: string[] = [];
     for (const key of SECTION_KEYS) {
-      const section = randomVersions.get(key)!;
+      const section = randomVersions.get(key);
+      if (!section) continue;
       parts.push(replaceKeyword(section.html ?? '', section.base_city, city));
     }
 

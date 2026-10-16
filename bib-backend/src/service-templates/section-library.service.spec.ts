@@ -90,4 +90,33 @@ describe('SectionLibraryService', () => {
       }),
     ]);
   });
+
+  it('returns available sections when the library is incomplete', async () => {
+    const query = {
+      select: jest.fn(),
+      eq: jest.fn(),
+    };
+    query.select.mockReturnValue(query);
+    query.eq.mockReturnValueOnce(query).mockResolvedValueOnce({
+      data: [
+        {
+          id: 'section-1',
+          section_key: 'intro',
+          html: '<h1>Introducao</h1>',
+          base_city: 'Lisboa',
+        },
+      ],
+      error: null,
+    });
+    const service = new SectionLibraryService({
+      getClient: () => ({ from: () => query }),
+    } as never);
+
+    const sections = await service.getRandomVersions('service-1');
+
+    expect(sections.size).toBe(1);
+    expect(sections.get('intro')).toEqual(
+      expect.objectContaining({ section_key: 'intro' }),
+    );
+  });
 });

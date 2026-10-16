@@ -105,22 +105,14 @@ export class SectionLibraryService {
       grouped.set(row.section_key, list);
     }
 
-    const missing: string[] = [];
     const result = new Map<SectionKey, SectionLibraryRow>();
 
     for (const key of this.keysForFormat(outputFormat)) {
       const versions = grouped.get(key);
       if (!versions || versions.length === 0) {
-        missing.push(key);
         continue;
       }
       result.set(key, versions[Math.floor(Math.random() * versions.length)]);
-    }
-
-    if (missing.length > 0) {
-      throw new BadRequestException(
-        `Biblioteca incompleta: faltam secoes [${missing.join(', ')}]`,
-      );
     }
 
     return result;
