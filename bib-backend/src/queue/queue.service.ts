@@ -119,23 +119,39 @@ export class QueueService {
       .in('city', cities)
       .in('status', ['failed', 'done']);
 
-    const rows = cities.map((city) => ({
-      service_id: serviceId,
-      site_id: service?.site_id ?? null,
-      city,
-      status: 'pending',
-      job_type: 'page',
-      mode,
-      template_id: templateId ?? null,
-    }));
+    const { data: activeItems, error: activeItemsError } = (await this.supabase
+      .getClient()
+      .from('queue')
+      .select('city')
+      .eq('service_id', serviceId)
+      .eq('job_type', 'page')
+      .in('city', cities)
+      .in('status', ['pending', 'processing'])) as DbResult<
+      Array<{ city: string }>
+    >;
+
+    if (activeItemsError)
+      throw new BadRequestException(activeItemsError.message);
+
+    const activeCities = new Set(activeItems?.map((item) => item.city) ?? []);
+    const rows = cities
+      .filter((city) => !activeCities.has(city))
+      .map((city) => ({
+        service_id: serviceId,
+        site_id: service?.site_id ?? null,
+        city,
+        status: 'pending',
+        job_type: 'page',
+        mode,
+        template_id: templateId ?? null,
+      }));
+
+    if (rows.length === 0) return [];
 
     const { data, error } = (await this.supabase
       .getClient()
       .from('queue')
-      .upsert(rows, {
-        onConflict: 'service_id,city,job_type',
-        ignoreDuplicates: true,
-      })
+      .insert(rows)
       .select()) as DbResult<QueueItem[]>;
 
     if (error) throw new BadRequestException(error.message);
@@ -159,33 +175,7 @@ export class QueueService {
       );
     }
 
-    const seenTemplateTargets = new Set<string>();
-    const uniqueTemplates = templates.filter((template) => {
-      const city = template.is_main_page
-        ? '__main__'
-        : template.base_city?.trim() || 'Lisboa';
-      const key = `${template.is_main_page ? 'main' : 'city'}:${city}`;
-      if (seenTemplateTargets.has(key)) return false;
-      seenTemplateTargets.add(key);
-      return true;
-    });
-
-    const cities = uniqueTemplates
-      .filter((template) => !template.is_main_page)
-      .map((template) => template.base_city?.trim() || 'Lisboa');
-
-    if (cities.length > 0) {
-      await this.supabase
-        .getClient()
-        .from('queue')
-        .delete()
-        .eq('service_id', serviceId)
-        .eq('job_type', 'template')
-        .in('city', cities)
-        .in('status', ['failed', 'done']);
-    }
-
-    const rows = uniqueTemplates.map((template) => {
+    const rows = templates.map((template) => {
       const isMainPage = template.is_main_page ?? false;
       const city = isMainPage ? null : template.base_city?.trim() || 'Lisboa';
       return {
@@ -208,10 +198,7 @@ export class QueueService {
     const { data, error } = (await this.supabase
       .getClient()
       .from('queue')
-      .upsert(rows, {
-        onConflict: 'service_id,city,job_type',
-        ignoreDuplicates: true,
-      })
+      .insert(rows)
       .select()) as DbResult<QueueItem[]>;
 
     if (error) throw new BadRequestException(error.message);

@@ -6,6 +6,7 @@ function queryBuilder(result: unknown) {
     eq: jest.fn().mockReturnThis(),
     in: jest.fn().mockReturnThis(),
     delete: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockReturnThis(),
     update: jest.fn().mockReturnThis(),
     upsert: jest.fn().mockReturnThis(),
     order: jest.fn().mockReturnThis(),
@@ -77,7 +78,6 @@ describe('QueueService', () => {
       data: { site_id: 'site-1' },
       error: null,
     });
-    const cleanupQuery = queryBuilder({ data: null, error: null });
     const insertQuery = queryBuilder({
       data: [{ id: 'job-1', job_type: 'template' }],
       error: null,
@@ -86,7 +86,6 @@ describe('QueueService', () => {
       from: jest
         .fn()
         .mockReturnValueOnce(serviceQuery)
-        .mockReturnValueOnce(cleanupQuery)
         .mockReturnValueOnce(insertQuery),
     };
     const service = new QueueService(
@@ -99,20 +98,55 @@ describe('QueueService', () => {
     ]);
 
     expect(result).toEqual([{ id: 'job-1', job_type: 'template' }]);
-    expect(insertQuery.upsert).toHaveBeenCalledWith(
-      [
-        expect.objectContaining({
-          service_id: 'service-1',
-          site_id: 'site-1',
-          city: 'Porto',
-          job_type: 'template',
-          payload: expect.objectContaining({ label: 'Variação Porto' }),
-        }),
+    expect(insertQuery.insert).toHaveBeenCalledWith([
+      expect.objectContaining({
+        service_id: 'service-1',
+        site_id: 'site-1',
+        city: 'Porto',
+        job_type: 'template',
+        payload: expect.objectContaining({ label: 'Variação Porto' }),
+      }),
+    ]);
+  });
+
+  it('keeps template jobs for the same city in the queue', async () => {
+    const serviceQuery = queryBuilder({
+      data: { site_id: 'site-1' },
+      error: null,
+    });
+    const insertQuery = queryBuilder({
+      data: [
+        { id: 'job-1', job_type: 'template' },
+        { id: 'job-2', job_type: 'template' },
       ],
-      {
-        onConflict: 'service_id,city,job_type',
-        ignoreDuplicates: true,
-      },
+      error: null,
+    });
+    const client = {
+      from: jest
+        .fn()
+        .mockReturnValueOnce(serviceQuery)
+        .mockReturnValueOnce(insertQuery),
+    };
+    const service = new QueueService(
+      { getClient: jest.fn().mockReturnValue(client) } as never,
+      {} as never,
     );
+
+    const result = await service.enqueueTemplates('service-1', [
+      { base_city: 'Porto', label: 'Variação A' },
+      { base_city: 'Porto', label: 'Variação B' },
+    ]);
+
+    expect(result).toHaveLength(2);
+    expect(insertQuery.insert).toHaveBeenCalledWith([
+      expect.objectContaining({
+        city: 'Porto',
+        payload: expect.objectContaining({ label: 'Variação A' }),
+      }),
+      expect.objectContaining({
+        city: 'Porto',
+        payload: expect.objectContaining({ label: 'Variação B' }),
+      }),
+    ]);
   });
 });
