@@ -33,6 +33,7 @@ describe('FtpHtmlDocumentRenderer', () => {
     expect(html).toContain(template.document_suffix);
     expect(html).toContain('<style data-pseo-content-layout>');
     expect(html).toContain('line-height:1.65!important');
+    expect(html).toContain('width:100%!important;max-width:1120px!important;margin:0 auto!important;padding:32px 16px!important');
     expect(html).toContain(`<div class="pseo-content">${fragment}</div>`);
     expect(html.match(/Conteudo novo/g)).toHaveLength(1);
   });
