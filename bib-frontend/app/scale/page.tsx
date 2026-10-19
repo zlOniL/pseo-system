@@ -19,7 +19,9 @@ import {
   RelatedService,
 } from '@/lib/types';
 
-type QueueMode = 'ai' | 'template' | 'library';
+import { HybridPanel } from './HybridPanel';
+
+type QueueMode = 'ai' | 'template' | 'library' | 'hybrid';
 type PageKind = 'main' | 'locality';
 type QueueStatus = QueueItem['status'];
 type ReviewStatus = ContentSummary['status'];
@@ -34,7 +36,7 @@ const PAGE_LIMIT_OPTIONS = [50, 100, 250, 500, 1000] as const;
 const DEFAULT_PAGE_LIMIT = 50;
 const PRODUCTION_LIST_STATUSES: QueueStatus[] = ['pending', 'done', 'failed'];
 const REVIEW_STATUSES: ReviewStatus[] = ['draft', 'approved', 'published'];
-const ALL_MODES: QueueMode[] = ['ai', 'template', 'library'];
+const ALL_MODES: QueueMode[] = ['ai', 'template', 'library', 'hybrid'];
 const SITE_STORAGE_KEY = 'bib-selected-site-id';
 
 const MAIN_LOCALITIES = [
@@ -237,6 +239,7 @@ function modeLabel(mode: QueueMode) {
     ai: 'IA',
     template: 'Template',
     library: 'Biblioteca',
+    hybrid: 'Híbrido',
   }[mode];
 }
 
@@ -424,6 +427,7 @@ function NewGenerationModal({
   const [serviceId, setServiceId] = useState(initialServiceId);
   const [pageKind, setPageKind] = useState<PageKind>(initialPageKind);
   const [mode, setMode] = useState<QueueMode>('ai');
+  const [hybridReady, setHybridReady] = useState(false);
   const [templates, setTemplates] = useState<ServiceTemplate[]>([]);
   const [templateId, setTemplateId] = useState('');
   const [previousItems, setPreviousItems] = useState<QueueItem[]>([]);
@@ -668,6 +672,10 @@ function NewGenerationModal({
       toast.error('Publique a pagina principal deste servico antes de gerar paginas de localidade.');
       return;
     }
+    if (mode === 'hybrid' && !hybridReady) {
+      toast.error('Prepare a biblioteca Híbrida antes de gerar.');
+      return;
+    }
     if (mode === 'template' && !templateId) {
       toast.error('Seleciona um template para continuar.');
       return;
@@ -777,8 +785,8 @@ function NewGenerationModal({
 
             <div>
               <p className="bib-label">Modo</p>
-              <div className="grid grid-cols-3 gap-1">
-                {(['ai', 'template', 'library'] as const).map((item) => (
+              <div className="grid grid-cols-2 gap-1">
+                {(['ai', 'template', 'library', 'hybrid'] as const).map((item) => (
                   <button
                     key={item}
                     disabled={pageKind === 'main' || !canCreateLocalities}
@@ -794,6 +802,8 @@ function NewGenerationModal({
                 ))}
               </div>
             </div>
+
+            {mode === 'hybrid' && <HybridPanel key={serviceId} serviceId={serviceId} onReady={setHybridReady} />}
 
             {mode === 'template' && (
               <div>
@@ -1054,7 +1064,7 @@ function NewGenerationModal({
           ) : (
             <button
               onClick={handleSubmit}
-              disabled={!serviceId || selectedCities.size === 0 || enqueueing || !canCreateLocalities}
+              disabled={!serviceId || selectedCities.size === 0 || enqueueing || !canCreateLocalities || (mode === 'hybrid' && !hybridReady)}
               className="bib-btn bib-btn-primary"
             >
               {enqueueing ? 'Adicionando...' : `Adicionar ${selectedCities.size || ''} a fila`}

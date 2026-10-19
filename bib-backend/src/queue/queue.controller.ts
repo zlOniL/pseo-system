@@ -12,17 +12,20 @@ import { QueueService } from './queue.service';
 import { QueueWorker } from './queue.worker';
 import { EnqueueDto, EnqueueTemplatesDto } from './dto/enqueue.dto';
 import { BulkActionDto } from '../contents/dto/bulk-action.dto';
+import { HybridService } from '../service-templates/hybrid.service';
 
 @Controller('queue')
 export class QueueController {
   constructor(
     private readonly queueService: QueueService,
     private readonly worker: QueueWorker,
+    private readonly hybrid: HybridService,
   ) {}
 
   @Post('enqueue')
   @HttpCode(201)
   async enqueue(@Body() dto: EnqueueDto) {
+    if (dto.mode === 'hybrid') await this.hybrid.assertReady(dto.service_id);
     const items = await this.queueService.enqueue(
       dto.service_id,
       dto.cities,

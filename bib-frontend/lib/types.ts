@@ -1,4 +1,5 @@
 export interface Content {
+  hybrid_manifest?: { city: string; sections: Array<{ section_key: string; row_id: string; version: number; strategy: 'generic' | 'local' }> } | null;
   id: string;
   created_at: string;
   site_id: string | null;
@@ -17,7 +18,7 @@ export interface Content {
   related_services: RelatedService[] | null;
   meta_description: string | null;
   service_id: string | null;
-  generation_mode: 'ai' | 'template' | 'library';
+  generation_mode: 'ai' | 'template' | 'library' | 'hybrid';
   wordpress_category: string | null;
   output_format: 'html' | 'whitelabel_json';
   render_mode: 'fragment' | 'full_document';
@@ -194,7 +195,7 @@ export interface QueueItem {
   city: string | null;
   status: 'pending' | 'processing' | 'done' | 'failed';
   job_type: 'page' | 'template';
-  mode: 'ai' | 'template' | 'library';
+  mode: 'ai' | 'template' | 'library' | 'hybrid';
   template_id: string | null;
   payload: GenerateTemplateInput | null;
   content_id: string | null;

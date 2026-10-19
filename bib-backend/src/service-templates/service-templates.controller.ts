@@ -30,6 +30,8 @@ import { buildExternalSlug } from '../integrations/whitelabel-api/whitelabel-jso
 import { formatWhitelabelGenerationIssue } from '../integrations/whitelabel-api/whitelabel.types';
 import { SectionKey, ServiceTemplate } from './service-templates.types';
 import { buildLocalKeyword } from '../common/location-preposition';
+import { HybridService } from './hybrid.service';
+import { SectionAssemblerService } from './section-assembler.service';
 
 @Controller('services/:serviceId/templates')
 export class ServiceTemplatesController {
@@ -47,6 +49,8 @@ export class ServiceTemplatesController {
     private readonly sites: SitesService,
     private readonly whitelabelContent: WhitelabelContentService,
     private readonly ftpHtmlContent: FtpHtmlContentService,
+    private readonly hybrid: HybridService,
+    private readonly assembler: SectionAssemblerService,
   ) {}
 
   @Get()
@@ -63,6 +67,65 @@ export class ServiceTemplatesController {
     const outputFormat =
       site?.integration_type === 'whitelabel_api' ? 'whitelabel_json' : 'html';
     return this.library.getSummary(serviceId, outputFormat);
+  }
+
+  private async hybridFormat(serviceId: string) {
+    const service = await this.services.findById(serviceId);
+    const site = service.site_id
+      ? await this.sites.findById(service.site_id)
+      : null;
+    return site?.integration_type === 'whitelabel_api'
+      ? ('whitelabel_json' as const)
+      : ('html' as const);
+  }
+
+  @Get('hybrid')
+  async hybridSummary(@Param('serviceId') serviceId: string) {
+    return this.hybrid.summary(serviceId, await this.hybridFormat(serviceId));
+  }
+
+  @Post('hybrid/prepare')
+  async prepareHybrid(@Param('serviceId') serviceId: string) {
+    return this.hybrid.startPreparation(
+      serviceId,
+      await this.hybridFormat(serviceId),
+    );
+  }
+
+  @Patch('hybrid/:rowId/local')
+  markHybridLocal(
+    @Param('serviceId') serviceId: string,
+    @Param('rowId') rowId: string,
+  ) {
+    return this.hybrid.markLocal(serviceId, rowId);
+  }
+
+  @Post('hybrid/regenerate/:contentId')
+  async regenerateHybridLocal(
+    @Param('serviceId') serviceId: string,
+    @Param('contentId') contentId: string,
+  ) {
+    const content = await this.contents.findById(contentId);
+    if (
+      content.service_id !== serviceId ||
+      !content.hybrid_manifest ||
+      content.generation_mode !== 'hybrid'
+    ) {
+      throw new BadRequestException('Página sem origem Híbrida neste serviço.');
+    }
+    const service = await this.services.findById(serviceId);
+    return this.assembler.assemble({
+      service,
+      serviceId,
+      city: content.city,
+      mode: 'hybrid',
+      hybridState: {
+        ...content.hybrid_manifest,
+        sections: content.hybrid_manifest.sections.map((s) =>
+          s.strategy === 'local' ? { ...s, value: undefined } : s,
+        ),
+      },
+    });
   }
 
   @Get('main-content')
@@ -109,7 +172,8 @@ export class ServiceTemplatesController {
     dto: GenerateTemplateDto,
     existingTemplateId?: string,
   ) {
-    if (existingTemplateId) await this.library.deleteByTemplate(existingTemplateId);
+    if (existingTemplateId)
+      await this.library.deleteByTemplate(existingTemplateId);
     return this.generateAndSave(serviceId, dto, existingTemplateId);
   }
 

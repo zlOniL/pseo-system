@@ -27,6 +27,7 @@ describe('QueueWorker', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
     );
     let releaseTemplate!: () => void;
     const templateStarted = new Promise<void>((resolve) => {
@@ -63,6 +64,7 @@ describe('QueueWorker', () => {
     expect(calls.filter((mode) => mode === 'ai')).toHaveLength(2);
     expect(calls.filter((mode) => mode === 'template')).toHaveLength(2);
     expect(calls.filter((mode) => mode === 'library')).toHaveLength(2);
+    expect(calls.filter((mode) => mode === 'hybrid')).toHaveLength(2);
     expect(calls.filter((mode) => mode === 'template-generation')).toHaveLength(2);
   });
 });

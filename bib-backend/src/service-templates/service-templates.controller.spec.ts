@@ -48,6 +48,8 @@ describe('ServiceTemplatesController FTP templates', () => {
       sites as never,
       {} as never,
       ftpHtmlContent as never,
+      {} as never,
+      {} as never,
     );
 
     await controller.generate('service-1', { is_main_page: true });
@@ -93,6 +95,8 @@ describe('ServiceTemplatesController FTP templates', () => {
       { replaceHtmlSections: jest.fn() } as never,
       { validate: jest.fn(() => ({ score: 90, issues: [] })) } as never,
       { findById: jest.fn(async () => ({ integration_type: 'wordpress' })) } as never,
+      {} as never,
+      {} as never,
       {} as never,
       {} as never,
     );

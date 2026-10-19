@@ -1,3 +1,5 @@
+import { HybridService, HybridManifest } from './hybrid.service';
+import { countTextWords } from '../integrations/whitelabel-api/whitelabel-json';
 import { Injectable } from '@nestjs/common';
 import { SectionLibraryService } from './section-library.service';
 import { ValidationService } from '../validation/validation.service';
@@ -19,6 +21,9 @@ export interface AssembleInput {
   service: Service;
   city: string;
   serviceId: string;
+  mode?: 'library' | 'hybrid';
+  hybridState?: HybridManifest;
+  checkpoint?: (state: HybridManifest) => Promise<void>;
 }
 
 @Injectable()
@@ -31,6 +36,7 @@ export class SectionAssemblerService {
     private readonly whitelabelContent: WhitelabelContentService,
     private readonly localityLinks: LocalityLinksService,
     private readonly ftpHtmlContent: FtpHtmlContentService,
+    private readonly hybrid: HybridService,
   ) {}
 
   async assemble(input: AssembleInput): Promise<Content> {
@@ -40,22 +46,52 @@ export class SectionAssemblerService {
     const site = service.site_id
       ? await this.sites.findById(service.site_id)
       : null;
+    const mode = input.mode ?? 'library';
+    const prepared =
+      mode === 'hybrid'
+        ? await this.hybrid.assemble({
+            serviceId: service.id,
+            service: service.name,
+            city,
+            format:
+              site?.integration_type === 'whitelabel_api'
+                ? 'whitelabel_json'
+                : 'html',
+            previous: input.hybridState,
+            checkpoint: input.checkpoint,
+          })
+        : null;
     if (site?.integration_type === 'whitelabel_api') {
-      const rows = await this.library.getRandomVersions(
-        service.id,
-        'whitelabel_json',
-      );
+      const rows =
+        prepared?.rows ??
+        (await this.library.getRandomVersions(service.id, 'whitelabel_json'));
       const { contentJson, externalSlug } =
         await this.whitelabelContent.assembleFromLibrary({
           service,
           city,
           rows,
+          alreadyLocalized: mode === 'hybrid',
         });
       const validationResult = {
         score: 100,
-        issues: [],
+        issues: [] as string[],
         breakdown: { structure: 30, seo: 40, content: 30 },
       };
+      if (prepared) {
+        const words = countTextWords(contentJson);
+        if (words < (service.min_words ?? 800)) {
+          validationResult.score = 60;
+          validationResult.breakdown.content = 0;
+          validationResult.breakdown.seo = 30;
+          validationResult.issues.push(
+            `Contagem de palavras insuficiente (${words}; mínimo ${service.min_words ?? 800}). Reveja o template antes de publicar.`,
+          );
+        }
+        if (/\{\{[^}]+\}\}/.test(JSON.stringify(contentJson))) {
+          validationResult.score = Math.min(validationResult.score, 60);
+          validationResult.issues.push('Existem placeholders não preenchidos.');
+        }
+      }
 
       return this.contents.save(
         {
@@ -77,17 +113,23 @@ export class SectionAssemblerService {
         null,
         validationResult,
         `Assistencia de ${service.name} ${formatLocationPhrase(city)} com atendimento rapido e equipa especializada.`,
-        'library',
+        mode,
+        prepared ? { hybrid_manifest: prepared.manifest } : {},
       );
     }
 
-    const randomVersions = await this.library.getRandomVersions(service.id);
+    const randomVersions =
+      prepared?.rows ?? (await this.library.getRandomVersions(service.id));
 
     const parts: string[] = [];
     for (const key of SECTION_KEYS) {
       const section = randomVersions.get(key);
       if (!section) continue;
-      parts.push(replaceKeyword(section.html ?? '', section.base_city, city));
+      parts.push(
+        prepared
+          ? (section.html ?? '')
+          : replaceKeyword(section.html ?? '', section.base_city, city),
+      );
     }
 
     let html = await this.localityLinks.html(
@@ -141,8 +183,9 @@ export class SectionAssemblerService {
         composed.html,
         validationResult,
         '',
-        'library',
+        mode,
         {
+          ...(prepared ? { hybrid_manifest: prepared.manifest } : {}),
           ftp_remote_page_id: composed.remotePage.id,
           render_mode: 'full_document',
           deployment_status: 'not_deployed',
@@ -176,7 +219,8 @@ export class SectionAssemblerService {
       html,
       validationResult,
       '',
-      'library',
+      mode,
+      prepared ? { hybrid_manifest: prepared.manifest } : {},
     );
   }
 }

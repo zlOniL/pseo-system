@@ -20,6 +20,7 @@ export class QueueWorker implements OnModuleInit {
     ai: parseInt(process.env.QUEUE_CONCURRENCY_AI ?? '1'),
     template: parseInt(process.env.QUEUE_CONCURRENCY_TEMPLATE ?? '8'),
     library: parseInt(process.env.QUEUE_CONCURRENCY_LIBRARY ?? '10'),
+    hybrid: Math.max(1, Number(process.env.QUEUE_CONCURRENCY_HYBRID) || 1),
     templateGeneration: 1,
   };
 
@@ -54,7 +55,7 @@ export class QueueWorker implements OnModuleInit {
     }
     this.isRunning = true;
 
-    const spawn = (mode: 'ai' | 'template' | 'library', n: number) =>
+    const spawn = (mode: 'ai' | 'template' | 'library' | 'hybrid', n: number) =>
       Array.from({ length: n }, () => this.runWorkerLoop(mode));
 
     try {
@@ -64,6 +65,7 @@ export class QueueWorker implements OnModuleInit {
           ...spawn('ai', this.concurrency.ai),
           ...spawn('template', this.concurrency.template),
           ...spawn('library', this.concurrency.library),
+          ...spawn('hybrid', this.concurrency.hybrid),
           ...Array.from({ length: this.concurrency.templateGeneration }, () =>
             this.runTemplateGenerationLoop(),
           ),
@@ -76,7 +78,7 @@ export class QueueWorker implements OnModuleInit {
   }
 
   private async runWorkerLoop(
-    mode: 'ai' | 'template' | 'library',
+    mode: 'ai' | 'template' | 'library' | 'hybrid',
   ): Promise<void> {
     while (true) {
       const item = await this.queue.pickAndClaim(mode);
@@ -148,7 +150,9 @@ export class QueueWorker implements OnModuleInit {
 
       // A published page is already the final result for this locality.
       // Keep it intact if the city is accidentally queued again.
-      const published = existing.find((content) => content.status === 'published');
+      const published = existing.find(
+        (content) => content.status === 'published',
+      );
       if (published) {
         await this.queue.markDone(item.id, published.id);
         this.logger.log(
@@ -187,16 +191,26 @@ export class QueueWorker implements OnModuleInit {
 
   private async generateContentForItem(
     item: QueueItem,
-    mode: 'ai' | 'template' | 'library',
+    mode: 'ai' | 'template' | 'library' | 'hybrid',
     service: Service,
     mainKeyword: string,
     isWhitelabelApiSite: boolean,
   ): Promise<Content> {
-    if (mode === 'library' || (mode === 'template' && isWhitelabelApiSite)) {
+    if (
+      mode === 'hybrid' ||
+      mode === 'library' ||
+      (mode === 'template' && isWhitelabelApiSite)
+    ) {
       return this.assembler.assemble({
         service,
         city: item.city!,
         serviceId: service.id,
+        mode: mode === 'hybrid' ? 'hybrid' : 'library',
+        hybridState: item.hybrid_state ?? undefined,
+        checkpoint:
+          mode === 'hybrid'
+            ? (state) => this.queue.saveHybridState(item.id, state)
+            : undefined,
       });
     }
 

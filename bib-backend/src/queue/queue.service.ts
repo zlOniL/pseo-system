@@ -8,6 +8,8 @@ import { DbCountResult, DbResult } from '../common/supabase.types';
 import { ContentsService } from '../contents/contents.service';
 import { GenerateTemplateDto } from '../services/dto/generate-template.dto';
 
+import { HybridManifest } from '../service-templates/hybrid.service';
+
 export type QueueJobType = 'page' | 'template';
 
 export interface TemplateQueuePayload extends GenerateTemplateDto {
@@ -15,6 +17,7 @@ export interface TemplateQueuePayload extends GenerateTemplateDto {
 }
 
 export interface QueueItem {
+  hybrid_state?: HybridManifest | null;
   id: string;
   created_at: string;
   site_id: string | null;
@@ -22,7 +25,7 @@ export interface QueueItem {
   city: string | null;
   status: 'pending' | 'processing' | 'done' | 'failed';
   job_type: QueueJobType;
-  mode: 'ai' | 'template' | 'library';
+  mode: 'ai' | 'template' | 'library' | 'hybrid';
   template_id: string | null;
   payload: TemplateQueuePayload | null;
   content_id: string | null;
@@ -72,6 +75,8 @@ const VALID_PAGE_LIMITS = [50, 100, 250, 500, 1000];
 const DEFAULT_PAGE_LIMIT = 50;
 const EMPTY_UUID = '00000000-0000-0000-0000-000000000000';
 const SUPABASE_IN_CHUNK_SIZE = 25;
+const QUEUE_SUMMARY_COLUMNS =
+  'id,created_at,site_id,service_id,city,status,job_type,mode,template_id,payload,content_id,error,started_at,finished_at,attempts';
 
 @Injectable()
 export class QueueService {
@@ -80,10 +85,19 @@ export class QueueService {
     private readonly contents: ContentsService,
   ) {}
 
+  async saveHybridState(id: string, state: HybridManifest): Promise<void> {
+    const { error } = await this.supabase
+      .getClient()
+      .from('queue')
+      .update({ hybrid_state: state })
+      .eq('id', id);
+    if (error) throw new BadRequestException(error.message);
+  }
+
   async enqueue(
     serviceId: string,
     cities: string[],
-    mode: 'ai' | 'template' | 'library' = 'ai',
+    mode: 'ai' | 'template' | 'library' | 'hybrid' = 'ai',
     templateId?: string,
   ): Promise<QueueItem[]> {
     const { data: service, error: serviceError } = (await this.supabase
@@ -220,7 +234,7 @@ export class QueueService {
   }
 
   async pickAndClaim(
-    mode: 'ai' | 'template' | 'library',
+    mode: 'ai' | 'template' | 'library' | 'hybrid',
     jobType: QueueJobType = 'page',
   ): Promise<QueueItem | null> {
     const modeFilter =
@@ -256,7 +270,7 @@ export class QueueService {
   }
 
   async hasPending(
-    mode?: 'ai' | 'template' | 'library',
+    mode?: 'ai' | 'template' | 'library' | 'hybrid',
     jobType: QueueJobType = 'page',
   ): Promise<boolean> {
     let query = this.supabase
@@ -307,6 +321,7 @@ export class QueueService {
       .from('queue')
       .update({
         status: 'done',
+        hybrid_state: null,
         content_id: contentId,
         ...(templateId && { template_id: templateId }),
         finished_at: new Date().toISOString(),
@@ -338,7 +353,7 @@ export class QueueService {
     const { data, error } = (await this.supabase
       .getClient()
       .from('queue')
-      .select()
+      .select(QUEUE_SUMMARY_COLUMNS)
       .eq('service_id', serviceId)
       .order('created_at', { ascending: true })) as DbResult<QueueItem[]>;
 
@@ -362,7 +377,7 @@ export class QueueService {
     let countQuery = this.supabase
       .getClient()
       .from('queue')
-      .select('*', { count: 'exact', head: true });
+      .select('id', { count: 'planned', head: true });
 
     countQuery = this.applyFilters(countQuery, resolvedFilters);
 
@@ -378,7 +393,7 @@ export class QueueService {
     let query = this.supabase
       .getClient()
       .from('queue')
-      .select('*')
+      .select(QUEUE_SUMMARY_COLUMNS)
       // Descending text order keeps "processing" ahead of every other queue status.
       .order('status', { ascending: false })
       .order('created_at', { ascending: false })

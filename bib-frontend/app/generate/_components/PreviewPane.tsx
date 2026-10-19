@@ -98,7 +98,7 @@ function detectPreviewResourceWarnings(doc?: Document | null): string[] {
 export function buildPreviewHtml(
   contentHtml: string,
   videoUrl?: string,
-  generationMode?: 'ai' | 'template' | 'library',
+  generationMode?: 'ai' | 'template' | 'library' | 'hybrid',
   options?: { interactiveSections?: boolean; selectedSectionKey?: string },
 ): string {
   const video = videoUrl?.trim() ?? '';
@@ -122,7 +122,7 @@ interface Props {
   html: string | null;
   videoUrl?: string;
   loading: boolean;
-  generationMode?: 'ai' | 'template' | 'library';
+  generationMode?: 'ai' | 'template' | 'library' | 'hybrid';
   renderMode?: 'fragment' | 'full_document';
   publicBaseUrl?: string;
   interactiveSections?: boolean;

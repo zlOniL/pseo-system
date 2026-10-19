@@ -1,5 +1,6 @@
 'use client';
 
+import { HybridProvenance } from './HybridProvenance';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -992,6 +993,7 @@ export function UnifiedLayout({ initialContent }: Props) {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-gray-50">
+        {content?.hybrid_manifest && <HybridProvenance content={content} />}
         <div className="flex h-12 shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-5">
           {!sidebarOpen && (
             <button

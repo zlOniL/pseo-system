@@ -1,3 +1,4 @@
+import { HybridManifest } from '../service-templates/hybrid.service';
 import {
   BadRequestException,
   Injectable,
@@ -10,6 +11,7 @@ import { GenerateDto } from '../generation/dto/generate.dto';
 import { ListContentsDto } from './dto/list-contents.dto';
 
 export interface Content {
+  hybrid_manifest?: HybridManifest | null;
   id: string;
   created_at: string;
   site_id: string | null;
@@ -28,7 +30,7 @@ export interface Content {
   related_services: Array<{ name: string; url: string }> | null;
   meta_description: string | null;
   service_id: string | null;
-  generation_mode: 'ai' | 'template' | 'library';
+  generation_mode: 'ai' | 'template' | 'library' | 'hybrid';
   wordpress_category: string | null;
   output_format: 'html' | 'whitelabel_json';
   render_mode: 'fragment' | 'full_document';
@@ -49,6 +51,7 @@ export interface Content {
 }
 
 export interface SaveContentOptions {
+  hybrid_manifest?: HybridManifest;
   ftp_remote_page_id?: string | null;
   render_mode?: 'fragment' | 'full_document';
   deployment_status?:
@@ -93,7 +96,7 @@ export class ContentsService {
     let query = this.supabase
       .getClient()
       .from('contents')
-      .select('*', { count: 'exact', head: true });
+      .select('id', { count: 'planned', head: true });
     query = this.applyStatusFilter(query, dto.status);
     if (dto.service) query = query.eq('service', dto.service);
     if (dto.service_id) query = query.eq('service_id', dto.service_id);
@@ -131,13 +134,16 @@ export class ContentsService {
     html: string | null,
     validation: ValidationResult,
     metaDescription?: string,
-    generationMode: 'ai' | 'template' | 'library' = 'ai',
+    generationMode: 'ai' | 'template' | 'library' | 'hybrid' = 'ai',
     options: SaveContentOptions = {},
   ): Promise<Content> {
     const { data, error } = (await this.supabase
       .getClient()
       .from('contents')
       .insert({
+        ...(options.hybrid_manifest
+          ? { hybrid_manifest: options.hybrid_manifest }
+          : {}),
         main_keyword: input.main_keyword,
         site_id: input.site_id ?? null,
         service: input.service,

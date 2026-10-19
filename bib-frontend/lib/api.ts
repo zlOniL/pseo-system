@@ -33,6 +33,13 @@ import {
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
+export interface HybridSummary {
+  ready: boolean;
+  preparing: boolean;
+  error: string | null;
+  sections: Array<{ section_key: string; generic: number; local: number; pending: number; versions: Array<{ id: string; version: number; strategy: 'generic' | 'local' | 'unprepared'; reason: string }> }>;
+}
+
 async function errorMessage(res: Response): Promise<string> {
   const body = await res.text();
   if (!body) return `Erro ${res.status}`;
@@ -339,6 +346,11 @@ export const api = {
       `/services/${serviceId}/templates/library-summary`,
     ),
 
+  regenerateHybridLocal: (serviceId: string, contentId: string) => request<Content>(`/services/${serviceId}/templates/hybrid/regenerate/${contentId}`, { method: 'POST' }),
+  getHybridSummary: (serviceId: string) => request<HybridSummary>(`/services/${serviceId}/templates/hybrid`),
+  prepareHybrid: (serviceId: string) => request(`/services/${serviceId}/templates/hybrid/prepare`, { method: 'POST' }),
+  markHybridLocal: (serviceId: string, rowId: string) => request(`/services/${serviceId}/templates/hybrid/${rowId}/local`, { method: 'PATCH' }),
+
   getMainTemplateContent: (serviceId: string) =>
     request<Content | null>(`/services/${serviceId}/templates/main-content`),
 
@@ -365,7 +377,7 @@ export const api = {
   enqueue: (input: {
     service_id: string;
     cities: string[];
-    mode?: 'ai' | 'template' | 'library';
+    mode?: 'ai' | 'template' | 'library' | 'hybrid';
     template_id?: string;
   }) =>
     request<QueueItem[]>('/queue/enqueue', {

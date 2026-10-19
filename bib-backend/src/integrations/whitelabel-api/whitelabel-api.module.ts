@@ -30,6 +30,7 @@ import { ExternalLinkResearchService } from './external-link-research.service';
     ExternalLinkResearchService,
   ],
   exports: [
+    ExternalLinkResearchService,
     WhitelabelApiClient,
     WhitelabelContentService,
     WhitelabelPublisherService,

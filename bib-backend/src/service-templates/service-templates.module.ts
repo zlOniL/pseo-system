@@ -1,3 +1,5 @@
+import { AiModule } from '../ai/ai.module';
+import { HybridService } from './hybrid.service';
 import { Module } from '@nestjs/common';
 import { LocalityLinksModule } from '../cities/locality-links.module';
 import { ServiceTemplatesService } from './service-templates.service';
@@ -16,6 +18,7 @@ import { FtpHtmlModule } from '../integrations/ftp-html/ftp-html.module';
 
 @Module({
   imports: [
+    AiModule,
     LocalityLinksModule,
     GenerationModule,
     ServicesModule,
@@ -26,6 +29,7 @@ import { FtpHtmlModule } from '../integrations/ftp-html/ftp-html.module';
     FtpHtmlModule,
   ],
   providers: [
+    HybridService,
     ServiceTemplatesService,
     SectionLibraryService,
     SectionAssemblerService,
@@ -33,6 +37,7 @@ import { FtpHtmlModule } from '../integrations/ftp-html/ftp-html.module';
   ],
   controllers: [ServiceTemplatesController],
   exports: [
+    HybridService,
     ServiceTemplatesService,
     SectionLibraryService,
     SectionAssemblerService,

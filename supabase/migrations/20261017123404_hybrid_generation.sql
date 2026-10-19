@@ -1,0 +1,12 @@
+BEGIN;
+ALTER TABLE public.section_library ADD COLUMN IF NOT EXISTS hybrid_config jsonb;
+ALTER TABLE public.contents ADD COLUMN IF NOT EXISTS hybrid_manifest jsonb;
+ALTER TABLE public.queue ADD COLUMN IF NOT EXISTS hybrid_state jsonb;
+ALTER TABLE public.queue DROP CONSTRAINT IF EXISTS queue_mode_check;
+ALTER TABLE public.queue ADD CONSTRAINT queue_mode_check CHECK (mode IN ('ai', 'template', 'library', 'hybrid'));
+ALTER TABLE public.contents DROP CONSTRAINT IF EXISTS contents_generation_mode_check;
+ALTER TABLE public.contents ADD CONSTRAINT contents_generation_mode_check CHECK (generation_mode IN ('ai', 'template', 'library', 'hybrid'));
+COMMENT ON COLUMN public.section_library.hybrid_config IS 'Versioned geographic classification and neutral text slots; source hash invalidates stale preparation.';
+COMMENT ON COLUMN public.contents.hybrid_manifest IS 'Selected section versions and generated values, for hybrid provenance and local regeneration.';
+COMMENT ON COLUMN public.queue.hybrid_state IS 'Completed hybrid sections retained across failed job retries.';
+COMMIT;

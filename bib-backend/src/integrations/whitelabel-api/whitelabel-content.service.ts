@@ -500,6 +500,7 @@ export class WhitelabelContentService {
     service: Service;
     city: string;
     rows: Map<SectionKey, SectionLibraryRow>;
+    alreadyLocalized?: boolean;
   }): Promise<{ contentJson: WhitelabelContentJson; externalSlug: string }> {
     const sections = {} as WhitelabelGeneratedPage['sections'];
 
@@ -515,7 +516,7 @@ export class WhitelabelContentService {
 
     const localKey = 'modulo_12_zonas_contexto_local';
     const localBlocks = sections[localKey];
-    if (Array.isArray(localBlocks)) {
+    if (!input.alreadyLocalized && Array.isArray(localBlocks)) {
       sections[localKey] = await this.externalLinks.rewriteLocalModule({
         service: input.service.name,
         city: input.city,
