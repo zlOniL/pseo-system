@@ -3,6 +3,7 @@ import { LocalityLinksService } from '../cities/locality-links.service';
 import { isLocalityLinksHeading } from '../common/locality-backlinks-stripper';
 import type { WhitelabelContentJson } from '../integrations/whitelabel-api/whitelabel.types';
 import { AiService } from '../ai/ai.service';
+import { AiUsageService } from '../ai/ai-usage.service';
 import { SupabaseService } from '../common/supabase.service';
 import { DbError, DbResult } from '../common/supabase.types';
 import { ValidationService } from '../validation/validation.service';
@@ -49,6 +50,7 @@ export class ContentSectionsService {
     private readonly ai: AiService,
     private readonly validation: ValidationService,
     private readonly localityLinks: LocalityLinksService,
+    private readonly aiUsage?: AiUsageService,
   ) {}
 
   async listByContentId(contentId: string): Promise<ContentSection[]> {
@@ -126,12 +128,16 @@ export class ContentSectionsService {
   ): Promise<{ content: unknown; section: ContentSection }> {
     const content = await this.findContent(contentId);
     const section = await this.findSection(contentId, sectionKey);
-    await this.setSectionStatus(section.id, 'generating');
+    const regenerate = async (): Promise<{
+      content: unknown;
+      section: ContentSection;
+    }> => {
+      await this.setSectionStatus(section.id, 'generating');
 
-    try {
-      if (section.output_format === 'html') {
-        const currentHtml = section.html ?? '';
-        const raw = await this.ai.generateText(
+      try {
+        if (section.output_format === 'html') {
+          const currentHtml = section.html ?? '';
+          const raw = await this.ai.generateText(
           'Es um editor SEO senior. Reescreve apenas uma secao HTML. Retorna somente HTML valido, sem markdown.',
           `Reescreve e melhora a secao "${sectionKey}" da pagina "${content.main_keyword}".
 
@@ -148,12 +154,13 @@ Regras:
 - Nao alteres para outra secao.
 - Nao removas imagens ou placeholders.
 - Retorna apenas HTML.`,
-        );
-        return this.applyHtmlSection(content, section, this.cleanHtml(raw));
-      }
+            { operation: 'section_regeneration', sectionKey },
+          );
+          return this.applyHtmlSection(content, section, this.cleanHtml(raw));
+        }
 
-      const currentJson = section.content_json;
-      const raw = await this.ai.generateText(
+        const currentJson = section.content_json;
+        const raw = await this.ai.generateText(
         'Es um editor SEO senior. Reescreve apenas uma secao JSON. Retorna somente JSON valido, sem markdown.',
         `Reescreve e melhora a secao "${sectionKey}" da pagina "${content.main_keyword}".
 
@@ -168,13 +175,43 @@ Regras:
 - Mantem o mesmo formato JSON da secao atual.
 - Nao alteres para outra secao.
 - Nao retornes page nem sections, apenas o conteudo JSON desta secao.`,
-      );
-      const nextJson = this.parseJsonPayload(raw);
-      return this.applyJsonSection(content, section, nextJson);
-    } catch (err) {
-      await this.setSectionStatus(section.id, 'failed').catch(() => undefined);
-      throw err;
-    }
+          { operation: 'section_regeneration', sectionKey },
+        );
+        const nextJson = this.parseJsonPayload(raw);
+        return this.applyJsonSection(content, section, nextJson);
+      } catch (err) {
+        await this.setSectionStatus(section.id, 'failed').catch(() => undefined);
+        throw err;
+      }
+    };
+
+    const aiUsage = this.aiUsage;
+    if (!aiUsage) return regenerate();
+    return aiUsage.run(
+      {
+        kind: 'section',
+        cacheScope: {
+          service: content.service,
+          section: sectionKey,
+          format: section.output_format,
+        },
+      },
+      async (runId) => {
+        const result = await regenerate();
+        const usage = await aiUsage.completeForContent(runId, contentId);
+        return {
+          ...result,
+          content: {
+            ...(result.content as object),
+            ai_last_run_id: runId,
+            ai_cost_usd: usage.cost,
+            ai_cache_savings_usd: usage.cacheSavings,
+            ai_cache_hit_rate: usage.cacheHitRate,
+            ai_call_count: usage.calls,
+          },
+        };
+      },
+    );
   }
 
   private async applyHtmlSection(

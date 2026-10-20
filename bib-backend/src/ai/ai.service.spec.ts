@@ -1,4 +1,5 @@
 import { AiService } from './ai.service';
+import { AiUsageService } from './ai-usage.service';
 
 describe('AiService', () => {
   const originalKey = process.env.OPENROUTER_KEY;
@@ -75,6 +76,51 @@ describe('AiService', () => {
     );
 
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('sends the cache session and records cached-token usage', async () => {
+    process.env.OPENROUTER_KEY = 'test-key';
+    process.env.OPENROUTER_MODELS = 'deepseek/deepseek-v4-flash';
+    const usage = {
+      sessionIdForCurrentRun: jest.fn().mockReturnValue('bib-page-cache-key'),
+      record: jest.fn().mockResolvedValue(undefined),
+    } as unknown as AiUsageService;
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'request-1',
+          model: 'deepseek/deepseek-v4-flash',
+          openrouter_metadata: { provider_name: 'DeepSeek' },
+          choices: [{ message: { content: 'resultado' } }],
+          usage: {
+            prompt_tokens: 1000,
+            completion_tokens: 200,
+            prompt_tokens_details: { cached_tokens: 900 },
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+
+    await new AiService(usage).generateText('system', 'user', {
+      operation: 'html_section',
+      sectionKey: 'intro',
+    });
+
+    const request = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(String(request.body))).toEqual(
+      expect.objectContaining({ session_id: 'bib-page-cache-key' }),
+    );
+    expect(usage.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'html_section',
+        sectionKey: 'intro',
+        requestId: 'request-1',
+        inputTokens: 1000,
+        outputTokens: 200,
+        cachedTokens: 900,
+      }),
+    );
   });
 });
 

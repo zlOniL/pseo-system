@@ -215,7 +215,8 @@ export function buildWpSectionPrompt(input: WpSectionPromptInput): {
 } {
   const system = `Es um especialista em SEO programatico e redacao em portugues europeu.
 Preenche apenas uma secao HTML fixa para uma pagina WordPress.
-Retorna somente HTML valido.`;
+  Retorna somente HTML valido.
+  ${promptContextRules(input.promptContext)}`;
 
   const user = `${commonRules(
     input.dto,
@@ -223,8 +224,6 @@ Retorna somente HTML valido.`;
     input.minimumWords,
     input.maximumWords,
   )}
-${promptContextRules(input.promptContext)}
-
 Secao solicitada: ${input.sectionKey}
 ${sectionInstructions(input.dto, input.sectionKey)}
 
@@ -244,7 +243,8 @@ export function buildWpSectionExpansionPrompt(
 ): { system: string; user: string } {
   const system = `Es um editor SEO senior.
 Expande uma secao HTML mantendo a mesma estrutura visual.
-Retorna somente HTML valido.`;
+  Retorna somente HTML valido.
+  ${promptContextRules(input.promptContext)}`;
 
   const user = `${commonRules(
     input.dto,
@@ -252,8 +252,6 @@ Retorna somente HTML valido.`;
     input.minimumWords,
     input.maximumWords,
   )}
-${promptContextRules(input.promptContext)}
-
 Secao solicitada: ${input.sectionKey}
 Palavras atuais estimadas: ${input.currentWords}
 

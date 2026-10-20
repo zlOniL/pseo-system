@@ -654,14 +654,6 @@ export function buildPrompt(
     );
   }
 
-  let contextNote = '';
-  if (promptContext?.guardrailPrompt) {
-    contextNote += `\n\nPROMPT GUARDRAIL GERAL:\n${promptContext.guardrailPrompt}`;
-  }
-  if (promptContext?.serviceExamplePrompt) {
-    contextNote += `\n\n${SERVICE_EXAMPLE_USAGE_RULE}\n\nPROMPT EXEMPLO DO SERVICO (${promptContext.servicePromptSlug}):\n${promptContext.serviceExamplePrompt}`;
-  }
-
   let user = `Preenche o template HTML para o seguinte input:
 
 \`\`\`json
@@ -677,7 +669,7 @@ ${JSON.stringify(
   null,
   2,
 )}
-\`\`\`${contextNote}${cityNote}${relatedServicesNote}${enrichmentNotes.join('')}`;
+  \`\`\`${cityNote}${relatedServicesNote}${enrichmentNotes.join('')}`;
 
   if (feedback) {
     user += `\n\nFeedback sobre a versão anterior (aplica estas melhorias):\n${feedback}`;
@@ -692,6 +684,10 @@ Segue a instrucao geral abaixo como contrato principal e ignora qualquer estrutu
 Mantem exatamente os 15 modulos definidos na instrucao geral.
 
 ${promptContext.guardrailPrompt}
+
+${promptContext.serviceExamplePrompt
+  ? `${SERVICE_EXAMPLE_USAGE_RULE}\n\nPROMPT EXEMPLO DO SERVICO (${promptContext.servicePromptSlug}):\n${promptContext.serviceExamplePrompt}`
+  : ''}
 
 ${COMMERCIAL_CLAIMS_GUARDRAIL}`
     : SYSTEM_PROMPT;

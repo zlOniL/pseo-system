@@ -48,6 +48,11 @@ export interface Content {
   external_slug: string | null;
   external_page_id: number | null;
   external_page_url: string | null;
+  ai_last_run_id?: string | null;
+  ai_cost_usd?: number | null;
+  ai_cache_savings_usd?: number | null;
+  ai_cache_hit_rate?: number | null;
+  ai_call_count?: number | null;
 }
 
 export interface SaveContentOptions {
@@ -329,7 +334,7 @@ export class ContentsService {
       .getClient()
       .from('contents')
       .select(
-        'id, created_at, site_id, service_id, main_keyword, service, city, score, score_issues, status, wp_post_url, external_page_url, output_format, external_page_type, render_mode, deployment_status',
+        'id, created_at, site_id, service_id, main_keyword, service, city, score, score_issues, status, wp_post_url, external_page_url, output_format, external_page_type, render_mode, deployment_status, ai_cost_usd, ai_cache_savings_usd, ai_cache_hit_rate, ai_call_count',
       )
       .order('created_at', { ascending: false });
 

@@ -4,11 +4,18 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { AiUsageCall, AiUsageService } from './ai-usage.service';
 
 class RateLimitError extends Error {}
 class TransientAiError extends Error {}
 
 type OpenRouterResponse = {
+  id?: string;
+  model?: string;
+  openrouter_metadata?: {
+    provider_name?: string;
+    provider?: string;
+  };
   choices?: Array<{
     finish_reason?: string;
     native_finish_reason?: string;
@@ -16,6 +23,15 @@ type OpenRouterResponse = {
       content?: string;
     };
   }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    completion_tokens_details?: { reasoning_tokens?: number };
+    prompt_tokens_details?: {
+      cached_tokens?: number;
+      cache_write_tokens?: number;
+    };
+  };
 };
 
 type OpenRouterHttpResult = {
@@ -29,6 +45,8 @@ export class AiService {
   private readonly openRouterUrl =
     'https://openrouter.ai/api/v1/chat/completions';
   private readonly exhaustedUntil = new Map<string, number>();
+
+  constructor(private readonly usage?: AiUsageService) {}
 
   private getModels(): string[] {
     const list = process.env.OPENROUTER_MODELS;
@@ -70,6 +88,7 @@ export class AiService {
   async generateText(
     systemPrompt: string,
     userPrompt: string,
+    usageCall: AiUsageCall = {},
   ): Promise<string> {
     const callId = ++this.callSequence;
     const startedAt = Date.now();
@@ -100,7 +119,12 @@ export class AiService {
 
     for (const model of available) {
       try {
-        const result = await this.tryModel(model, systemPrompt, userPrompt);
+        const result = await this.tryModel(
+          model,
+          systemPrompt,
+          userPrompt,
+          usageCall,
+        );
         this.logger.log(
           `[PERF] ai_call_done id=${callId} model=${model} duration_ms=${Date.now() - startedAt} output_chars=${result.length}`,
         );
@@ -145,7 +169,9 @@ export class AiService {
     model: string,
     systemPrompt: string,
     userPrompt: string,
+    usageCall: AiUsageCall,
   ): Promise<string> {
+    const startedAt = Date.now();
     this.logger.log(`Calling OpenRouter model: ${model}`);
 
     const { response, body } = await this.fetchWithTransientRetry(
@@ -155,9 +181,13 @@ export class AiService {
         headers: {
           Authorization: `Bearer ${process.env.OPENROUTER_KEY}`,
           'Content-Type': 'application/json',
+          'X-OpenRouter-Metadata': 'enabled',
         },
         body: JSON.stringify({
           model,
+          ...(this.usage?.sessionIdForCurrentRun()
+            ? { session_id: this.usage.sessionIdForCurrentRun() }
+            : {}),
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt },
@@ -193,6 +223,22 @@ export class AiService {
     const data = JSON.parse(body) as OpenRouterResponse;
     const choice = data.choices?.[0];
     const content = choice?.message?.content ?? '';
+
+    await this.usage?.record({
+      ...usageCall,
+      model: data.model ?? model,
+      provider:
+        data.openrouter_metadata?.provider_name ??
+        data.openrouter_metadata?.provider,
+      requestId: data.id,
+      inputTokens: data.usage?.prompt_tokens ?? 0,
+      outputTokens: data.usage?.completion_tokens ?? 0,
+      reasoningTokens: data.usage?.completion_tokens_details?.reasoning_tokens ?? 0,
+      cachedTokens: data.usage?.prompt_tokens_details?.cached_tokens ?? 0,
+      cacheWriteTokens:
+        data.usage?.prompt_tokens_details?.cache_write_tokens ?? 0,
+      durationMs: Date.now() - startedAt,
+    });
 
     if (!content.trim()) {
       throw new BadRequestException('OpenRouter retornou uma resposta vazia');

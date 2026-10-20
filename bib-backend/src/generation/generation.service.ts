@@ -1,5 +1,6 @@
 import { BadRequestException, forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { AiService } from '../ai/ai.service';
+import { AiUsageService } from '../ai/ai-usage.service';
 import { ValidationService } from '../validation/validation.service';
 import { ContentsService, Content } from '../contents/contents.service';
 import { ContentSectionsService } from '../contents/content-sections.service';
@@ -55,9 +56,23 @@ export class GenerationService {
     private readonly ftpHtmlContent: FtpHtmlContentService,
     @Inject(forwardRef(() => ServicesService))
     private readonly services: ServicesService,
+    private readonly aiUsage?: AiUsageService,
   ) {}
 
   async generate(dto: GenerateDto): Promise<Content> {
+    const aiUsage = this.aiUsage;
+    if (!aiUsage) return this.generateInternal(dto);
+    return aiUsage.run(
+      { kind: 'page', cacheScope: this.cacheScope(dto) },
+      async (runId) => {
+        const content = await this.generateInternal(dto);
+        const usage = await aiUsage.completeForContent(runId, content.id);
+        return this.withUsage(content, usage);
+      },
+    );
+  }
+
+  private async generateInternal(dto: GenerateDto): Promise<Content> {
     const totalStartedAt = Date.now();
     this.logger.log(
       `[PERF] page_generation_start service=${dto.service} city=${dto.city ?? 'main'}`,
@@ -111,6 +126,19 @@ export class GenerationService {
   }
 
   async regenerate(dto: RegenerateDto): Promise<Content> {
+    const aiUsage = this.aiUsage;
+    if (!aiUsage) return this.regenerateInternal(dto);
+    return aiUsage.run(
+      { kind: 'page', cacheScope: this.cacheScope(dto) },
+      async (runId) => {
+        const content = await this.regenerateInternal(dto);
+        const usage = await aiUsage.completeForContent(runId, content.id);
+        return this.withUsage(content, usage);
+      },
+    );
+  }
+
+  private async regenerateInternal(dto: RegenerateDto): Promise<Content> {
     const totalStartedAt = Date.now();
     const existing = await this.contents.findById(dto.content_id);
     dto.site_id = dto.site_id ?? existing.site_id ?? undefined;
@@ -290,7 +318,10 @@ export class GenerationService {
     promptContext?: PromptContext;
   }): Promise<string> {
     const { system, user } = buildWpSectionPrompt(input);
-    const raw = await this.ai.generateText(system, user);
+    const raw = await this.ai.generateText(system, user, {
+      operation: 'html_section',
+      sectionKey: input.sectionKey,
+    });
     return this.cleanSectionHtml(raw, input.sectionKey);
   }
 
@@ -323,7 +354,11 @@ export class GenerationService {
         currentHtml: html,
         currentWords: words,
       });
-      const raw = await this.ai.generateText(system, user);
+      const raw = await this.ai.generateText(system, user, {
+        operation: 'html_repair',
+        sectionKey: input.sectionKey,
+        attempt,
+      });
       html = this.cleanSectionHtml(raw, input.sectionKey);
       words = this.countVisibleWords(html);
       this.logger.log(
@@ -395,7 +430,11 @@ export class GenerationService {
             currentWords: candidate.currentWords,
             promptContext,
           });
-          const raw = await this.ai.generateText(system, user);
+          const raw = await this.ai.generateText(system, user, {
+            operation: 'html_expansion',
+            sectionKey: candidate.sectionKey,
+            attempt: round,
+          });
           const expanded = this.cleanSectionHtml(raw, candidate.sectionKey);
           this.logger.log(
             `Expanded WP section ${candidate.sectionKey}: ${candidate.currentWords} -> ${this.countVisibleWords(expanded)} words`,
@@ -422,6 +461,32 @@ export class GenerationService {
       `Esta chamada deve focar apenas em "${sectionKey}".`,
       `Evita antecipar ou repetir em profundidade os temas reservados para: ${otherSections.join(', ')}.`,
     ].join('\n');
+  }
+
+  private cacheScope(dto: GenerateDto): Record<string, string> {
+    return {
+      site: dto.site_id ?? '',
+      service: dto.service_id ?? dto.service,
+      format: dto.output_format ?? 'html',
+    };
+  }
+
+  private withUsage(
+    content: Content,
+    usage: {
+      cost: number;
+      cacheSavings: number;
+      cacheHitRate: number;
+      calls: number;
+    },
+  ): Content {
+    return {
+      ...content,
+      ai_cost_usd: usage.cost,
+      ai_cache_savings_usd: usage.cacheSavings,
+      ai_cache_hit_rate: usage.cacheHitRate,
+      ai_call_count: usage.calls,
+    };
   }
 
   private expansionCandidates(

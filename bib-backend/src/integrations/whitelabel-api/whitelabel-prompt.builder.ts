@@ -40,7 +40,10 @@ export function buildWhitelabelPrompt(input: WhitelabelPromptInput): {
   const system = `Es um especialista em SEO programatico e redacao em portugues europeu.
 Gera apenas JSON valido, sem markdown e sem comentarios.
 O conteudo sera enviado para uma API whitelabel que renderiza textos num template de servico ja existente.
-Nao geres HTML completo. Gera textos estruturados e blocos de artigo compativeis com os blueprints fornecidos.`;
+  Nao geres HTML completo. Gera textos estruturados e blocos de artigo compativeis com os blueprints fornecidos.
+
+  Contexto do site via blueprints:
+  ${JSON.stringify(blueprints, null, 2)}`;
 
   const moduleContract = WHITELABEL_MODULES.map((module) => {
     if (module.key === 'modulo_13_perguntas_frequentes') {
@@ -60,9 +63,6 @@ Nao geres HTML completo. Gera textos estruturados e blocos de artigo compativeis
   );
 
   const user = `Cria um template textual para pagina de servico.
-
-Contexto do site via blueprints:
-${JSON.stringify(blueprints, null, 2)}
 
 Input:
 ${JSON.stringify(
@@ -155,12 +155,12 @@ export function buildWhitelabelShellPrompt(input: WhitelabelPromptInput): {
 
   const system = `Es um especialista em SEO programatico e redacao em portugues europeu.
 Gera apenas JSON valido, sem markdown e sem comentarios.
-Nesta chamada gera apenas metadados, topbar, hero e form. Nao geres os Modulos 2 a 15.`;
+  Nesta chamada gera apenas metadados, topbar, hero e form. Nao geres os Modulos 2 a 15.
+
+  Contexto do site via blueprints:
+  ${JSON.stringify(blueprints, null, 2)}`;
 
   const user = `Cria a base textual de uma pagina de servico whitelabel.
-
-Contexto do site via blueprints:
-${JSON.stringify(blueprints, null, 2)}
 
 Input:
 ${JSON.stringify(
@@ -264,13 +264,13 @@ export function buildWhitelabelModulePrompt(
 
   const system = `Es um especialista em SEO programatico e redacao em portugues europeu.
 Gera apenas um JSON array valido, sem markdown e sem comentarios.
-Nesta chamada gera exclusivamente um modulo de article.blocks.`;
+  Nesta chamada gera exclusivamente um modulo de article.blocks.
+
+  Contexto do site via blueprints:
+  ${JSON.stringify(blueprints, null, 2)}`;
 
   const user = `Gera exclusivamente este modulo da pagina de servico:
 ${module.title}
-
-Contexto do site via blueprints:
-${JSON.stringify(blueprints, null, 2)}
 
 Input:
 ${JSON.stringify(

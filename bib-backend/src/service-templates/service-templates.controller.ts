@@ -15,6 +15,7 @@ import {
 import { ServiceTemplatesService } from './service-templates.service';
 import { SectionLibraryService } from './section-library.service';
 import { GenerationService } from '../generation/generation.service';
+import { AiUsageService } from '../ai/ai-usage.service';
 import { ServicesService } from '../services/services.service';
 import { ContentsService } from '../contents/contents.service';
 import { ContentSectionsService } from '../contents/content-sections.service';
@@ -51,6 +52,7 @@ export class ServiceTemplatesController {
     private readonly ftpHtmlContent: FtpHtmlContentService,
     private readonly hybrid: HybridService,
     private readonly assembler: SectionAssemblerService,
+    private readonly aiUsage?: AiUsageService,
   ) {}
 
   @Get()
@@ -264,10 +266,33 @@ export class ServiceTemplatesController {
 
     this.templateGenerationActive = true;
     try {
-      return await this.generateAndSaveUnlocked(
-        serviceId,
-        dto,
-        existingTemplateId,
+      const aiUsage = this.aiUsage;
+      if (!aiUsage) {
+        return await this.generateAndSaveUnlocked(
+          serviceId,
+          dto,
+          existingTemplateId,
+        );
+      }
+      const service = await this.services.findById(serviceId);
+      return await aiUsage.run(
+        {
+          kind: 'template',
+          cacheScope: {
+            site: service.site_id ?? '',
+            service: service.id,
+            format: 'template',
+          },
+        },
+        async (runId) => {
+          const result = await this.generateAndSaveUnlocked(
+            serviceId,
+            dto,
+            existingTemplateId,
+          );
+          await aiUsage.completeForContent(runId, result.content.id);
+          return result;
+        },
       );
     } finally {
       this.templateGenerationActive = false;

@@ -97,6 +97,34 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   );
 }
 
+function AiCostCard({ content }: { content: Content }) {
+  const cost = Number(content.ai_cost_usd ?? 0);
+  const calls = Number(content.ai_call_count ?? 0);
+  if (!content.ai_last_run_id && calls === 0) return null;
+  const savings = Number(content.ai_cache_savings_usd ?? 0);
+  const hitRate = Number(content.ai_cache_hit_rate ?? 0);
+  const money = (value: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 3,
+      maximumFractionDigits: 4,
+    }).format(value);
+
+  return (
+    <div className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2.5">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-xs font-medium text-sky-900">Última geração IA (estim.)</span>
+        <span className="text-sm font-semibold text-sky-950">{money(cost)}</span>
+      </div>
+      <p className="mt-1 text-[11px] text-sky-800">
+        {calls} chamada{calls === 1 ? '' : 's'} · cache {Math.round(hitRate * 100)}%
+        {savings > 0 ? ` · poupou ${money(savings)}` : ''}
+      </p>
+    </div>
+  );
+}
+
 interface Props {
   initialContent?: Content;
 }
@@ -516,6 +544,7 @@ export function UnifiedLayout({ initialContent }: Props) {
           {content && (
             <div className="shrink-0 space-y-3 border-b border-gray-100 px-5 py-4">
               <ScoreCard content={content} />
+              <AiCostCard content={content} />
               {site &&
                 site.id === content.site_id &&
                 (site.integration_type === 'wordpress' ||

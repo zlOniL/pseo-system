@@ -36,6 +36,11 @@ export interface Content {
   external_slug: string | null;
   external_page_id: number | null;
   external_page_url: string | null;
+  ai_last_run_id?: string | null;
+  ai_cost_usd?: number | null;
+  ai_cache_savings_usd?: number | null;
+  ai_cache_hit_rate?: number | null;
+  ai_call_count?: number | null;
 }
 
 export type ContentSummary = Omit<Content, 'html'>;

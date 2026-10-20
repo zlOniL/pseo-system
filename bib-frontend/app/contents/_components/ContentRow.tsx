@@ -22,6 +22,15 @@ function ScoreBadge({ score }: { score: number | null }) {
   );
 }
 
+function AiCost({ cost }: { cost?: number | null }) {
+  if (cost === null || cost === undefined) return null;
+  return (
+    <span className="text-xs tabular-nums text-sky-700">
+      US${Number(cost).toFixed(3)}
+    </span>
+  );
+}
+
 const statusConfig: Record<string, { label: string; cls: string }> = {
   draft:     { label: "Rascunho",  cls: "text-gray-400" },
   approved:  { label: "Aprovado",  cls: "text-amber-600" },
@@ -83,6 +92,7 @@ export function ContentRow({ content, isSelected, onToggle }: ContentRowProps) {
           <p className="text-gray-400 text-xs mt-0.5">{content.city}</p>
         </div>
         <ScoreBadge score={content.score} />
+        <AiCost cost={content.ai_cost_usd} />
         <span className={`text-xs font-medium ${st.cls} w-20 text-right shrink-0`}>
           {st.label}
         </span>
