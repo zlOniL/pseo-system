@@ -30,4 +30,13 @@ describe('html assembler', () => {
     expect(html).toContain(template);
     expect(html).not.toContain('Pedido imediato via WhatsApp');
   });
+
+  it('keeps template content spaced below a full-width video', () => {
+    const html = assembleTemplateHtml('<h1>Termoacumuladores</h1>', 'hero.mp4');
+
+    expect(html).toContain('<video src="hero.mp4"');
+    expect(html).toContain(
+      '</section>\n<div style="max-width: 1200px; margin: 0 auto; padding: 20px 20px 40px; text-align: left; color: #320000;">',
+    );
+  });
 });

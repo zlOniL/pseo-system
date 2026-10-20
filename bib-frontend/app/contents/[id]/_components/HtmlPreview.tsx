@@ -8,9 +8,7 @@ function buildPreviewHtml(contentHtml: string, videoUrl?: string, generationMode
     ? `<section style="margin:0;padding:0"><video src="${video}" style="width:100%;height:auto;display:block;" autoplay loop muted controls></video></section>`
     : "";
 
-  const body = generationMode === 'template'
-    ? `${videoBlock}${contentHtml}`
-    : `${videoBlock}<div style="max-width:900px;margin:0 auto;padding:20px 20px 40px">${contentHtml}</div>`;
+  const body = `${videoBlock}<div style="max-width:900px;margin:0 auto;padding:20px 20px 40px">${contentHtml}</div>`;
 
   return `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{box-sizing:border-box}body{margin:0;font-family:sans-serif}img{max-width:100%;height:auto}</style></head><body>${body}</body></html>`;
 }

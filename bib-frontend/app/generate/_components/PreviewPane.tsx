@@ -110,10 +110,7 @@ export function buildPreviewHtml(
     Boolean(options?.interactiveSections),
   );
 
-  const body =
-    generationMode === 'template'
-      ? `${videoBlock}${bodyHtml}`
-      : `${videoBlock}<div style="max-width:1200px;margin:0 auto;padding:20px 20px 40px">${bodyHtml}</div>`;
+  const body = `${videoBlock}<div style="max-width:1200px;margin:0 auto;padding:20px 20px 40px">${bodyHtml}</div>`;
 
   return `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{box-sizing:border-box}body{margin:0;font-family:sans-serif}img{max-width:100%;height:auto}${options?.interactiveSections ? interactiveStyles() : ''}</style></head><body>${body}${options?.interactiveSections ? interactiveScript(options.selectedSectionKey) : ''}</body></html>`;
 }

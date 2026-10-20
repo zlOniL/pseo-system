@@ -15,7 +15,7 @@ export function assembleTemplateHtml(
   videoUrl?: string | null,
 ): string {
   const videoSection = renderVideoSection(videoUrl);
-  return `${videoSection}<div style="max-width: 1200px; margin: 0 auto; text-align: left; color: #320000;">\n${templateHtml}\n</div>`;
+  return `${videoSection}<div style="max-width: 1200px; margin: 0 auto; padding: 20px 20px 40px; text-align: left; color: #320000;">\n${templateHtml}\n</div>`;
 }
 
 /**
