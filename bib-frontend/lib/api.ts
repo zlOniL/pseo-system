@@ -379,10 +379,17 @@ export const api = {
     cities: string[];
     mode?: 'ai' | 'template' | 'library' | 'hybrid';
     template_id?: string;
+    existing?: 'skip' | 'recreate';
   }) =>
     request<QueueItem[]>('/queue/enqueue', {
       method: 'POST',
       body: JSON.stringify(input),
+    }),
+
+  getQueueConflicts: (serviceId: string, cities: string[]) =>
+    request<Array<Pick<Content, 'id' | 'city' | 'status'>>>('/queue/conflicts', {
+      method: 'POST',
+      body: JSON.stringify({ service_id: serviceId, cities }),
     }),
 
   listQueue: (params?: QueueFilters) => {

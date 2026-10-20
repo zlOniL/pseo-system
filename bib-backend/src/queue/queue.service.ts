@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../common/supabase.service';
 import { DbCountResult, DbResult } from '../common/supabase.types';
-import { ContentsService } from '../contents/contents.service';
+import { Content, ContentsService } from '../contents/contents.service';
 import { GenerateTemplateDto } from '../services/dto/generate-template.dto';
 
 import { HybridManifest } from '../service-templates/hybrid.service';
@@ -14,6 +14,7 @@ export type QueueJobType = 'page' | 'template';
 
 export interface TemplateQueuePayload extends GenerateTemplateDto {
   template_id?: string;
+  recreate?: boolean;
 }
 
 export interface QueueItem {
@@ -99,6 +100,7 @@ export class QueueService {
     cities: string[],
     mode: 'ai' | 'template' | 'library' | 'hybrid' = 'ai',
     templateId?: string,
+    existing: 'skip' | 'recreate' = 'skip',
   ): Promise<QueueItem[]> {
     const { data: service, error: serviceError } = (await this.supabase
       .getClient()
@@ -148,7 +150,17 @@ export class QueueService {
       throw new BadRequestException(activeItemsError.message);
 
     const activeCities = new Set(activeItems?.map((item) => item.city) ?? []);
-    const rows = cities
+    const existingCities = new Set(
+      (await this.findExistingPages(serviceId, cities)).map((content) =>
+        content.city.trim(),
+      ),
+    );
+    const citiesToEnqueue =
+      existing === 'skip'
+        ? cities.filter((city) => !existingCities.has(city))
+        : cities;
+
+    const rows = citiesToEnqueue
       .filter((city) => !activeCities.has(city))
       .map((city) => ({
         service_id: serviceId,
@@ -158,6 +170,7 @@ export class QueueService {
         job_type: 'page',
         mode,
         template_id: templateId ?? null,
+        payload: existing === 'recreate' ? { recreate: true } : null,
       }));
 
     if (rows.length === 0) return [];
@@ -170,6 +183,13 @@ export class QueueService {
 
     if (error) throw new BadRequestException(error.message);
     return data ?? [];
+  }
+
+  async findExistingPages(
+    serviceId: string,
+    cities: string[],
+  ): Promise<Array<Pick<Content, 'id' | 'city' | 'status'>>> {
+    return this.contents.findByServiceAndCities(serviceId, cities);
   }
 
   async enqueueTemplates(

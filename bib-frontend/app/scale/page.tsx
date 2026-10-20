@@ -31,6 +31,10 @@ type LocalitySelection = {
   label: string;
   cities?: string[];
 } | null;
+type ExistingPageConflict = Pick<ContentSummary, 'id' | 'city' | 'status'>;
+type ExistingPageDialog =
+  | { kind: 'main' }
+  | { kind: 'locality'; conflicts: ExistingPageConflict[] };
 
 const PAGE_LIMIT_OPTIONS = [50, 100, 250, 500, 1000] as const;
 const DEFAULT_PAGE_LIMIT = 50;
@@ -441,6 +445,7 @@ function NewGenerationModal({
   const [enqueueing, setEnqueueing] = useState(false);
   const [creatingMainPage, setCreatingMainPage] = useState(false);
   const [mainPageNotes, setMainPageNotes] = useState('');
+  const [existingPageDialog, setExistingPageDialog] = useState<ExistingPageDialog | null>(null);
 
   const selectedService = services.find((service) => service.id === serviceId) ?? null;
   const mainStatus = mainContent?.status ?? null;
@@ -625,8 +630,12 @@ function NewGenerationModal({
     setExpandedRegions((current) => new Set(current).add(region.region));
   }
 
-  async function handleCreateMainPage() {
+  async function handleCreateMainPage(recreate = false) {
     if (!selectedService || creatingMainPage) return;
+    if (mainContent && !recreate) {
+      setExistingPageDialog({ kind: 'main' });
+      return;
+    }
 
     setCreatingMainPage(true);
     try {
@@ -657,6 +666,27 @@ function NewGenerationModal({
       toast.error(error instanceof Error ? error.message : 'Erro ao criar pagina principal.');
     } finally {
       setCreatingMainPage(false);
+    }
+  }
+
+  async function enqueueCities(existing: 'skip' | 'recreate') {
+    if (!serviceId) return;
+    const cities = [...selectedCities];
+    setEnqueueing(true);
+    try {
+      const created = await api.enqueue({
+        service_id: serviceId,
+        cities,
+        mode,
+        template_id: mode === 'template' ? templateId : undefined,
+        existing,
+      });
+      onCreated(serviceId, created.length, 'locality');
+      onClose();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao adicionar a fila.');
+    } finally {
+      setEnqueueing(false);
     }
   }
 
@@ -691,20 +721,15 @@ function NewGenerationModal({
       return;
     }
 
-    setEnqueueing(true);
     try {
-      await api.enqueue({
-        service_id: serviceId,
-        cities: [...selectedCities],
-        mode,
-        template_id: mode === 'template' ? templateId : undefined,
-      });
-      onCreated(serviceId, selectedCities.size, 'locality');
-      onClose();
+      const conflicts = await api.getQueueConflicts(serviceId, [...selectedCities]);
+      if (conflicts.length > 0) {
+        setExistingPageDialog({ kind: 'locality', conflicts });
+        return;
+      }
+      await enqueueCities('skip');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Erro ao adicionar a fila.');
-    } finally {
-      setEnqueueing(false);
+      toast.error(error instanceof Error ? error.message : 'Erro ao verificar paginas existentes.');
     }
   }
 
@@ -1055,7 +1080,7 @@ function NewGenerationModal({
           </p>
           {pageKind === 'main' || missingMainPage ? (
             <button
-              onClick={handleCreateMainPage}
+              onClick={() => void handleCreateMainPage()}
               disabled={!serviceId || creatingMainPage}
               className="bib-btn bib-btn-primary"
             >
@@ -1072,6 +1097,57 @@ function NewGenerationModal({
           )}
         </div>
       </div>
+
+      {existingPageDialog && (
+        <div className="fixed inset-0 flex items-center justify-center bg-gray-950/45 p-5">
+          <div className="w-full max-w-lg rounded-lg bg-white p-5 shadow-xl">
+            <h3 className="text-base font-semibold text-gray-900">
+              {existingPageDialog.kind === 'main'
+                ? 'A página principal já existe'
+                : 'Há páginas já criadas na seleção'}
+            </h3>
+            <p className="mt-2 text-sm text-gray-600">
+              {existingPageDialog.kind === 'main'
+                ? 'Recriar gera uma nova versão para revisão; a página publicada atual permanece no ar até a nova publicação.'
+                : `${existingPageDialog.conflicts.length} localidade${existingPageDialog.conflicts.length === 1 ? '' : 's'} já possui página no sistema.`}
+            </p>
+            {existingPageDialog.kind === 'locality' && (
+              <p className="mt-3 max-h-24 overflow-y-auto rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                {existingPageDialog.conflicts.map((item) => item.city).join(', ')}
+              </p>
+            )}
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button
+                onClick={() => setExistingPageDialog(null)}
+                className="bib-btn bib-btn-ghost"
+              >
+                Cancelar
+              </button>
+              {existingPageDialog.kind === 'locality' && (
+                <button
+                  onClick={() => {
+                    setExistingPageDialog(null);
+                    void enqueueCities('skip');
+                  }}
+                  className="bib-btn bib-btn-secondary"
+                >
+                  Ignorar existentes
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setExistingPageDialog(null);
+                  if (existingPageDialog.kind === 'main') void handleCreateMainPage(true);
+                  else void enqueueCities('recreate');
+                }}
+                className="bib-btn bib-btn-primary"
+              >
+                Recriar {existingPageDialog.kind === 'main' ? 'página' : 'seleção'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

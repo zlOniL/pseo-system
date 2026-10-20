@@ -19,6 +19,85 @@ function queryBuilder(result: unknown) {
 }
 
 describe('QueueService', () => {
+  it('skips existing locality pages when enqueueing without recreation', async () => {
+    const serviceQuery = queryBuilder({
+      data: { site_id: 'site-1' },
+      error: null,
+    });
+    const cleanupQuery = queryBuilder({ data: null, error: null });
+    const activeQuery = queryBuilder({ data: [], error: null });
+    const insertQuery = queryBuilder({
+      data: [{ id: 'job-1', city: 'Porto' }],
+      error: null,
+    });
+    const client = {
+      from: jest
+        .fn()
+        .mockReturnValueOnce(serviceQuery)
+        .mockReturnValueOnce(cleanupQuery)
+        .mockReturnValueOnce(activeQuery)
+        .mockReturnValueOnce(insertQuery),
+    };
+    const contents = {
+      findLatestMainPageByService: jest.fn().mockResolvedValue({ id: 'main-1' }),
+      findByServiceAndCities: jest.fn().mockResolvedValue([
+        { id: 'content-1', city: 'Alcântara', status: 'published' },
+      ]),
+    };
+    const service = new QueueService(
+      { getClient: jest.fn().mockReturnValue(client) } as never,
+      contents as never,
+    );
+
+    const result = await service.enqueue('service-1', ['Alcântara', 'Porto']);
+
+    expect(result).toEqual([{ id: 'job-1', city: 'Porto' }]);
+    expect(contents.findByServiceAndCities).toHaveBeenCalledWith('service-1', [
+      'Alcântara',
+      'Porto',
+    ]);
+    expect(insertQuery.insert).toHaveBeenCalledWith([
+      expect.objectContaining({ city: 'Porto', payload: null }),
+    ]);
+  });
+
+  it('marks explicitly recreated locality pages for the worker', async () => {
+    const serviceQuery = queryBuilder({
+      data: { site_id: 'site-1' },
+      error: null,
+    });
+    const cleanupQuery = queryBuilder({ data: null, error: null });
+    const activeQuery = queryBuilder({ data: [], error: null });
+    const insertQuery = queryBuilder({
+      data: [{ id: 'job-1', city: 'Alcântara' }],
+      error: null,
+    });
+    const client = {
+      from: jest
+        .fn()
+        .mockReturnValueOnce(serviceQuery)
+        .mockReturnValueOnce(cleanupQuery)
+        .mockReturnValueOnce(activeQuery)
+        .mockReturnValueOnce(insertQuery),
+    };
+    const contents = {
+      findLatestMainPageByService: jest.fn().mockResolvedValue({ id: 'main-1' }),
+      findByServiceAndCities: jest.fn().mockResolvedValue([
+        { id: 'content-1', city: 'Alcântara', status: 'published' },
+      ]),
+    };
+    const service = new QueueService(
+      { getClient: jest.fn().mockReturnValue(client) } as never,
+      contents as never,
+    );
+
+    await service.enqueue('service-1', ['Alcântara'], 'ai', undefined, 'recreate');
+
+    expect(insertQuery.insert).toHaveBeenCalledWith([
+      expect.objectContaining({ city: 'Alcântara', payload: { recreate: true } }),
+    ]);
+  });
+
   it('splits bulk retries into URL-safe batches', async () => {
     const ids = Array.from({ length: 26 }, (_, index) => `queue-${index}`);
     const firstQuery = queryBuilder({ data: [{ id: ids[0] }], error: null });

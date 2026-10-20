@@ -26,6 +26,10 @@ export class EnqueueDto {
   @IsOptional()
   @IsUUID()
   template_id?: string;
+
+  @IsOptional()
+  @IsIn(['skip', 'recreate'])
+  existing?: 'skip' | 'recreate';
 }
 
 export class TemplateQueueRequestDto extends GenerateTemplateDto {

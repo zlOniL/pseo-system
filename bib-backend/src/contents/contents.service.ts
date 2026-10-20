@@ -449,6 +449,23 @@ export class ContentsService {
     return data ?? [];
   }
 
+  async findByServiceAndCities(
+    serviceId: string,
+    cities: string[],
+  ): Promise<Array<Pick<Content, 'id' | 'city' | 'status'>>> {
+    if (cities.length === 0) return [];
+    const { data, error } = (await this.supabase
+      .getClient()
+      .from('contents')
+      .select('id, city, status')
+      .eq('service_id', serviceId)
+      .in('city', cities)) as DbResult<
+      Array<Pick<Content, 'id' | 'city' | 'status'>>
+    >;
+    if (error) this.throwFriendlyContentError(error);
+    return data ?? [];
+  }
+
   async findLatestMainPageByService(
     serviceId: string,
     status?: Content['status'],

@@ -153,7 +153,7 @@ export class QueueWorker implements OnModuleInit {
       const published = existing.find(
         (content) => content.status === 'published',
       );
-      if (published) {
+      if (published && !item.payload?.recreate) {
         await this.queue.markDone(item.id, published.id);
         this.logger.log(
           `Skipped regeneration for published content ${published.id} at ${city}`,

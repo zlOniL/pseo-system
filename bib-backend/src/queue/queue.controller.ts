@@ -31,10 +31,16 @@ export class QueueController {
       dto.cities,
       dto.mode ?? 'ai',
       dto.template_id,
+      dto.existing,
     );
     // Fire-and-forget: activate the worker without blocking the HTTP response
     void this.worker.processQueue();
     return items;
+  }
+
+  @Post('conflicts')
+  findConflicts(@Body() dto: EnqueueDto) {
+    return this.queueService.findExistingPages(dto.service_id, dto.cities);
   }
 
   @Post('enqueue-templates')
