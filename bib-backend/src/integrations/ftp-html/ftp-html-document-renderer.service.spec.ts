@@ -119,6 +119,22 @@ describe('FtpHtmlDocumentRenderer', () => {
     expect(html).not.toContain('.pseo-content{padding:32px 0}</style>');
   });
 
+  it('wraps content when an imported template has the layout style but no container', () => {
+    const oldHtml = [
+      '<!DOCTYPE html><html><head>',
+      '<style data-pseo-content-layout>.pseo-content{padding:32px 0}</style>',
+      '</head><body><main>Banner</main><video src="hero.mp4"></video><h1>Conteudo</h1>',
+      '<footer>Rodape</footer></body></html>',
+    ].join('');
+
+    const html = renderer.applyContentLayout(oldHtml);
+
+    expect(html).toContain(
+      '<main>Banner</main><div class="pseo-content"><video src="hero.mp4"></video><h1>Conteudo</h1></div><footer>',
+    );
+    expect(html).toContain('padding:32px 16px!important');
+  });
+
   it('updates SEO fields and allowed banner text in the prefix', () => {
     const html = renderer.render({
       template,

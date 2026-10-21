@@ -79,16 +79,20 @@ export class FtpHtmlDocumentRenderer {
   }
 
   applyContentLayout(document: string): string {
-    if (document.includes('data-pseo-content-layout')) {
-      return document.replace(
+    const withoutOldLayout = document.includes('data-pseo-content-layout')
+      ? document.replace(
         /<style\b[^>]*data-pseo-content-layout[^>]*>[\s\S]*?<\/style>/i,
         CONTENT_LAYOUT_STYLE,
-      );
+      )
+      : document;
+
+    if (/class=["'][^"']*\bpseo-content\b[^"']*["']/i.test(withoutOldLayout)) {
+      return withoutOldLayout;
     }
 
-    const headEnd = document.toLowerCase().indexOf('</head>');
-    const contentStart = document.toLowerCase().indexOf('</main>');
-    const footerStart = document.toLowerCase().indexOf('<footer', contentStart);
+    const headEnd = withoutOldLayout.toLowerCase().indexOf('</head>');
+    const contentStart = withoutOldLayout.toLowerCase().indexOf('</main>');
+    const footerStart = withoutOldLayout.toLowerCase().indexOf('<footer', contentStart);
     if (headEnd === -1 || contentStart === -1 || footerStart === -1) {
       throw new BadRequestException(
         'Documento FTP invalido: nao foi possivel aplicar o layout do conteudo.',
@@ -96,7 +100,7 @@ export class FtpHtmlDocumentRenderer {
     }
 
     const afterMain = contentStart + '</main>'.length;
-    const withWrapper = `${document.slice(0, afterMain)}<div class="pseo-content">${document.slice(afterMain, footerStart)}</div>${document.slice(footerStart)}`;
+    const withWrapper = `${withoutOldLayout.slice(0, afterMain)}<div class="pseo-content">${withoutOldLayout.slice(afterMain, footerStart)}</div>${withoutOldLayout.slice(footerStart)}`;
     return `${withWrapper.slice(0, headEnd)}${CONTENT_LAYOUT_STYLE}${withWrapper.slice(headEnd)}`;
   }
 
