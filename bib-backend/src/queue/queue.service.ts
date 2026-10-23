@@ -455,7 +455,10 @@ export class QueueService {
       .range(fromIndex, toIndex);
 
     query = resolvedFilters.queue_order
-      ? query.order('created_at', { ascending: true })
+      ? query
+          // Active work must remain visible even when its original queue entry is old.
+          .order('status', { ascending: false })
+          .order('created_at', { ascending: false })
       : query
           .order('status', { ascending: false })
           .order('created_at', { ascending: false });

@@ -1796,7 +1796,7 @@ function ScalePageContent() {
 
         {activeView === 'queue' && (
           <p className="mb-2 text-xs text-gray-500">
-            A Fila é global: ignora o site selecionado e mantém a ordem de criação no banco.
+            A Fila é global: ignora o site selecionado e mostra primeiro os itens em processamento e pendentes.
           </p>
         )}
         <div className={`mb-4 rounded-lg border border-gray-200 bg-white ${activeView === 'queue' ? 'pointer-events-none opacity-50' : ''}`}>
@@ -1957,7 +1957,7 @@ function ScalePageContent() {
                 {loading
                   ? 'Carregando...'
                   : activeView === 'queue'
-                    ? `${total} item(ns) na ordem de entrada, sem filtro de site`
+                    ? `${total} item(ns), com itens ativos no topo e sem filtro de site`
                     : `${total} item(ns) encontrados nos filtros atuais`}
               </p>
             </div>

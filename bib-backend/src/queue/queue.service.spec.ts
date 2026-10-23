@@ -152,7 +152,7 @@ describe('QueueService', () => {
     });
   });
 
-  it('keeps the global queue in database creation order', async () => {
+  it('keeps active items at the top of the global queue', async () => {
     const countQuery = queryBuilder({ count: 1, error: null });
     const dataQuery = queryBuilder({ data: [], error: null });
     const client = {
@@ -168,8 +168,11 @@ describe('QueueService', () => {
 
     await service.findAll({ queue_order: true });
 
-    expect(dataQuery.order).toHaveBeenCalledWith('created_at', {
-      ascending: true,
+    expect(dataQuery.order).toHaveBeenNthCalledWith(1, 'status', {
+      ascending: false,
+    });
+    expect(dataQuery.order).toHaveBeenNthCalledWith(2, 'created_at', {
+      ascending: false,
     });
   });
 
