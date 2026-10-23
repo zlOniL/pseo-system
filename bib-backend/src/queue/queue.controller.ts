@@ -98,6 +98,7 @@ export class QueueController {
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('has_error') has_error?: string,
+    @Query('queue_order') queue_order?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
@@ -113,6 +114,7 @@ export class QueueController {
         from,
         to,
         has_error: this.parseBoolean(has_error),
+        queue_order: queue_order === 'true',
       },
       {
         page: page ? Number(page) : undefined,

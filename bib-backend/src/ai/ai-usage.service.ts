@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash, randomUUID } from 'node:crypto';
 import { SupabaseService } from '../common/supabase.service';
@@ -10,9 +10,10 @@ export type AiUsageCall = {
 };
 
 type AiUsageScope = {
-  runId: string;
-  kind: 'page' | 'template' | 'section';
-  sessionId: string;
+  runId?: string;
+  kind?: 'page' | 'template' | 'section';
+  sessionId?: string;
+  queueClaim?: { jobId: string; claimToken: string };
 };
 
 type AiUsageEvent = AiUsageCall & {
@@ -44,14 +45,21 @@ export class AiUsageService {
 
   async run<T>(
     input: {
-      kind: AiUsageScope['kind'];
+      kind: NonNullable<AiUsageScope['kind']>;
       cacheScope: unknown;
+      queueClaim?: { jobId: string; claimToken: string };
     },
     work: (runId: string) => Promise<T>,
   ): Promise<T> {
     const runId = randomUUID();
     const sessionId = this.sessionId(input.kind, input.cacheScope);
-    const scope: AiUsageScope = { runId, kind: input.kind, sessionId };
+    const scope: AiUsageScope = {
+      ...this.storage.getStore(),
+      runId,
+      kind: input.kind,
+      sessionId,
+      queueClaim: input.queueClaim ?? this.storage.getStore()?.queueClaim,
+    };
 
     await this.safeWrite(async () => {
       const { error } = await this.supabase.getClient().from('ai_runs').insert({
@@ -74,9 +82,42 @@ export class AiUsageService {
     return this.storage.getStore()?.sessionId;
   }
 
+  async withQueueClaim<T>(
+    queueClaim: { jobId: string; claimToken: string },
+    work: () => Promise<T>,
+  ): Promise<T> {
+    return this.storage.run(
+      { ...this.storage.getStore(), queueClaim },
+      work,
+    );
+  }
+
+  async reserveCurrentQueueCall(): Promise<void> {
+    const claim = this.storage.getStore()?.queueClaim;
+    if (!claim) return;
+    const { data, error } = await this.supabase.getClient().rpc(
+      'reserve_queue_ai_call',
+      {
+        p_queue_id: claim.jobId,
+        p_claim_token: claim.claimToken,
+        p_max_calls: 40,
+      },
+    );
+    if (error) {
+      throw new ServiceUnavailableException(
+        `Nao foi possivel reservar o limite de IA da fila: ${error.message}`,
+      );
+    }
+    if (data !== true) {
+      throw new ServiceUnavailableException(
+        'Limite de 40 chamadas de IA desta pagina atingido. Use Regenerar para iniciar uma nova tentativa.',
+      );
+    }
+  }
+
   async record(event: AiUsageEvent): Promise<void> {
     const scope = this.storage.getStore();
-    if (!scope) return;
+    if (!scope?.runId) return;
 
     const cost = this.estimateCost(event);
     await this.safeWrite(async () => {

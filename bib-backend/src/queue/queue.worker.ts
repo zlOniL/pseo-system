@@ -9,6 +9,7 @@ import { Content, ContentsService } from '../contents/contents.service';
 import { SitesService } from '../sites/sites.service';
 import { buildLocalKeyword } from '../common/location-preposition';
 import { ServiceTemplatesController } from '../service-templates/service-templates.controller';
+import { AiUsageService } from '../ai/ai-usage.service';
 
 @Injectable()
 export class QueueWorker implements OnModuleInit {
@@ -34,6 +35,7 @@ export class QueueWorker implements OnModuleInit {
     private readonly contents: ContentsService,
     private readonly sites: SitesService,
     private readonly templateGeneration: ServiceTemplatesController,
+    private readonly aiUsage: AiUsageService,
   ) {}
 
   onModuleInit() {
@@ -42,7 +44,7 @@ export class QueueWorker implements OnModuleInit {
       return;
     }
 
-    void this.queue.resetStuckProcessing().then(() => {
+    void this.queue.recoverStuckProcessing().then(() => {
       void this.processQueue();
     });
   }
@@ -112,14 +114,15 @@ export class QueueWorker implements OnModuleInit {
         item.service_id,
         payload,
         item.template_id ?? undefined,
+        { jobId: item.id, claimToken: item.claim_token! },
       );
-      await this.queue.markDone(item.id, result.content.id, result.template.id);
+      await this.queue.markDone(item.id, result.content.id, item.claim_token!, result.template.id);
       this.logger.log(
         `[PERF] template_job_done id=${item.id} template=${result.template.id} duration_ms=${Date.now() - startedAt}`,
       );
     } catch (err) {
       const msg = this.userFacingError(err);
-      await this.queue.markFailed(item.id, msg);
+      await this.queue.markFailed(item.id, msg, item.claim_token!);
       this.logger.error(
         `[PERF] template_job_failed id=${item.id} duration_ms=${Date.now() - startedAt} error=${msg}`,
       );
@@ -154,20 +157,24 @@ export class QueueWorker implements OnModuleInit {
         (content) => content.status === 'published',
       );
       if (published && !item.payload?.recreate) {
-        await this.queue.markDone(item.id, published.id);
+        await this.queue.markDone(item.id, published.id, item.claim_token!);
         this.logger.log(
           `Skipped regeneration for published content ${published.id} at ${city}`,
         );
         return;
       }
 
-      const content = await this.generateContentForItem(
-        item,
-        mode,
-        service,
-        mainKeyword,
-        site?.integration_type === 'whitelabel_api',
+      const content = await this.aiUsage.withQueueClaim(
+        { jobId: item.id, claimToken: item.claim_token! },
+        () => this.generateContentForItem(
+          item, mode, service, mainKeyword,
+          site?.integration_type === 'whitelabel_api',
+        ),
       );
+
+      if (!(await this.queue.heartbeat(item.id, item.claim_token!))) {
+        throw new Error('O job foi retomado por outro worker antes de concluir.');
+      }
 
       for (const old of existing) {
         await this.contents.forceDelete(old.id);
@@ -176,13 +183,13 @@ export class QueueWorker implements OnModuleInit {
         );
       }
 
-      await this.queue.markDone(item.id, content.id);
+      await this.queue.markDone(item.id, content.id, item.claim_token!);
       this.logger.log(
         `[PERF] queue_item_done id=${item.id} mode=${mode} city=${item.city} content=${content.id} duration_ms=${Date.now() - startedAt}`,
       );
     } catch (err) {
       const msg = this.userFacingError(err);
-      await this.queue.markFailed(item.id, msg);
+      await this.queue.markFailed(item.id, msg, item.claim_token!);
       this.logger.error(
         `[PERF] queue_item_failed id=${item.id} mode=${mode} city=${item.city} duration_ms=${Date.now() - startedAt} error=${msg}`,
       );

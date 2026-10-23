@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { SupabaseService } from '../common/supabase.service';
 import { DbCountResult, DbResult } from '../common/supabase.types';
 import { Content, ContentsService } from '../contents/contents.service';
@@ -34,6 +35,9 @@ export interface QueueItem {
   started_at: string | null;
   finished_at: string | null;
   attempts: number;
+  claim_token: string | null;
+  heartbeat_at: string | null;
+  ai_call_count: number;
 }
 
 export interface QueueItemWithService extends QueueItem {
@@ -63,6 +67,7 @@ export interface QueueFilters {
   to?: string;
   has_error?: boolean;
   service_ids?: string[];
+  queue_order?: boolean;
 }
 
 export interface PaginatedQueueItems {
@@ -77,7 +82,7 @@ const DEFAULT_PAGE_LIMIT = 50;
 const EMPTY_UUID = '00000000-0000-0000-0000-000000000000';
 const SUPABASE_IN_CHUNK_SIZE = 25;
 const QUEUE_SUMMARY_COLUMNS =
-  'id,created_at,site_id,service_id,city,status,job_type,mode,template_id,payload,content_id,error,started_at,finished_at,attempts';
+  'id,created_at,site_id,service_id,city,status,job_type,mode,template_id,payload,content_id,error,started_at,finished_at,attempts,heartbeat_at,ai_call_count';
 
 @Injectable()
 export class QueueService {
@@ -273,12 +278,15 @@ export class QueueService {
 
     if (!item) return null;
 
+    const now = new Date().toISOString();
     const { data: claimed } = (await this.supabase
       .getClient()
       .from('queue')
       .update({
         status: 'processing',
-        started_at: new Date().toISOString(),
+        started_at: now,
+        heartbeat_at: now,
+        claim_token: randomUUID(),
         attempts: item.attempts + 1,
       })
       .eq('id', item.id)
@@ -334,6 +342,7 @@ export class QueueService {
   async markDone(
     id: string,
     contentId: string,
+    claimToken: string,
     templateId?: string,
   ): Promise<void> {
     await this.supabase
@@ -346,10 +355,16 @@ export class QueueService {
         ...(templateId && { template_id: templateId }),
         finished_at: new Date().toISOString(),
       })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('status', 'processing')
+      .eq('claim_token', claimToken);
   }
 
-  async markFailed(id: string, errorMsg: string): Promise<void> {
+  async markFailed(
+    id: string,
+    errorMsg: string,
+    claimToken: string,
+  ): Promise<void> {
     await this.supabase
       .getClient()
       .from('queue')
@@ -358,15 +373,38 @@ export class QueueService {
         error: errorMsg,
         finished_at: new Date().toISOString(),
       })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('status', 'processing')
+      .eq('claim_token', claimToken);
   }
 
-  async resetStuckProcessing(): Promise<void> {
+  async recoverStuckProcessing(): Promise<void> {
+    const staleBefore = new Date(Date.now() - 20 * 60 * 1000).toISOString();
     await this.supabase
       .getClient()
       .from('queue')
-      .update({ status: 'pending', started_at: null })
-      .eq('status', 'processing');
+      .update({
+        status: 'pending',
+        started_at: null,
+        heartbeat_at: null,
+        claim_token: null,
+      })
+      .eq('status', 'processing')
+      .lt('heartbeat_at', staleBefore);
+  }
+
+  async heartbeat(id: string, claimToken: string): Promise<boolean> {
+    const { data, error } = (await this.supabase
+      .getClient()
+      .from('queue')
+      .update({ heartbeat_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('status', 'processing')
+      .eq('claim_token', claimToken)
+      .select('id')
+      .maybeSingle()) as DbResult<{ id: string }>;
+    if (error) throw new BadRequestException(error.message);
+    return Boolean(data);
   }
 
   async findByService(serviceId: string): Promise<QueueItem[]> {
@@ -414,10 +452,13 @@ export class QueueService {
       .getClient()
       .from('queue')
       .select(QUEUE_SUMMARY_COLUMNS)
-      // Descending text order keeps "processing" ahead of every other queue status.
-      .order('status', { ascending: false })
-      .order('created_at', { ascending: false })
       .range(fromIndex, toIndex);
+
+    query = resolvedFilters.queue_order
+      ? query.order('created_at', { ascending: true })
+      : query
+          .order('status', { ascending: false })
+          .order('created_at', { ascending: false });
 
     query = this.applyFilters(query, resolvedFilters);
 
@@ -530,6 +571,9 @@ export class QueueService {
           error: null,
           started_at: null,
           finished_at: null,
+          heartbeat_at: null,
+          claim_token: null,
+          ai_call_count: 0,
         })
         .in('id', ids.slice(i, i + SUPABASE_IN_CHUNK_SIZE))
         .eq('status', 'failed')
@@ -551,6 +595,9 @@ export class QueueService {
         error: null,
         started_at: null,
         finished_at: null,
+        heartbeat_at: null,
+        claim_token: null,
+        ai_call_count: 0,
       })
       .eq('id', id)
       .eq('status', 'failed')
@@ -568,6 +615,8 @@ export class QueueService {
     effectiveStatus?: QueueItem['status'],
   ): T {
     let next = query as any;
+    const { queue_order: _queueOrder, ...filterValues } = filters;
+    filters = filterValues;
 
     if (filters.status) {
       const statuses = filters.status.split(',').filter(Boolean);

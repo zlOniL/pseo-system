@@ -152,6 +152,27 @@ describe('QueueService', () => {
     });
   });
 
+  it('keeps the global queue in database creation order', async () => {
+    const countQuery = queryBuilder({ count: 1, error: null });
+    const dataQuery = queryBuilder({ data: [], error: null });
+    const client = {
+      from: jest
+        .fn()
+        .mockReturnValueOnce(countQuery)
+        .mockReturnValueOnce(dataQuery),
+    };
+    const service = new QueueService(
+      { getClient: jest.fn().mockReturnValue(client) } as never,
+      {} as never,
+    );
+
+    await service.findAll({ queue_order: true });
+
+    expect(dataQuery.order).toHaveBeenCalledWith('created_at', {
+      ascending: true,
+    });
+  });
+
   it('enqueues template jobs with their generation payload', async () => {
     const serviceQuery = queryBuilder({
       data: { site_id: 'site-1' },

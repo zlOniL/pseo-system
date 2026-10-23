@@ -37,44 +37,46 @@ describe('AiService', () => {
     );
   });
 
-  it('retries when the timeout happens while reading the response body', async () => {
+  it('does not retry an ambiguous timeout while reading the response body', async () => {
     process.env.OPENROUTER_KEY = 'test-key';
     process.env.OPENROUTER_MODELS = 'test/model';
     jest.spyOn(global, 'fetch')
       .mockResolvedValueOnce({
         status: 200,
         text: jest.fn().mockRejectedValue(new Error('body timed out')),
-      } as unknown as Response)
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({ choices: [{ message: { content: 'resultado' } }] }),
-          { status: 200 },
-        ),
-      );
+      } as unknown as Response);
 
-    await expect(new AiService().generateText('system', 'user')).resolves.toBe(
-      'resultado',
+    await expect(new AiService().generateText('system', 'user')).rejects.toThrow(
+      'Falha de conexao com a IA',
     );
 
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('retries OpenRouter timeout status 524', async () => {
+  it('does not retry OpenRouter timeout status 524', async () => {
     process.env.OPENROUTER_KEY = 'test-key';
     process.env.OPENROUTER_MODELS = 'test/model';
     jest.spyOn(global, 'fetch')
-      .mockResolvedValueOnce(new Response('upstream timeout', { status: 524 }))
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({ choices: [{ message: { content: 'resultado' } }] }),
-          { status: 200 },
-        ),
-      );
+      .mockResolvedValueOnce(new Response('upstream timeout', { status: 524 }));
 
-    await expect(new AiService().generateText('system', 'user')).resolves.toBe(
-      'resultado',
+    await expect(new AiService().generateText('system', 'user')).rejects.toThrow(
+      'Todos os modelos de IA',
     );
 
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries one safe transient server failure', async () => {
+    process.env.OPENROUTER_KEY = 'test-key';
+    process.env.OPENROUTER_MODELS = 'test/model';
+    jest.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(new Response('server error', { status: 503 }))
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ choices: [{ message: { content: 'resultado' } }] }),
+        { status: 200 },
+      ));
+
+    await expect(new AiService().generateText('system', 'user')).resolves.toBe('resultado');
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 

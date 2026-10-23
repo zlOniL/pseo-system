@@ -173,10 +173,11 @@ export class ServiceTemplatesController {
     serviceId: string,
     dto: GenerateTemplateDto,
     existingTemplateId?: string,
+    queueClaim?: { jobId: string; claimToken: string },
   ) {
     if (existingTemplateId)
       await this.library.deleteByTemplate(existingTemplateId);
-    return this.generateAndSave(serviceId, dto, existingTemplateId);
+    return this.generateAndSave(serviceId, dto, existingTemplateId, queueClaim);
   }
 
   @Post(':templateId/reextract')
@@ -257,6 +258,7 @@ export class ServiceTemplatesController {
     serviceId: string,
     dto: GenerateTemplateDto,
     existingTemplateId?: string,
+    queueClaim?: { jobId: string; claimToken: string },
   ) {
     if (this.templateGenerationActive) {
       throw new ConflictException(
@@ -278,6 +280,7 @@ export class ServiceTemplatesController {
       return await aiUsage.run(
         {
           kind: 'template',
+          queueClaim,
           cacheScope: {
             site: service.site_id ?? '',
             service: service.id,

@@ -85,8 +85,9 @@ ${COMMERCIAL_CLAIMS_GUARDRAIL}
 - Nao inventes URLs externas. Se nao tiveres certeza, omite o link.
 - Volume alvo desta secao: aproximadamente ${targetWords} palavras visiveis.
 - Faixa aceitavel desta secao: entre ${minimumWords} e ${maximumWords} palavras visiveis.
+- REGRA INEGOCIAVEL DE VOLUME: antes de responder, planeia texto suficiente para atingir pelo menos ${minimumWords} palavras visiveis. Respostas curtas serao rejeitadas e reescritas.
 - Nao ultrapasses ${maximumWords} palavras visiveis salvo se for indispensavel para cumprir a estrutura.
-- Escreve paragrafos desenvolvidos, com 3-6 frases, evitando conteudo generico.`;
+- Escreve paragrafos desenvolvidos, com 3-6 frases; nao resumas topicos nem substituas explicacoes por listas curtas.`;
 }
 
 function sectionInstructions(

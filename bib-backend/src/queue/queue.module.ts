@@ -8,6 +8,7 @@ import { ContentsModule } from '../contents/contents.module';
 import { TemplateEngineModule } from '../template-engine/template-engine.module';
 import { ServiceTemplatesModule } from '../service-templates/service-templates.module';
 import { SitesModule } from '../sites/sites.module';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { SitesModule } from '../sites/sites.module';
     TemplateEngineModule,
     ServiceTemplatesModule,
     SitesModule,
+    AiModule,
   ],
   providers: [QueueService, QueueWorker],
   controllers: [QueueController],

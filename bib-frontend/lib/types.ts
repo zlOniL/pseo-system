@@ -240,6 +240,7 @@ export interface QueueFilters {
   from?: string;
   to?: string;
   has_error?: boolean;
+  queue_order?: boolean;
   page?: number;
   limit?: number;
 }

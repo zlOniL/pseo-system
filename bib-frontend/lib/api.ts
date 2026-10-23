@@ -407,6 +407,7 @@ export const api = {
       qs.set('has_error', String(params.has_error));
     if (params?.page && params.page > 1) qs.set('page', String(params.page));
     if (params?.limit) qs.set('limit', String(params.limit));
+    if (params?.queue_order) qs.set('queue_order', 'true');
     const q = qs.toString();
     return request<PaginatedQueueItems>(`/queue${q ? `?${q}` : ''}`);
   },

@@ -25,7 +25,7 @@ type QueueMode = 'ai' | 'template' | 'library' | 'hybrid';
 type PageKind = 'main' | 'locality';
 type QueueStatus = QueueItem['status'];
 type ReviewStatus = ContentSummary['status'];
-type WorkView = 'production' | 'review';
+type WorkView = 'production' | 'review' | 'queue';
 type PeriodPreset = '24h' | 'today' | 'yesterday' | '7d' | '30d' | 'custom' | 'all';
 type LocalitySelection = {
   label: string;
@@ -1159,7 +1159,11 @@ function ScalePageContent() {
   const requestedCreateMain = searchParams.get('create') === 'main';
   const shouldOpenGenerateModal = searchParams.get('modal') === 'generate' || requestedCreateMain;
   const requestedView: WorkView =
-    searchParams.get('view') === 'review' ? 'review' : 'production';
+    searchParams.get('view') === 'review'
+      ? 'review'
+      : searchParams.get('view') === 'queue'
+        ? 'queue'
+        : 'production';
   const rawReviewStatus = searchParams.get('review_status');
   const requestedReviewStatus = REVIEW_STATUSES.includes(rawReviewStatus as ReviewStatus)
     ? (rawReviewStatus as ReviewStatus)
@@ -1276,12 +1280,11 @@ function ScalePageContent() {
           selectedReviewStatuses,
           REVIEW_STATUSES,
         );
-        const queueListRequest = api.listQueue({
-          ...appliedFilters,
-          status: productionStatusFilter,
-          page,
-          limit: pageLimit,
-        });
+        const queueListRequest = api.listQueue(
+          activeView === 'queue'
+            ? { queue_order: true, page, limit: pageLimit }
+            : { ...appliedFilters, status: productionStatusFilter, page, limit: pageLimit },
+        );
 
         const statsFilters = { ...appliedFilters };
         delete statsFilters.status;
@@ -1325,7 +1328,7 @@ function ScalePageContent() {
         const nextReviewStats = Object.fromEntries(reviewStatPairs) as Record<ReviewStatus, number>;
         setItems(normalizedResult.data);
         setContentItems(contentResult.data);
-        setTotal(activeView === 'production' ? normalizedResult.total : contentResult.total);
+        setTotal(activeView === 'review' ? contentResult.total : normalizedResult.total);
         setStats(queueStats);
         setReviewStats(nextReviewStats);
 
@@ -1488,7 +1491,7 @@ function ScalePageContent() {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  const visibleRows = activeView === 'production' ? items : contentItems;
+  const visibleRows = activeView === 'review' ? contentItems : items;
   const selectedRows = visibleRows.filter((item) => selectedPageIds.has(item.id));
   const selectedStatusesForActions = Array.from(new Set(selectedRows.map((item) => item.status)));
   const canBulkDelete = selectedRows.length > 0;
@@ -1700,6 +1703,7 @@ function ScalePageContent() {
             {[
               { view: 'production' as const, label: 'Producao', value: productionPendingCount },
               { view: 'review' as const, label: 'Revisao', value: reviewStats.draft },
+              { view: 'queue' as const, label: 'Fila', value: productionPendingCount },
             ].map((item) => (
             <button
               key={item.view}
@@ -1736,7 +1740,7 @@ function ScalePageContent() {
         </div>
 
         <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {activeView === 'production' ? (
+          {activeView !== 'review' ? (
             <>
               {[
                 { label: 'Pendentes', value: productionPendingCount, color: 'text-gray-700', status: 'pending' as const },
@@ -1790,7 +1794,12 @@ function ScalePageContent() {
           )}
         </div>
 
-        <div className="mb-4 rounded-lg border border-gray-200 bg-white">
+        {activeView === 'queue' && (
+          <p className="mb-2 text-xs text-gray-500">
+            A Fila é global: ignora o site selecionado e mantém a ordem de criação no banco.
+          </p>
+        )}
+        <div className={`mb-4 rounded-lg border border-gray-200 bg-white ${activeView === 'queue' ? 'pointer-events-none opacity-50' : ''}`}>
           <div className="grid gap-4 px-4 py-4 lg:grid-cols-[minmax(220px,1fr)_minmax(250px,1.2fr)]">
             <div>
               <label className="bib-label">Servico</label>
@@ -1941,9 +1950,15 @@ function ScalePageContent() {
         <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
             <div>
-              <h2 className="text-sm font-semibold text-gray-900">Lista de Paginas</h2>
+              <h2 className="text-sm font-semibold text-gray-900">
+                {activeView === 'queue' ? 'Fila global' : 'Lista de Paginas'}
+              </h2>
               <p className="text-xs text-gray-400">
-                {loading ? 'Carregando...' : `${total} item(ns) encontrados nos filtros atuais`}
+                {loading
+                  ? 'Carregando...'
+                  : activeView === 'queue'
+                    ? `${total} item(ns) na ordem de entrada, sem filtro de site`
+                    : `${total} item(ns) encontrados nos filtros atuais`}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -1992,7 +2007,7 @@ function ScalePageContent() {
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-100 text-sm">
               <thead className="bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-400">
-                {activeView === 'production' ? (
+                {activeView !== 'review' ? (
                   <tr>
                     <th className="px-4 py-3">
                       <input
@@ -2034,11 +2049,11 @@ function ScalePageContent() {
               <tbody className="divide-y divide-gray-100">
                 {visibleRows.length === 0 ? (
                   <tr>
-                    <td colSpan={activeView === 'production' ? 10 : 7} className="px-4 py-12 text-center text-sm text-gray-400">
+                    <td colSpan={activeView !== 'review' ? 10 : 7} className="px-4 py-12 text-center text-sm text-gray-400">
                       Nenhum item encontrado para estes filtros.
                     </td>
                   </tr>
-                ) : activeView === 'production' ? (
+                ) : activeView !== 'review' ? (
                   items.map((item) => (
                     <tr key={item.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">

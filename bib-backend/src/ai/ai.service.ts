@@ -258,11 +258,12 @@ export class AiService {
     init: RequestInit,
     model: string,
   ): Promise<OpenRouterHttpResult> {
-    const maxAttempts = 3;
+    const maxAttempts = 2;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const attemptStartedAt = Date.now();
       let response: Response;
       try {
+        await this.usage?.reserveCurrentQueueCall?.();
         response = await fetch(url, {
           ...init,
           signal: AbortSignal.timeout(this.getRequestTimeoutMs()),
@@ -271,14 +272,8 @@ export class AiService {
         this.logger.log(
           `[PERF] ai_http_attempt model=${model} attempt=${attempt}/${maxAttempts} status=${response.status} duration_ms=${Date.now() - attemptStartedAt}`,
         );
-        if (
-          !(
-            response.status === 408 ||
-            response.status === 429 ||
-            response.status >= 500
-          ) ||
-          attempt === maxAttempts
-        ) {
+        const retryable = response.status >= 500 && response.status !== 524;
+        if (!retryable || attempt === maxAttempts) {
           return { response, body };
         }
         this.logger.warn(
@@ -289,7 +284,7 @@ export class AiService {
         this.logger.warn(
           `OpenRouter network error (${model}) attempt ${attempt}/${maxAttempts}: ${detail}`,
         );
-        if (attempt === maxAttempts) {
+        if (attempt === maxAttempts || /timeout|timed out|abort/i.test(detail)) {
           throw new ServiceUnavailableException(
             `Falha de conexao com a IA. Tente novamente; se persistir, verifique a rede e a OPENROUTER_KEY. Detalhe: ${detail}`,
           );
