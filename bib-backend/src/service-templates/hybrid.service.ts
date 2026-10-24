@@ -86,7 +86,11 @@ export class HybridService {
   }
 
   private config(row: PreparedRow) {
-    const strategy = isLocalSection(row.section_key) ? 'local' : 'generic';
+    const strategy: HybridSelection['strategy'] = isLocalSection(
+      row.section_key,
+    )
+      ? 'local'
+      : 'generic';
     const doc = slotDocument(this.source(row), row.output_format);
     return {
       strategy,
