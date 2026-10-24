@@ -280,11 +280,33 @@ Textos finais: ${JSON.stringify(result.values)}`);
           } catch (error) {
             failure = (error as Error).message;
             if (attempt === 2)
-              throw new BadRequestException(`${key}: ${failure}`);
+              throw new BadRequestException(
+                `${key} (linha ${row.id}): ${failure}`,
+              );
           }
         }
       }
-      validateSlotValues(doc.slots, values);
+      try {
+        validateSlotValues(
+          doc.slots,
+          values,
+          new Set(
+            config.strategy === 'generic'
+              ? doc.slots
+                  .filter(
+                    (slot) =>
+                      slot.kind === 'text' &&
+                      /<\/?[a-z][^>]*>/i.test(slot.value),
+                  )
+                  .map((slot) => slot.id)
+              : [],
+          ),
+        );
+      } catch (error) {
+        throw new BadRequestException(
+          `${key} (${config.strategy}, linha ${row.id}): ${(error as Error).message}`,
+        );
+      }
       manifest.sections = manifest.sections.filter(
         (s) => s.section_key !== key,
       );

@@ -110,6 +110,7 @@ export function slotDocument(
 export function validateSlotValues(
   slots: HybridSlot[],
   values: unknown,
+  allowTextMarkupSlots: ReadonlySet<string> = new Set(),
 ): asserts values is Record<string, string> {
   if (!values || typeof values !== 'object' || Array.isArray(values))
     throw new Error('Resposta sem textos das secções.');
@@ -124,8 +125,12 @@ export function validateSlotValues(
   }
   for (const s of slots) {
     const value = map[s.id] as string;
-    if (s.kind === 'text' && /<\/?[a-z][^>]*>/i.test(value))
-      throw new Error('A IA inseriu HTML num campo de texto.');
+    if (
+      s.kind === 'text' &&
+      !allowTextMarkupSlots.has(s.id) &&
+      /<\/?[a-z][^>]*>/i.test(value)
+    )
+      throw new Error(`A IA inseriu HTML num campo de texto (slot ${s.id}).`);
     const tokens = (s.value.match(/\{\{IMAGE_\d+\}\}/g) ?? []).sort();
     if (
       JSON.stringify(tokens) !==
