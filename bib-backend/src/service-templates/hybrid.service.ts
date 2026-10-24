@@ -9,7 +9,12 @@ import {
   SECTION_KEYS,
   WHITELABEL_SECTION_KEYS,
 } from './service-templates.types';
-import { slotDocument, sourceHash, validateSlotValues } from './hybrid-slots';
+import {
+  normalizeSlotValues,
+  slotDocument,
+  sourceHash,
+  validateSlotValues,
+} from './hybrid-slots';
 import { formatLocationPhrase } from '../common/location-preposition';
 import { VerifiedExternalReference } from '../integrations/whitelabel-api/external-link.types';
 
@@ -170,10 +175,18 @@ export class HybridService {
         });
     }
     await input.checkpoint?.(manifest);
-    const references = await this.localReferences(input.service, input.city);
+    let references: VerifiedExternalReference[] = [];
+    let researchWarning: string | null = null;
+    try {
+      references = await this.localReferences(input.service, input.city);
+    } catch {
+      researchWarning = `Não foi possível pesquisar referências locais para ${input.city}; a geração continuará sem links externos de contexto local.`;
+    }
     const localRefs = references.filter((r) => r.type === 'local_authority');
-    if (!localRefs.length) {
-      const warning = `Sem referências locais verificadas para ${input.city}; a secção de contexto local foi gerada sem links externos.`;
+    if (!localRefs.length || researchWarning) {
+      const warning =
+        researchWarning ??
+        `Sem referências locais verificadas para ${input.city}; a secção de contexto local foi gerada sem links externos.`;
       if (!manifest.warnings?.includes(warning))
         manifest.warnings = [...(manifest.warnings ?? []), warning];
     }
@@ -207,25 +220,30 @@ export class HybridService {
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
             const result = await this
-              .ask(`Reescreve TODOS os campos de texto desta secção para ${input.service}, localidade ${input.city}.
+              .ask(`Reescreve TODOS os campos desta secção para ${input.service}, localidade ${input.city}.
 A origem (${row.base_city}) serve APENAS de estrutura. Descarta todos os seus factos geográficos, bairros, ruas, monumentos, rios e características. Usa apenas factos sustentados pelas referências abaixo; sem dados, escreve sobre o serviço sem inventar detalhes locais.
 Grupo de cobertura do catálogo (não implica município): ${this.cities.findRegion(input.city) ?? 'não identificado'}.
 Referências verificadas: ${JSON.stringify(references.map((r) => ({ entity: r.entity, url: r.final_url, title: r.page_title, description: r.page_description })))}.
-${localRefs.length ? 'Cada campo link deve usar exatamente um dos URLs fornecidos. Não cries URLs. A âncora deve corresponder à entidade escolhida.' : 'Não uses links externos, porque não há referências locais verificadas.'} Mantém volume de texto e placeholders IMAGE. Não acrescentes HTML nem placeholders geográficos. Se houver heading de contexto, usa Contexto Local ${formatLocationPhrase(input.city)}.
+${localRefs.length ? 'Cada campo link deve usar exatamente um dos URLs fornecidos. Não cries URLs. A âncora deve corresponder à entidade escolhida.' : 'Não uses links externos, porque não há referências locais verificadas.'} Mantém o volume original tanto quanto possível; sem referências locais, prioriza a precisão e remove factos não sustentados mesmo que o texto fique mais curto. Preserva placeholders IMAGE. Não acrescentes HTML nem placeholders geográficos. Se houver heading de contexto, usa Contexto Local ${formatLocationPhrase(input.city)}.
 Secção: ${key}. Campos: ${JSON.stringify(doc.slots)}.
-Responde JSON {"values":{"s0":"..."},"geography_valid":true}. geography_valid só pode ser true após verificares que TODOS os textos e âncoras correspondem ao destino ou às entidades de referência; elimina referências herdadas.
+Formato obrigatório: um único objeto JSON com exatamente as chaves "values" e "geography_valid"; em "values", devolve cada ID recebido uma única vez. Os valores kind=text são texto simples sem HTML, sem Markdown, sem URLs e sem etiquetas como <p>, <strong> ou <a>; nunca reproduzas marcação, mesmo se aparecer no conteúdo de origem. Os valores kind=link devem ser URLs exatos da lista verificada. Não omitas nem acrescentes campos.
+Responde {"values":{"s0":"texto simples"},"geography_valid":true}. geography_valid só pode ser true após verificares que TODOS os textos e âncoras correspondem ao destino ou às entidades de referência; elimina referências herdadas.
 ${failure ? `Corrige a tentativa anterior: ${failure}` : ''}`);
-            validateSlotValues(doc.slots, result.values);
+            result.values = normalizeSlotValues(doc.slots, result.values);
             const originalWords = doc.slots
               .filter((s) => s.kind === 'text')
               .map((s) => s.value)
               .join(' ')
-              .split(/\s+/).length;
+              .trim()
+              .split(/\s+/)
+              .filter(Boolean).length;
             const generatedWords = doc.slots
               .filter((s) => s.kind === 'text')
               .map((s) => result.values[s.id])
               .join(' ')
-              .split(/\s+/).length;
+              .trim()
+              .split(/\s+/)
+              .filter(Boolean).length;
             const contentIsShort = generatedWords < originalWords * 0.7;
             if (contentIsShort && localRefs.length)
               throw new Error(
@@ -244,7 +262,7 @@ ${failure ? `Corrige a tentativa anterior: ${failure}` : ''}`);
                 throw new Error('Placeholder local não preenchido.');
             }
             const review = await this
-              .ask(`Audita a coerência geográfica dos textos abaixo para ${input.city}. O conteúdo foi adaptado de ${row.base_city}; identifica bairros, rios, monumentos ou afirmações ainda herdados dessa origem. Não rejeites menções legítimas ao município ou região do destino. Rejeita factos locais específicos que não sejam sustentados pelas referências fornecidas, âncoras de entidades incompatíveis com o URL e alegações inventadas. Responde {"valid":true ou false,"issue":"motivo"}.
+              .ask(`Audita apenas a coerência geográfica dos campos para ${input.city}. O conteúdo foi adaptado de ${row.base_city}; identifica bairros, rios, monumentos ou afirmações ainda herdados dessa origem. Não rejeites menções legítimas ao município ou região do destino. Rejeita factos locais específicos que não sejam sustentados pelas referências fornecidas, âncoras de entidades incompatíveis com o URL e alegações inventadas. Não exijas uma quantidade mínima de links. Responde apenas um objeto JSON: {"valid":true,"issue":""} ou {"valid":false,"issue":"motivo curto"}.
 Referências: ${JSON.stringify(references.map((r) => ({ entity: r.entity, url: r.final_url, title: r.page_title, description: r.page_description })))}.
 Campos originais (só para identificar contaminação): ${JSON.stringify(doc.slots)}.
 Textos finais: ${JSON.stringify(result.values)}`);
@@ -322,12 +340,31 @@ Textos finais: ${JSON.stringify(result.values)}`);
       prompt,
     );
     try {
-      const parsed: unknown = JSON.parse(
-        raw
-          .replace(/^```(?:json)?\s*/i, '')
-          .replace(/\s*```$/, '')
-          .trim(),
-      );
+      const cleaned = raw
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/, '')
+        .trim();
+      const start = cleaned.indexOf('{');
+      if (start < 0) throw new Error('Resposta inválida.');
+      let depth = 0;
+      let quoted = false;
+      let escaped = false;
+      let end = -1;
+      for (let index = start; index < cleaned.length; index++) {
+        const char = cleaned[index];
+        if (quoted) {
+          if (escaped) escaped = false;
+          else if (char === '\\') escaped = true;
+          else if (char === '"') quoted = false;
+        } else if (char === '"') quoted = true;
+        else if (char === '{') depth++;
+        else if (char === '}' && --depth === 0) {
+          end = index + 1;
+          break;
+        }
+      }
+      if (end < 0) throw new Error('Resposta inválida.');
+      const parsed: unknown = JSON.parse(cleaned.slice(start, end));
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
         throw new Error('Resposta inválida.');
       return parsed as HybridAiResponse;

@@ -134,3 +134,34 @@ export function validateSlotValues(
       throw new Error('A IA alterou placeholders de imagem.');
   }
 }
+
+export function normalizeSlotValues(
+  slots: HybridSlot[],
+  values: unknown,
+): Record<string, string> {
+  if (!values || typeof values !== 'object' || Array.isArray(values))
+    throw new Error('Resposta sem textos das secções.');
+  const map = values as Record<string, unknown>;
+  if (
+    Object.keys(map).length !== slots.length ||
+    slots.some((slot) => typeof map[slot.id] !== 'string')
+  )
+    throw new Error('A IA devolveu campos em falta ou desconhecidos.');
+
+  const normalized = Object.fromEntries(
+    slots.map((slot) => [
+      slot.id,
+      slot.kind === 'text'
+        ? (map[slot.id] as string)
+            .replace(/<\s*(script|style)\b[^>]*>[\s\S]*?<\/\s*\1\s*>/gi, ' ')
+            .replace(/<\/?[a-z][^>]*>/gi, ' ')
+            .replace(/&lt;\/?[a-z][^&]*?&gt;/gi, ' ')
+            .replace(/\bhttps?:\/\/[^\s<>"']+/gi, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+        : map[slot.id],
+    ]),
+  ) as Record<string, string>;
+  validateSlotValues(slots, normalized);
+  return normalized;
+}
