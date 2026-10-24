@@ -9,11 +9,7 @@ import {
   SECTION_KEYS,
   WHITELABEL_SECTION_KEYS,
 } from './service-templates.types';
-import {
-  slotDocument,
-  sourceHash,
-  validateSlotValues,
-} from './hybrid-slots';
+import { slotDocument, sourceHash, validateSlotValues } from './hybrid-slots';
 import { formatLocationPhrase } from '../common/location-preposition';
 import { VerifiedExternalReference } from '../integrations/whitelabel-api/external-link.types';
 
@@ -37,6 +33,7 @@ export interface HybridSelection {
 export interface HybridManifest {
   city: string;
   sections: HybridSelection[];
+  warnings?: string[];
 }
 
 const LOCAL_SECTIONS = new Set<SectionKey>([
@@ -46,6 +43,20 @@ const LOCAL_SECTIONS = new Set<SectionKey>([
 
 function isLocalSection(sectionKey: SectionKey) {
   return LOCAL_SECTIONS.has(sectionKey);
+}
+
+function stripExternalLinks(value: unknown): unknown {
+  if (typeof value === 'string')
+    return value.replace(/<a\b[^>]*>([\s\S]*?)<\/a>/gi, '$1');
+  if (Array.isArray(value)) return value.map(stripExternalLinks);
+  if (value && typeof value === 'object')
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        stripExternalLinks(item),
+      ]),
+    );
+  return value;
 }
 
 @Injectable()
@@ -110,7 +121,10 @@ export class HybridService {
     const escaped = city.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     if (!escaped) return value;
     return value
-      .replace(new RegExp(`\\b(?:em|na|no)\\s+${escaped}\\b`, 'gi'), '{{LOCATION}}')
+      .replace(
+        new RegExp(`\\b(?:em|na|no)\\s+${escaped}\\b`, 'gi'),
+        '{{LOCATION}}',
+      )
       .replace(new RegExp(escaped, 'gi'), '{{CITY}}');
   }
 
@@ -158,10 +172,11 @@ export class HybridService {
     await input.checkpoint?.(manifest);
     const references = await this.localReferences(input.service, input.city);
     const localRefs = references.filter((r) => r.type === 'local_authority');
-    if (!localRefs.length)
-      throw new BadRequestException(
-        `Sem referências locais verificadas para ${input.city}. Reveja a localidade e tente novamente.`,
-      );
+    if (!localRefs.length) {
+      const warning = `Sem referências locais verificadas para ${input.city}; a secção de contexto local foi gerada sem links externos.`;
+      if (!manifest.warnings?.includes(warning))
+        manifest.warnings = [...(manifest.warnings ?? []), warning];
+    }
     for (const [key, row] of selected) {
       if (
         manifest.sections.some(
@@ -170,7 +185,12 @@ export class HybridService {
       )
         continue;
       const config = this.config(row);
-      const doc = slotDocument(this.source(row), input.format);
+      const doc = slotDocument(
+        config.strategy === 'local' && !localRefs.length
+          ? stripExternalLinks(this.source(row))
+          : this.source(row),
+        input.format,
+      );
       let values: Record<string, string>;
       if (config.strategy === 'generic') {
         values = Object.fromEntries(
@@ -191,7 +211,7 @@ export class HybridService {
 A origem (${row.base_city}) serve APENAS de estrutura. Descarta todos os seus factos geográficos, bairros, ruas, monumentos, rios e características. Usa apenas factos sustentados pelas referências abaixo; sem dados, escreve sobre o serviço sem inventar detalhes locais.
 Grupo de cobertura do catálogo (não implica município): ${this.cities.findRegion(input.city) ?? 'não identificado'}.
 Referências verificadas: ${JSON.stringify(references.map((r) => ({ entity: r.entity, url: r.final_url, title: r.page_title, description: r.page_description })))}.
-Cada campo link deve usar exatamente um dos URLs fornecidos. Não cries URLs. A âncora deve corresponder à entidade escolhida. Mantém volume de texto e placeholders IMAGE. Não acrescentes HTML nem placeholders geográficos. Se houver heading de contexto, usa Contexto Local ${formatLocationPhrase(input.city)}.
+${localRefs.length ? 'Cada campo link deve usar exatamente um dos URLs fornecidos. Não cries URLs. A âncora deve corresponder à entidade escolhida.' : 'Não uses links externos, porque não há referências locais verificadas.'} Mantém volume de texto e placeholders IMAGE. Não acrescentes HTML nem placeholders geográficos. Se houver heading de contexto, usa Contexto Local ${formatLocationPhrase(input.city)}.
 Secção: ${key}. Campos: ${JSON.stringify(doc.slots)}.
 Responde JSON {"values":{"s0":"..."},"geography_valid":true}. geography_valid só pode ser true após verificares que TODOS os textos e âncoras correspondem ao destino ou às entidades de referência; elimina referências herdadas.
 ${failure ? `Corrige a tentativa anterior: ${failure}` : ''}`);

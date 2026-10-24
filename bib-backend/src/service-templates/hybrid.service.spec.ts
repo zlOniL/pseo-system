@@ -72,8 +72,9 @@ describe('Hybrid generation', () => {
       'https://cm-faro.pt/',
     );
     expect(
-      result.manifest.sections.find((section) => section.section_key === 'intro')
-        ?.strategy,
+      result.manifest.sections.find(
+        (section) => section.section_key === 'intro',
+      )?.strategy,
     ).toBe('generic');
     expect(
       result.manifest.sections.find(
@@ -106,17 +107,38 @@ describe('Hybrid generation', () => {
     expect(links.research).toHaveBeenCalledTimes(1);
   });
 
-  it('does not fall back to old city links when verification fails', async () => {
-    const { service, links } = setup();
+  it('generates local context without links when local references are unavailable', async () => {
+    const { service, links, ai, rows } = setup();
     links.research.mockResolvedValue([]);
-    await expect(
-      service.assemble({
-        serviceId: 'service',
-        service: 'Janelas',
-        city: 'Faro',
-        format: 'html',
-      }),
-    ).rejects.toThrow('Sem referências');
+    const local = rows.find((row) => row.section_key === 'contexto_local')!;
+    const values = Object.fromEntries(
+      slotDocument(
+        local.html!.replace(/<a\b[^>]*>([\s\S]*?)<\/a>/i, '$1'),
+        'html',
+      ).slots.map((slot) => [
+        slot.id,
+        slot.value.startsWith('Contexto')
+          ? 'Contexto Local em Faro'
+          : 'Informação geral sobre o serviço em Faro',
+      ]),
+    );
+    ai.generateText.mockReset();
+    ai.generateText
+      .mockResolvedValueOnce(JSON.stringify({ values, geography_valid: true }))
+      .mockResolvedValueOnce(JSON.stringify({ valid: true }));
+
+    const result = await service.assemble({
+      serviceId: 'service',
+      service: 'Janelas',
+      city: 'Faro',
+      format: 'html',
+    });
+
+    expect(result.rows.get('contexto_local')?.html).not.toContain('lisboa.pt');
+    expect(result.rows.get('contexto_local')?.html).not.toContain('<a ');
+    expect(result.manifest.warnings).toContain(
+      'Sem referências locais verificadas para Faro; a secção de contexto local foi gerada sem links externos.',
+    );
   });
 
   it('rejects invented URLs even when the AI claims geography is valid', async () => {

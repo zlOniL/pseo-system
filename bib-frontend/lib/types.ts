@@ -1,5 +1,5 @@
 export interface Content {
-  hybrid_manifest?: { city: string; sections: Array<{ section_key: string; row_id: string; version: number; strategy: 'generic' | 'local' }> } | null;
+  hybrid_manifest?: { city: string; warnings?: string[]; sections: Array<{ section_key: string; row_id: string; version: number; strategy: 'generic' | 'local' }> } | null;
   id: string;
   created_at: string;
   site_id: string | null;
