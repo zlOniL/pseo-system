@@ -86,6 +86,23 @@ describe('Hybrid generation', () => {
     expect(checkpoint).toHaveBeenCalledTimes(16);
   });
 
+  it('cleans legacy full-document HTML from generic intro sections', async () => {
+    const { service, rows } = setup();
+    rows.find((row) => row.section_key === 'intro')!.html =
+      '<!doctype html><html><head><title>Lisboa</title></head><body><nav>Menu</nav><h1>Reparação em Lisboa</h1></body></html>';
+
+    const result = await service.assemble({
+      serviceId: 'service',
+      service: 'Janelas',
+      city: 'Faro',
+      format: 'html',
+    });
+    const intro = result.rows.get('intro')?.html ?? '';
+
+    expect(intro).toContain('<h1>Reparação em Faro</h1>');
+    expect(intro).not.toMatch(/doctype|<html|<head|<title|<nav/i);
+  });
+
   it('blocks a resumed generation when its selected section changes', async () => {
     const { service, rows, links } = setup();
     const first = await service.assemble({

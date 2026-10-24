@@ -12,4 +12,14 @@ describe('parseHtmlSections', () => {
     expect(sections.get('servicos')).toContain('Serviços de Reparação');
     expect(sections.get('integracao_servicos')).toContain('Integração com Outros Serviços');
   });
+
+  it('extracts an intro from a full document without retaining its shell', () => {
+    const { sections } = parseHtmlSections(`<!doctype html>
+      <html><head><title>Page</title><script>bad()</script></head>
+      <body><nav>Menu</nav><h1>Serviço local</h1></body></html>`);
+
+    const intro = sections.get('intro') ?? '';
+    expect(intro).toContain('<h1>Serviço local</h1>');
+    expect(intro).not.toMatch(/doctype|<html|<head|<title|<script|<nav/i);
+  });
 });

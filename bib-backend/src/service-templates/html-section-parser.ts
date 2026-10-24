@@ -1,5 +1,6 @@
 import { SECTION_KEYS, SectionKey } from './service-templates.types';
 import { stripLocalityBacklinksSection } from '../common/locality-backlinks-stripper';
+import { parse } from 'node-html-parser';
 
 const EXCLUDED_KEYS = new Set(['atendemos_tambem']);
 
@@ -41,6 +42,21 @@ function normaliseImages(html: string): string {
   );
 }
 
+export function stripHtmlDocumentShell(html: string): string {
+  if (
+    !/<!doctype\b|<\s*\/?\s*(html|head|body|nav|footer|script|meta|title)\b/i.test(
+      html,
+    )
+  )
+    return html;
+
+  const root = parse(html.replace(/<!doctype\b[^>]*>/gi, ''), { comment: true });
+  const container = root.querySelector('body') ?? root.querySelector('html') ?? root;
+  for (const tag of ['head', 'nav', 'footer', 'script', 'meta', 'title'])
+    for (const element of container.getElementsByTagName(tag)) element.remove();
+  return container.innerHTML;
+}
+
 export interface ParsedSections {
   sections: Map<SectionKey, string>;
   imageCount: number;
@@ -52,7 +68,9 @@ export interface ParsedSections {
  * Image blocks are normalised to {{IMAGE_N}} placeholders.
  */
 export function parseHtmlSections(html: string): ParsedSections {
-  const normalised = normaliseImages(stripLocalityBacklinksSection(html));
+  const normalised = normaliseImages(
+    stripHtmlDocumentShell(stripLocalityBacklinksSection(html)),
+  );
   const parts = normalised.split(/(?=<h2[\s>])/i);
 
   const sections = new Map<SectionKey, string>();

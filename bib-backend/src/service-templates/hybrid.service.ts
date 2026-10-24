@@ -15,6 +15,7 @@ import {
   sourceHash,
   validateSlotValues,
 } from './hybrid-slots';
+import { stripHtmlDocumentShell } from './html-section-parser';
 import { formatLocationPhrase } from '../common/location-preposition';
 import { VerifiedExternalReference } from '../integrations/whitelabel-api/external-link.types';
 
@@ -81,6 +82,13 @@ export class HybridService {
     return row.output_format === 'html' ? row.html : row.content_json;
   }
 
+  private fragment(row: PreparedRow) {
+    const source = this.source(row);
+    return row.output_format === 'html'
+      ? stripHtmlDocumentShell(typeof source === 'string' ? source : '')
+      : source;
+  }
+
   async rows(
     serviceId: string,
     format: 'html' | 'whitelabel_json',
@@ -107,7 +115,7 @@ export class HybridService {
     )
       ? 'local'
       : 'generic';
-    const doc = slotDocument(this.source(row), row.output_format);
+    const doc = slotDocument(this.fragment(row), row.output_format);
     return {
       strategy,
       source_hash: sourceHash(this.source(row)),
@@ -200,8 +208,8 @@ export class HybridService {
       const config = this.config(row);
       const doc = slotDocument(
         config.strategy === 'local' && !localRefs.length
-          ? stripExternalLinks(this.source(row))
-          : this.source(row),
+          ? stripExternalLinks(this.fragment(row))
+          : this.fragment(row),
         input.format,
       );
       let values: Record<string, string>;
@@ -324,6 +332,8 @@ Textos finais: ${JSON.stringify(result.values)}`);
     for (const key of keys) {
       const row = selected.get(key)!;
       const section = manifest.sections.find((s) => s.section_key === key)!;
+      if (input.format === 'html')
+        section.value = stripHtmlDocumentShell(String(section.value ?? ''));
       rows.set(key, {
         ...row,
         base_city: '',
