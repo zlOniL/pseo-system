@@ -63,7 +63,6 @@ function relatedServicesRules(input: GenerateDto): string {
 function commonRules(
   input: GenerateDto,
   targetWords: number,
-  minimumWords: number,
   maximumWords: number,
 ): string {
   return `Regras globais:
@@ -84,8 +83,6 @@ ${COMMERCIAL_CLAIMS_GUARDRAIL}
 - Nao uses "voce"; usa "o cliente", "o utilizador", "a intervencao", etc.
 - Nao inventes URLs externas. Se nao tiveres certeza, omite o link.
 - Volume alvo desta secao: aproximadamente ${targetWords} palavras visiveis.
-- Faixa aceitavel desta secao: entre ${minimumWords} e ${maximumWords} palavras visiveis.
-- REGRA INEGOCIAVEL DE VOLUME: antes de responder, planeia texto suficiente para atingir pelo menos ${minimumWords} palavras visiveis. Respostas curtas serao rejeitadas e reescritas.
 - Nao ultrapasses ${maximumWords} palavras visiveis salvo se for indispensavel para cumprir a estrutura.
 - Escreve paragrafos desenvolvidos, com 3-6 frases; nao resumas topicos nem substituas explicacoes por listas curtas.`;
 }
@@ -222,7 +219,6 @@ Preenche apenas uma secao HTML fixa para uma pagina WordPress.
   const user = `${commonRules(
     input.dto,
     input.targetWords,
-    input.minimumWords,
     input.maximumWords,
   )}
 Secao solicitada: ${input.sectionKey}
@@ -250,7 +246,6 @@ Expande uma secao HTML mantendo a mesma estrutura visual.
   const user = `${commonRules(
     input.dto,
     input.targetWords,
-    input.minimumWords,
     input.maximumWords,
   )}
 Secao solicitada: ${input.sectionKey}
@@ -265,7 +260,6 @@ Regras:
 - Nao removas placeholders {{IMAGE_N}} se existirem.
 - Nao alteres a secao para outro tema.
 - Nova versao deve mirar ${input.targetWords} palavras visiveis.
-- Aceita-se entre ${input.minimumWords} e ${input.maximumWords} palavras visiveis.
 
 Retorna apenas o HTML expandido desta secao.`;
 
