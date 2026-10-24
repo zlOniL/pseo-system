@@ -101,7 +101,7 @@ export class ContentsService {
     let query = this.supabase
       .getClient()
       .from('contents')
-      .select('id', { count: 'planned', head: true });
+      .select('id', { count: 'exact', head: true });
     query = this.applyStatusFilter(query, dto.status);
     if (dto.service) query = query.eq('service', dto.service);
     if (dto.service_id) query = query.eq('service_id', dto.service_id);

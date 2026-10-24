@@ -193,6 +193,7 @@ export interface SectionLibrarySummary {
 // ── Queue ─────────────────────────────────────────────────────────────────────
 
 export interface QueueItem {
+  content?: { id: string; status: 'draft' | 'approved' | 'published'; created_at: string } | null;
   id: string;
   created_at: string;
   site_id: string | null;

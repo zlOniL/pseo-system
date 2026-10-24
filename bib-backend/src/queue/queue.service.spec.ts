@@ -11,6 +11,8 @@ function queryBuilder(result: unknown) {
     upsert: jest.fn().mockReturnThis(),
     order: jest.fn().mockReturnThis(),
     range: jest.fn().mockReturnThis(),
+    gte: jest.fn().mockReturnThis(),
+    lte: jest.fn().mockReturnThis(),
     single: jest.fn().mockReturnThis(),
     then: jest.fn((resolve, reject) =>
       Promise.resolve(result).then(resolve, reject),
@@ -252,4 +254,50 @@ describe('QueueService', () => {
       }),
     ]);
   });
+  it('rejects a failed completion update instead of reporting success', async () => {
+    const query = queryBuilder({ data: null, error: { message: 'database unavailable' } });
+    const service = new QueueService({ getClient: () => ({ from: () => query }) } as never, {} as never);
+    await expect(service.markDone('job-1', 'content-1', 'claim-1')).rejects.toThrow('database unavailable');
+  });
+
+  it('rejects completion of a missing job', async () => {
+    const query = queryBuilder({ data: [], error: null });
+    const service = new QueueService({ getClient: () => ({ from: () => query }) } as never, {} as never);
+    await expect(service.markDone('missing', 'content-1', 'claim-1')).rejects.toThrow('Trabalho não encontrado');
+  });
+
+  it('returns the linked editorial state even for old published pages', async () => {
+    const queries = [
+      queryBuilder({ count: 1, error: null }),
+      queryBuilder({ data: [{ id: 'job-1', service_id: 'service-1', content_id: 'content-1', status: 'done' }], error: null }),
+      queryBuilder({ data: [{ id: 'service-1', name: 'Loiça', site_id: 'site-1' }], error: null }),
+      queryBuilder({ data: [{ id: 'content-1', status: 'published', created_at: '2020-01-01' }], error: null }),
+    ];
+    const service = new QueueService({ getClient: () => ({ from: () => queries.shift() }) } as never, {} as never);
+    const result = await service.findAll({ status: 'done' });
+    expect(result.data[0].content).toEqual({ id: 'content-1', status: 'published', created_at: '2020-01-01' });
+  });
+
+  it('uses creation dates for completed lists and all status counters', async () => {
+    const queries: ReturnType<typeof queryBuilder>[] = [];
+    const service = new QueueService({ getClient: () => ({ from: () => {
+      const query = queryBuilder({ count: 0, error: null });
+      queries.push(query);
+      return query;
+    } }) } as never, {} as never);
+    await service.findAll({ status: 'done', from: '2026-10-01', to: '2026-10-24' });
+    await service.getStats({ from: '2026-10-01', to: '2026-10-24' });
+    expect(queries).toHaveLength(5);
+    for (const query of queries) {
+      expect(query.gte).toHaveBeenCalledWith('created_at', '2026-10-01');
+      expect(query.lte).toHaveBeenCalledWith('created_at', '2026-10-24');
+    }
+  });
+
+  it('does not turn a failed counter query into a zero count', async () => {
+    const query = queryBuilder({ count: null, error: { message: 'count unavailable' } });
+    const service = new QueueService({ getClient: () => ({ from: () => query }) } as never, {} as never);
+    await expect(service.getStats()).rejects.toThrow('count unavailable');
+  });
+
 });

@@ -1189,7 +1189,7 @@ function ScalePageContent() {
     requestedReviewStatus ? [requestedReviewStatus] : [],
   );
   const [selectedModes, setSelectedModes] = useState<QueueMode[]>(ALL_MODES);
-  const [period, setPeriod] = useState<PeriodPreset>('24h');
+  const [period, setPeriod] = useState<PeriodPreset>('all');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [cityQuery, setCityQuery] = useState(requestedCity);
@@ -1203,7 +1203,7 @@ function ScalePageContent() {
       serviceId: requestedServiceId,
       selectedStatuses: [],
       selectedModes: ALL_MODES,
-      period: '24h',
+      period: 'all',
       fromDate: '',
       toDate: '',
       selectedLocality: null,
@@ -1213,9 +1213,13 @@ function ScalePageContent() {
   const [loading, setLoading] = useState(true);
   const [selectedPageIds, setSelectedPageIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState('');
+  const [actionErrors, setActionErrors] = useState<string[]>([]);
   const [modalOpen, setModalOpen] = useState(shouldOpenGenerateModal);
-  const previousStatsRef = useRef<QueueStats | null>(null);
-  const initializedRef = useRef(false);
+  const requestIdRef = useRef(0);
+  const [listError, setListError] = useState<string | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
   const urlIntentRef = useRef('');
 
   const localitySuggestions = useMemo(() => {
@@ -1270,97 +1274,60 @@ function ScalePageContent() {
 
   const loadPage = useCallback(
     async (showLoading = false) => {
-      if (showLoading) setLoading(true);
-      try {
-        const productionStatusFilter = statusFilterParam(
-          selectedProductionStatuses,
-          PRODUCTION_LIST_STATUSES,
-        );
-        const reviewStatusFilter = statusFilterParam(
-          selectedReviewStatuses,
-          REVIEW_STATUSES,
-        );
-        const queueListRequest = api.listQueue(
-          activeView === 'queue'
-            ? { queue_order: true, page, limit: pageLimit }
-            : { ...appliedFilters, status: productionStatusFilter, page, limit: pageLimit },
-        );
-
-        const statsFilters = { ...appliedFilters };
-        delete statsFilters.status;
-        const queueStatsRequest = api.getQueueStats(statsFilters);
-        const reviewStatsRequest = Promise.all(
-          REVIEW_STATUSES.map(async (status) => {
+      const requestId = ++requestIdRef.current;
+      const current = () => requestId === requestIdRef.current;
+      if (showLoading) {
+        setLoading(true);
+        setStatsLoading(true);
+        setItems([]);
+        setContentItems([]);
+        setTotal(0);
+      }
+      const status = activeView === 'production'
+        ? statusFilterParam(selectedProductionStatuses, PRODUCTION_LIST_STATUSES)
+        : statusFilterParam(selectedReviewStatuses, REVIEW_STATUSES);
+      const listRequest = activeView !== 'review'
+        ? api.listQueue(activeView === 'queue' ? { queue_order: true, page, limit: pageLimit } : { ...appliedFilters, status, page, limit: pageLimit }).then((result) => {
+            if (!current()) return;
+            const normalized = normalizeQueueResult(result);
+            setItems(normalized.data);
+            setTotal(normalized.total);
+          })
+        : api.listContents({ ...contentFiltersFromQueueFilters(appliedFilters, status), page, limit: pageLimit }).then((result) => {
+            if (!current()) return;
+            setContentItems(result.data);
+            setTotal(result.total);
+          });
+      const statsFilters = { ...appliedFilters };
+      delete statsFilters.status;
+      const statsRequest = activeView !== 'review'
+        ? api.getQueueStats(activeView === 'queue' ? {} : statsFilters).then((result) => { if (current()) setStats(result); })
+        : Promise.all(REVIEW_STATUSES.map(async (status) => {
             const result = await api.listContents({
-              ...contentFiltersFromQueueFilters(appliedFilters, status),
-              page: 1,
-              limit: 10,
+              ...contentFiltersFromQueueFilters(appliedFilters, status), page: 1, limit: 10,
             });
             return [status, result.total] as const;
-          }),
-        );
-
-        const contentRequest = api.listContents({
-          ...contentFiltersFromQueueFilters(appliedFilters, reviewStatusFilter),
-          page,
-          limit: pageLimit,
-        });
-
-        const [queueResult, queueStats, reviewStatPairs, contentResult] = await Promise.all([
-          queueListRequest,
-          queueStatsRequest,
-          reviewStatsRequest,
-          contentRequest,
-        ]);
-
-        const normalizedResult = Array.isArray(queueResult)
-          ? queueResult.reduce(
-              (acc, result) => {
-                const normalized = normalizeQueueResult(result);
-                acc.data.push(...normalized.data);
-                acc.total += normalized.total;
-                return acc;
-              },
-              { data: [] as QueueItem[], total: 0 },
-            )
-          : normalizeQueueResult(queueResult);
-
-        const nextReviewStats = Object.fromEntries(reviewStatPairs) as Record<ReviewStatus, number>;
-        setItems(normalizedResult.data);
-        setContentItems(contentResult.data);
-        setTotal(activeView === 'review' ? contentResult.total : normalizedResult.total);
-        setStats(queueStats);
-        setReviewStats(nextReviewStats);
-
-        if (initializedRef.current && previousStatsRef.current) {
-          const previous = previousStatsRef.current;
-          if (queueStats.failed > previous.failed) {
-            toast.error(`${queueStats.failed - previous.failed} item(ns) falharam.`);
-          }
-          const wasActive = previous.pending + previous.processing > 0;
-          const nowActive = queueStats.pending + queueStats.processing > 0;
-          if (wasActive && !nowActive) {
-            toast.success(`Fila concluida: ${queueStats.done} concluido(s), ${queueStats.failed} falhado(s).`);
-          }
-        }
-
-        previousStatsRef.current = queueStats;
-        initializedRef.current = true;
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Erro ao carregar lista de paginas.');
-      } finally {
-        if (showLoading) setLoading(false);
-      }
+          })).then((pairs) => { if (current()) setReviewStats(Object.fromEntries(pairs) as Record<ReviewStatus, number>); });
+      await Promise.allSettled([
+        listRequest.then(() => { if (current()) setListError(null); }).catch((error: unknown) => {
+          if (current()) setListError(error instanceof Error ? error.message : 'Falha ao carregar páginas.');
+        }).finally(() => { if (current()) setLoading(false); }),
+        statsRequest.then(() => { if (current()) setStatsError(null); }).catch(() => {
+          if (current()) setStatsError('Não foi possível atualizar os contadores. A lista pode continuar a ser utilizada.');
+        }).finally(() => { if (current()) setStatsLoading(false); }),
+      ]);
     },
-    [
-      activeView,
-      appliedFilters,
-      page,
-      pageLimit,
-      selectedProductionStatuses,
-      selectedReviewStatuses,
-    ],
+    [activeView, appliedFilters, page, pageLimit, selectedProductionStatuses, selectedReviewStatuses],
   );
+
+  // All filters apply automatically; debounce text/date editing as a single search.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(1);
+      setAppliedFilters(draftFilters);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [draftFilters]);
 
   useEffect(() => {
     if (requestedSiteId) {
@@ -1385,6 +1352,7 @@ function ScalePageContent() {
     urlIntentRef.current = intent;
 
     setActiveView(requestedView);
+    if (requestedView === 'review') setPeriod('all');
     setSelectedProductionStatuses([]);
     setSelectedReviewStatuses(requestedReviewStatus ? [requestedReviewStatus] : []);
     setPage(1);
@@ -1432,7 +1400,7 @@ function ScalePageContent() {
           const next = { ...current };
           if (nextSiteId) next.site_id = nextSiteId;
           else delete next.site_id;
-          delete next.service_id;
+          if (currentSiteId && currentSiteId !== nextSiteId) delete next.service_id;
           return next;
         });
         return nextSiteId;
@@ -1445,8 +1413,10 @@ function ScalePageContent() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     Promise.all([api.listServices(selectedSiteId || undefined), api.getCities()])
       .then(([serviceItems, regionItems]) => {
+        if (cancelled) return;
         setServices(serviceItems);
         setRegions(regionItems);
 
@@ -1458,14 +1428,19 @@ function ScalePageContent() {
           setServiceId('');
         }
       })
-      .catch(() => toast.error('Erro ao carregar dados da producao.'))
-      .finally(() => setLoading(false));
+      .catch(() => { if (!cancelled) toast.error('Erro ao carregar serviços e localidades. Tente atualizar a página.'); });
+    return () => { cancelled = true; };
   }, [selectedSiteId, serviceId]);
 
   useEffect(() => {
-    void loadPage(true);
-    const interval = setInterval(() => void loadPage(false), 10_000);
-    return () => clearInterval(interval);
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async (initial: boolean) => {
+      await loadPage(initial);
+      if (!cancelled) timer = setTimeout(() => void poll(false), 10_000);
+    };
+    void poll(true);
+    return () => { cancelled = true; clearTimeout(timer); ++requestIdRef.current; };
   }, [loadPage]);
 
   useEffect(() => {
@@ -1488,15 +1463,15 @@ function ScalePageContent() {
       : selectedReviewStatuses.length;
 
   useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+    if (!loading && !listError && page > totalPages) setPage(totalPages);
+  }, [page, totalPages, loading, listError]);
 
   const visibleRows = activeView === 'review' ? contentItems : items;
   const selectedRows = visibleRows.filter((item) => selectedPageIds.has(item.id));
   const selectedStatusesForActions = Array.from(new Set(selectedRows.map((item) => item.status)));
-  const canBulkDelete = selectedRows.length > 0;
+  const canBulkDelete = selectedRows.some((item) => item.status !== 'published');
   const canBulkRetry =
-    activeView === 'production' &&
+    activeView !== 'review' &&
     selectedRows.length > 0 &&
     selectedStatusesForActions.length === 1 &&
     selectedStatusesForActions[0] === 'failed';
@@ -1567,7 +1542,7 @@ function ScalePageContent() {
   async function deleteQueueItem(item: QueueItem) {
     try {
       await api.deleteQueueItem(item.id);
-      toast.success(`${item.city} removida da lista.`);
+      toast.success('Trabalho removido da fila. O conteúdo associado foi preservado.');
       void loadPage(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Erro ao excluir item.');
@@ -1576,7 +1551,7 @@ function ScalePageContent() {
 
   async function handleBulkRetry() {
     const ids = selectedRows
-      .filter((item): item is QueueItem => activeView === 'production' && item.status === 'failed')
+      .filter((item): item is QueueItem => activeView !== 'review' && item.status === 'failed')
       .map((item) => item.id);
     if (ids.length === 0) return;
 
@@ -1614,23 +1589,42 @@ function ScalePageContent() {
   }
 
   async function handleBulkPublish() {
-    const ids = selectedRows
-      .filter((item): item is ContentSummary => activeView === 'review' && item.status === 'approved')
-      .map((item) => item.id);
-    if (ids.length === 0) return;
-
+    const selected = selectedRows.filter((item): item is ContentSummary => activeView === 'review' && item.status === 'approved');
+    if (!selected.length) return;
     setBulkLoading(true);
+    setActionErrors([]);
+    const failures: string[] = [];
+    const failedIds: string[] = [];
+    let published = 0;
     try {
-      const result = await api.bulkPublish(ids);
-      const failed = result.filter((item) => !item.success).length;
-      setSelectedPageIds(new Set());
-      if (failed === 0) toast.success(`${ids.length} pagina(s) publicada(s).`);
-      else toast.warning(`${ids.length - failed} publicada(s), ${failed} falharam.`);
+      for (let offset = 0; offset < selected.length; offset += 50) {
+        const batch = selected.slice(offset, offset + 50);
+        setBulkProgress(`A publicar ${offset + 1}–${offset + batch.length} de ${selected.length}…`);
+        try {
+          const results = await api.bulkPublish(batch.map((item) => item.id));
+          for (const item of batch) {
+            const result = results.find((result) => result.id === item.id);
+            if (result?.success) published++;
+            else {
+              failedIds.push(item.id);
+              failures.push(`${item.main_keyword}: ${result?.error || 'Sem confirmação do servidor.'}`);
+            }
+          }
+        } catch (error) {
+          for (const item of batch) {
+            failedIds.push(item.id);
+            failures.push(`${item.main_keyword}: ${error instanceof Error ? error.message : 'Falha de publicação.'}`);
+          }
+        }
+      }
+      setSelectedPageIds(new Set(failedIds));
+      setActionErrors(failures);
+      if (failures.length) toast.warning(`${published} publicada(s); ${failures.length} sem confirmação. Consulte os detalhes.`);
+      else toast.success(`${published} página(s) publicada(s).`);
       void loadPage(false);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Erro ao publicar selecionadas.');
     } finally {
       setBulkLoading(false);
+      setBulkProgress('');
     }
   }
 
@@ -1657,12 +1651,13 @@ function ScalePageContent() {
   async function performBulkDelete(ids: string[]) {
     setBulkLoading(true);
     try {
-      if (activeView === 'production') {
+      if (activeView !== 'review') {
         const result = await api.bulkDeleteQueue(ids);
         toast.success(`${result.deleted} item(ns) excluido(s).`);
       } else {
         const result = await api.bulkDelete(ids);
-        toast.success(`${result.deleted} pagina(s) excluida(s).`);
+        if (result.skipped) toast.warning(`${result.deleted} página(s) excluída(s); ${result.skipped} ignorada(s), incluindo publicadas protegidas.`);
+        else toast.success(`${result.deleted} página(s) excluída(s).`);
       }
       setSelectedPageIds(new Set());
       void loadPage(false);
@@ -1690,7 +1685,7 @@ function ScalePageContent() {
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Lista de Paginas</h1>
             <p className="mt-1 text-sm text-gray-500">
-              Acompanhe producao, revise rascunhos e publique paginas em uma unica tela.
+              Acompanhe a produção e aceda a todas as páginas, incluindo aprovadas e publicadas.
             </p>
           </div>
           <button onClick={() => setModalOpen(true)} className="bib-btn bib-btn-primary">
@@ -1701,9 +1696,9 @@ function ScalePageContent() {
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
             {[
-              { view: 'production' as const, label: 'Producao', value: productionPendingCount },
-              { view: 'review' as const, label: 'Revisao', value: reviewStats.draft },
-              { view: 'queue' as const, label: 'Fila', value: productionPendingCount },
+              { view: 'production' as const, label: 'Produção' },
+              { view: 'review' as const, label: 'Revisão' },
+              { view: 'queue' as const, label: 'Fila' },
             ].map((item) => (
             <button
               key={item.view}
@@ -1712,6 +1707,7 @@ function ScalePageContent() {
                   setSelectedProductionStatuses([]);
                   setSelectedReviewStatuses([]);
                 }
+                if (item.view === 'review') { setPeriod('all'); setFromDate(''); setToDate(''); }
                 setActiveView(item.view);
                 setPage(1);
               }}
@@ -1721,11 +1717,12 @@ function ScalePageContent() {
                   : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
               }`}
             >
-              {item.label} <span className="ml-1 text-xs opacity-70">{item.value}</span>
+              {item.label}
             </button>
             ))}
           </div>
-          {selectedStatusCount > 0 && (
+          {activeView === 'review' && !statsLoading && !statsError && <span className="text-xs text-gray-500">{reviewStats.draft + reviewStats.approved + reviewStats.published} páginas · {reviewStats.draft} aguardam revisão</span>}
+          {activeView !== 'queue' && selectedStatusCount > 0 && (
             <button
               onClick={() => {
                 if (activeView === 'production') setSelectedProductionStatuses([]);
@@ -1749,20 +1746,21 @@ function ScalePageContent() {
               ].map((card) => (
                 <button
                   key={card.label}
-                  onClick={() => applyStatusFromCard(card.status)}
+                  onClick={() => { if (activeView !== 'queue') applyStatusFromCard(card.status); }}
+                  disabled={activeView === 'queue'}
                   className={`rounded-lg border bg-white px-4 py-3 text-left transition-colors hover:border-gray-400 hover:bg-gray-50 ${
                     selectedProductionStatuses.includes(card.status)
                       ? 'border-gray-900'
                       : 'border-gray-200'
                   }`}
                 >
-                  <p className={`text-2xl font-semibold ${card.color}`}>{card.value}</p>
+                  <p className={`text-2xl font-semibold ${card.color}`}>{statsLoading || statsError ? '—' : card.value}</p>
                   <p className="mt-1 text-xs text-gray-400">{card.label}</p>
                 </button>
               ))}
               <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
-                <p className="text-2xl font-semibold text-gray-900">{summary.successRate}%</p>
-                <p className="mt-1 text-xs text-gray-400">Sucesso</p>
+                <p className="text-2xl font-semibold text-gray-900">{statsLoading || statsError ? '—' : `${summary.successRate}%`}</p>
+                <p className="mt-1 text-xs text-gray-400">Trabalhos concluídos com sucesso</p>
               </div>
             </>
           ) : (
@@ -1786,9 +1784,9 @@ function ScalePageContent() {
                         : 'text-gray-700'
                   }`}
                 >
-                  {reviewStats[status]}
+                  {statsLoading || statsError ? '—' : reviewStats[status]}
                 </p>
-                <p className="mt-1 text-xs text-gray-400">{reviewStatusLabel(status)}s</p>
+                <p className="mt-1 text-xs text-gray-400">{status === 'draft' ? 'Rascunhos — aguardam revisão' : `${reviewStatusLabel(status)}s`}</p>
               </button>
             ))
           )}
@@ -1799,7 +1797,7 @@ function ScalePageContent() {
             A Fila é global: ignora o site selecionado e mostra primeiro os itens em processamento e pendentes.
           </p>
         )}
-        <div className={`mb-4 rounded-lg border border-gray-200 bg-white ${activeView === 'queue' ? 'pointer-events-none opacity-50' : ''}`}>
+        <div className={`mb-4 rounded-lg border border-gray-200 bg-white ${activeView === 'queue' ? 'hidden' : ''}`}>
           <div className="grid gap-4 px-4 py-4 lg:grid-cols-[minmax(220px,1fr)_minmax(250px,1.2fr)]">
             <div>
               <label className="bib-label">Servico</label>
@@ -1877,7 +1875,7 @@ function ScalePageContent() {
           </div>
 
           <div className="grid gap-4 border-t border-gray-100 px-4 py-4 lg:grid-cols-2">
-            <div>
+            {activeView === 'production' && <div>
               <div className="mb-2 flex items-center justify-between">
                 <p className="bib-label mb-0">Modos</p>
                 <button
@@ -1901,10 +1899,10 @@ function ScalePageContent() {
                   />
                 ))}
               </div>
-            </div>
+            </div>}
 
             <div>
-              <label className="bib-label">Periodo</label>
+              <label className="bib-label">Período de criação</label>
               <select
                 value={period}
                 onChange={(event) => handlePeriodChange(event.target.value as PeriodPreset)}
@@ -1916,7 +1914,7 @@ function ScalePageContent() {
                 <option value="7d">Ultimos 7 dias</option>
                 <option value="30d">Ultimos 30 dias</option>
                 <option value="custom">Periodo especifico</option>
-                <option value="all">Tudo</option>
+                <option value="all">Todo o período</option>
               </select>
               {period === 'custom' && (
                 <div className="mt-2 grid grid-cols-2 gap-2">
@@ -1939,14 +1937,24 @@ function ScalePageContent() {
 
           <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3">
             <p className="text-xs text-gray-400">
-              Altere os filtros e clique em Buscar para atualizar os resultados.
+              {JSON.stringify(appliedFilters) !== JSON.stringify(draftFilters) ? 'A aplicar filtros…' : 'Filtros aplicados automaticamente. O período refere-se à criação de cada registo.'}
             </p>
             <button onClick={applySearch} className="bib-btn bib-btn-primary">
-              Buscar
+              Atualizar
             </button>
           </div>
         </div>
 
+        {actionErrors.length > 0 && <div role="alert" className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm">
+          <p className="font-medium">Páginas sem confirmação de publicação</p>
+          <ul className="mt-2 max-h-48 overflow-auto">{actionErrors.map((error, index) => <li key={index}>{error}</li>)}</ul>
+          <button onClick={() => setActionErrors([])} className="mt-2 underline">Fechar detalhes</button>
+        </div>}
+        {statsError && <p role="status" className="mb-3 text-sm text-amber-700">{statsError}</p>}
+        {listError && <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          Não foi possível atualizar a lista. {listError} Os dados anteriores, se visíveis, podem estar desatualizados.
+          <button onClick={() => void loadPage(true)} className="ml-3 underline">Tentar novamente</button>
+        </div>}
         <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
             <div>
@@ -1968,7 +1976,7 @@ function ScalePageContent() {
                     {selectedPageIds.size} selecionado{selectedPageIds.size !== 1 ? 's' : ''}
                   </span>
                   {bulkLoading ? (
-                    <span className="text-xs text-gray-300">Processando...</span>
+                    <span className="text-xs text-gray-300">{bulkProgress || 'A processar…'}</span>
                   ) : (
                     <>
                       {canBulkApprove && (
@@ -2050,7 +2058,10 @@ function ScalePageContent() {
                 {visibleRows.length === 0 ? (
                   <tr>
                     <td colSpan={activeView !== 'review' ? 10 : 7} className="px-4 py-12 text-center text-sm text-gray-400">
-                      Nenhum item encontrado para estes filtros.
+                      {loading ? 'A carregar páginas…' : listError ? 'Lista indisponível. Tente novamente.' : <>
+                        Nenhum item encontrado para estes filtros.
+                        {activeView !== 'queue' && period !== 'all' && <button className="ml-2 underline" onClick={() => setPeriod('all')}>Pesquisar em todo o período</button>}
+                      </>}
                     </td>
                   </tr>
                 ) : activeView !== 'review' ? (
@@ -2064,7 +2075,13 @@ function ScalePageContent() {
                           className="h-4 w-4 accent-gray-900"
                         />
                       </td>
-                      <td className="px-4 py-3"><StatusBadge item={item} /></td>
+                      <td className="px-4 py-3">
+                        <StatusBadge item={item} />
+                        {item.content && <div className="mt-1"><ReviewStatusBadge status={item.content.status} /></div>}
+                        {item.status === 'done' && !item.content && <p className="mt-1 text-xs text-amber-700">Conteúdo indisponível</p>}
+                        {item.status === 'done' && item.content?.status === 'published' &&
+                          <p className="mt-1 text-xs text-gray-500">Página publicada disponível</p>}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="min-w-[180px]">
                           <p className="font-medium text-gray-900">{item.service?.name ?? 'Servico removido'}</p>
@@ -2091,13 +2108,14 @@ function ScalePageContent() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-2">
+                          {item.content_id && <Link href={`/contents/${item.content_id}`} className="text-xs font-medium text-gray-900 hover:underline">Revisar página</Link>}
                           {item.status === 'failed' && (
                             <button onClick={() => void retryItem(item)} className="text-xs font-medium text-gray-700 hover:underline">
                               Regenerar
                             </button>
                           )}
                           <button onClick={() => void deleteQueueItem(item)} className="text-xs font-medium text-red-500 hover:underline">
-                            Excluir
+                            Remover da fila
                           </button>
                         </div>
                       </td>
@@ -2139,9 +2157,12 @@ function ScalePageContent() {
                               Publicar
                             </button>
                           )}
-                          <button onClick={() => void performBulkDelete([content.id])} className="text-xs font-medium text-red-500 hover:underline">
-                            Excluir
-                          </button>
+                          {content.status === 'published' ? <span className="text-xs text-gray-400">Publicada, não apagável</span> :
+                            <button onClick={() => toast('Excluir esta página?', {
+                              action: { label: 'Confirmar', onClick: () => void performBulkDelete([content.id]) },
+                              cancel: { label: 'Cancelar', onClick: () => {} },
+                            })} className="text-xs font-medium text-red-500 hover:underline">Excluir</button>}
+                          {(content.external_page_url || content.wp_post_url) && <a href={content.external_page_url || content.wp_post_url!} target="_blank" rel="noopener noreferrer" className="text-xs hover:underline">Ver página ↗</a>}
                         </div>
                       </td>
                     </tr>
@@ -2209,7 +2230,7 @@ function ScalePageContent() {
           setSelectedProductionStatuses(['pending']);
           setSelectedReviewStatuses([]);
           setSelectedModes(ALL_MODES);
-          setPeriod('24h');
+          setPeriod('all');
           setFromDate('');
           setToDate('');
           setPage(1);
@@ -2219,7 +2240,7 @@ function ScalePageContent() {
               serviceId: createdServiceId,
               selectedStatuses: ['pending'],
               selectedModes: ALL_MODES,
-              period: '24h',
+              period: 'all',
               fromDate: '',
               toDate: '',
               selectedLocality: null,
@@ -2231,6 +2252,9 @@ function ScalePageContent() {
         onMainCreated={(createdServiceId) => {
           setServiceId(createdServiceId);
           setActiveView('review');
+          setPeriod('all');
+          setCityQuery('');
+          setSelectedLocality(null);
           setSelectedProductionStatuses([]);
           setSelectedReviewStatuses(['draft']);
           setPage(1);

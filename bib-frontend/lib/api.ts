@@ -59,13 +59,17 @@ async function errorMessage(res: Response): Promise<string> {
   return body;
 }
 
+export class ApiError extends Error {
+  constructor(message: string, public readonly status: number) { super(message); }
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
   if (!res.ok) {
-    throw new Error(await errorMessage(res));
+    throw new ApiError(await errorMessage(res), res.status);
   }
   const body = await res.text();
   return (body ? JSON.parse(body) : null) as T;
@@ -205,7 +209,7 @@ export const api = {
   deleteContent: async (id: string): Promise<void> => {
     const res = await fetch(`${BASE_URL}/contents/${id}`, { method: 'DELETE' });
     if (!res.ok) {
-      throw new Error(await errorMessage(res));
+      throw new ApiError(await errorMessage(res), res.status);
     }
   },
 
@@ -268,7 +272,7 @@ export const api = {
   deleteService: async (id: string): Promise<void> => {
     const res = await fetch(`${BASE_URL}/services/${id}`, { method: 'DELETE' });
     if (!res.ok) {
-      throw new Error(await errorMessage(res));
+      throw new ApiError(await errorMessage(res), res.status);
     }
   },
 
@@ -318,7 +322,7 @@ export const api = {
       { method: 'DELETE' },
     );
     if (!res.ok) {
-      throw new Error(await errorMessage(res));
+      throw new ApiError(await errorMessage(res), res.status);
     }
   },
 
@@ -438,7 +442,7 @@ export const api = {
   deleteQueueItem: async (id: string): Promise<void> => {
     const res = await fetch(`${BASE_URL}/queue/${id}`, { method: 'DELETE' });
     if (!res.ok) {
-      throw new Error(await errorMessage(res));
+      throw new ApiError(await errorMessage(res), res.status);
     }
   },
 
@@ -496,7 +500,7 @@ export const api = {
       body: form,
     });
     if (!res.ok) {
-      throw new Error(await errorMessage(res));
+      throw new ApiError(await errorMessage(res), res.status);
     }
     return res.json() as Promise<MediaAsset[]>;
   },
@@ -513,7 +517,7 @@ export const api = {
   deleteSupabaseMedia: async (id: string): Promise<void> => {
     const res = await fetch(`${BASE_URL}/media/${id}`, { method: 'DELETE' });
     if (!res.ok) {
-      throw new Error(await errorMessage(res));
+      throw new ApiError(await errorMessage(res), res.status);
     }
   },
 

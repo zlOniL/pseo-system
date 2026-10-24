@@ -41,6 +41,7 @@ export interface QueueItem {
 }
 
 export interface QueueItemWithService extends QueueItem {
+  content: { id: string; status: 'draft' | 'approved' | 'published'; created_at: string } | null;
   service: {
     id: string;
     name: string;
@@ -315,7 +316,8 @@ export class QueueService {
           : query.eq('mode', mode);
     }
 
-    const { count } = (await query) as DbCountResult<null>;
+    const { count, error } = (await query) as DbCountResult<null>;
+    if (error) throw new BadRequestException(error.message);
     return (count ?? 0) > 0;
   }
 
@@ -345,11 +347,12 @@ export class QueueService {
     claimToken: string,
     templateId?: string,
   ): Promise<void> {
-    await this.supabase
+    const { data, error } = await this.supabase
       .getClient()
       .from('queue')
       .update({
         status: 'done',
+        error: null,
         hybrid_state: null,
         content_id: contentId,
         ...(templateId && { template_id: templateId }),
@@ -357,15 +360,14 @@ export class QueueService {
       })
       .eq('id', id)
       .eq('status', 'processing')
-      .eq('claim_token', claimToken);
+      .eq('claim_token', claimToken)
+      .select('id');
+    if (error) throw new BadRequestException(`Falha ao concluir trabalho: ${error.message}`);
+    if (!data?.length) throw new NotFoundException('Trabalho não encontrado ou atribuído a outro worker ao concluir.');
   }
 
-  async markFailed(
-    id: string,
-    errorMsg: string,
-    claimToken: string,
-  ): Promise<void> {
-    await this.supabase
+  async markFailed(id: string, errorMsg: string, claimToken: string): Promise<void> {
+    const { error } = await this.supabase
       .getClient()
       .from('queue')
       .update({
@@ -376,6 +378,7 @@ export class QueueService {
       .eq('id', id)
       .eq('status', 'processing')
       .eq('claim_token', claimToken);
+    if (error) throw new BadRequestException(error.message);
   }
 
   async recoverStuckProcessing(): Promise<void> {
@@ -435,7 +438,7 @@ export class QueueService {
     let countQuery = this.supabase
       .getClient()
       .from('queue')
-      .select('id', { count: 'planned', head: true });
+      .select('id', { count: 'exact', head: true });
 
     countQuery = this.applyFilters(countQuery, resolvedFilters);
 
@@ -495,9 +498,10 @@ export class QueueService {
           .eq('status', s);
 
         const { status: _status, ...filterWithoutStatus } = resolvedFilters;
-        query = this.applyFilters(query, filterWithoutStatus, s);
+        query = this.applyFilters(query, filterWithoutStatus);
 
-        const { count } = (await query) as DbCountResult<null>;
+        const { count, error } = (await query) as DbCountResult<null>;
+        if (error) throw new BadRequestException(error.message);
         return [s, count ?? 0] as const;
       }),
     );
@@ -615,7 +619,6 @@ export class QueueService {
   private applyFilters<T>(
     query: T,
     filters: QueueFilters,
-    effectiveStatus?: QueueItem['status'],
   ): T {
     let next = query as any;
     const { queue_order: _queueOrder, ...filterValues } = filters;
@@ -648,21 +651,13 @@ export class QueueService {
       if (cities.length > 0) next = next.in('city', cities);
     }
     if (filters.city) next = next.ilike('city', `%${filters.city}%`);
-    const dateColumn = this.getDateColumn(effectiveStatus ?? filters.status);
+    const dateColumn = 'created_at';
     if (filters.from) next = next.gte(dateColumn, filters.from);
     if (filters.to) next = next.lte(dateColumn, filters.to);
     if (filters.has_error === true) next = next.not('error', 'is', null);
     if (filters.has_error === false) next = next.is('error', null);
 
     return next as T;
-  }
-
-  private getDateColumn(
-    status?: string,
-  ): 'created_at' | 'started_at' | 'finished_at' {
-    if (status === 'processing') return 'started_at';
-    if (status === 'done' || status === 'failed') return 'finished_at';
-    return 'created_at';
   }
 
   private async resolveSiteFilter(
@@ -713,8 +708,18 @@ export class QueueService {
     const services = new Map(
       (data ?? []).map((service) => [service.id, service]),
     );
+    const contentIds = [...new Set(items.flatMap((item) => item.content_id ? [item.content_id] : []))];
+    const contents = new Map<string, NonNullable<QueueItemWithService['content']>>();
+    for (let i = 0; i < contentIds.length; i += SUPABASE_IN_CHUNK_SIZE) {
+      const { data: rows, error: contentError } = await this.supabase.getClient()
+        .from('contents').select('id,status,created_at')
+        .in('id', contentIds.slice(i, i + SUPABASE_IN_CHUNK_SIZE));
+      if (contentError) throw new BadRequestException(contentError.message);
+      for (const row of rows ?? []) contents.set(row.id, row);
+    }
     return items.map((item) => ({
       ...item,
+      content: item.content_id ? contents.get(item.content_id) ?? null : null,
       service: services.get(item.service_id) ?? null,
     }));
   }
