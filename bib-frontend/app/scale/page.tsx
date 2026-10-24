@@ -19,8 +19,6 @@ import {
   RelatedService,
 } from '@/lib/types';
 
-import { HybridPanel } from './HybridPanel';
-
 type QueueMode = 'ai' | 'template' | 'library' | 'hybrid';
 type PageKind = 'main' | 'locality';
 type QueueStatus = QueueItem['status'];
@@ -431,7 +429,6 @@ function NewGenerationModal({
   const [serviceId, setServiceId] = useState(initialServiceId);
   const [pageKind, setPageKind] = useState<PageKind>(initialPageKind);
   const [mode, setMode] = useState<QueueMode>('ai');
-  const [hybridReady, setHybridReady] = useState(false);
   const [templates, setTemplates] = useState<ServiceTemplate[]>([]);
   const [templateId, setTemplateId] = useState('');
   const [previousItems, setPreviousItems] = useState<QueueItem[]>([]);
@@ -702,10 +699,6 @@ function NewGenerationModal({
       toast.error('Publique a pagina principal deste servico antes de gerar paginas de localidade.');
       return;
     }
-    if (mode === 'hybrid' && !hybridReady) {
-      toast.error('Prepare a biblioteca Híbrida antes de gerar.');
-      return;
-    }
     if (mode === 'template' && !templateId) {
       toast.error('Seleciona um template para continuar.');
       return;
@@ -827,8 +820,6 @@ function NewGenerationModal({
                 ))}
               </div>
             </div>
-
-            {mode === 'hybrid' && <HybridPanel key={serviceId} serviceId={serviceId} onReady={setHybridReady} />}
 
             {mode === 'template' && (
               <div>
@@ -1089,7 +1080,7 @@ function NewGenerationModal({
           ) : (
             <button
               onClick={handleSubmit}
-              disabled={!serviceId || selectedCities.size === 0 || enqueueing || !canCreateLocalities || (mode === 'hybrid' && !hybridReady)}
+              disabled={!serviceId || selectedCities.size === 0 || enqueueing || !canCreateLocalities}
               className="bib-btn bib-btn-primary"
             >
               {enqueueing ? 'Adicionando...' : `Adicionar ${selectedCities.size || ''} a fila`}

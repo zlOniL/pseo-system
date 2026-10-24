@@ -1,6 +1,6 @@
 import { HybridService } from './hybrid.service';
 import { SECTION_KEYS, SectionLibraryRow } from './service-templates.types';
-import { slotDocument, sourceHash } from './hybrid-slots';
+import { slotDocument } from './hybrid-slots';
 
 describe('Hybrid generation', () => {
   function setup() {
@@ -34,13 +34,6 @@ describe('Hybrid generation', () => {
         base_city: 'Lisboa',
         output_format: 'html',
         html,
-        hybrid_config: {
-          revision: 1,
-          source_hash: sourceHash(html),
-          strategy: key === 'contexto_local' ? 'local' : 'generic',
-          values: { s0: 'Reparação {{LOCATION}}' },
-          reason: '',
-        },
       } as unknown as SectionLibraryRow;
     });
     jest.spyOn(service, 'rows').mockResolvedValue(rows);
@@ -78,13 +71,28 @@ describe('Hybrid generation', () => {
     expect(result.rows.get('contexto_local')?.html).toContain(
       'https://cm-faro.pt/',
     );
+    expect(
+      result.manifest.sections.find((section) => section.section_key === 'intro')
+        ?.strategy,
+    ).toBe('generic');
+    expect(
+      result.manifest.sections.find(
+        (section) => section.section_key === 'contexto_local',
+      )?.strategy,
+    ).toBe('local');
     expect(ai.generateText).toHaveBeenCalledTimes(2);
     expect(result.manifest.sections).toHaveLength(15);
     expect(checkpoint).toHaveBeenCalledTimes(16);
   });
 
-  it('blocks unprepared or edited legacy sections', async () => {
+  it('blocks a resumed generation when its selected section changes', async () => {
     const { service, rows, links } = setup();
+    const first = await service.assemble({
+      serviceId: 'service',
+      service: 'Janelas',
+      city: 'Faro',
+      format: 'html',
+    });
     rows[0].html = '<p>Alfama alterada</p>';
     await expect(
       service.assemble({
@@ -92,9 +100,10 @@ describe('Hybrid generation', () => {
         service: 'Janelas',
         city: 'Faro',
         format: 'html',
+        previous: first.manifest,
       }),
-    ).rejects.toThrow('Prepare');
-    expect(links.research).not.toHaveBeenCalled();
+    ).rejects.toThrow('mudou');
+    expect(links.research).toHaveBeenCalledTimes(1);
   });
 
   it('does not fall back to old city links when verification fails', async () => {

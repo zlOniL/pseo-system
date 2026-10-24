@@ -71,37 +71,6 @@ export class ServiceTemplatesController {
     return this.library.getSummary(serviceId, outputFormat);
   }
 
-  private async hybridFormat(serviceId: string) {
-    const service = await this.services.findById(serviceId);
-    const site = service.site_id
-      ? await this.sites.findById(service.site_id)
-      : null;
-    return site?.integration_type === 'whitelabel_api'
-      ? ('whitelabel_json' as const)
-      : ('html' as const);
-  }
-
-  @Get('hybrid')
-  async hybridSummary(@Param('serviceId') serviceId: string) {
-    return this.hybrid.summary(serviceId, await this.hybridFormat(serviceId));
-  }
-
-  @Post('hybrid/prepare')
-  async prepareHybrid(@Param('serviceId') serviceId: string) {
-    return this.hybrid.startPreparation(
-      serviceId,
-      await this.hybridFormat(serviceId),
-    );
-  }
-
-  @Patch('hybrid/:rowId/local')
-  markHybridLocal(
-    @Param('serviceId') serviceId: string,
-    @Param('rowId') rowId: string,
-  ) {
-    return this.hybrid.markLocal(serviceId, rowId);
-  }
-
   @Post('hybrid/regenerate/:contentId')
   async regenerateHybridLocal(
     @Param('serviceId') serviceId: string,

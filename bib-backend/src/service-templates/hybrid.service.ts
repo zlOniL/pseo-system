@@ -1,9 +1,4 @@
-import { DbResult } from '../common/supabase.types';
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { AiService } from '../ai/ai.service';
 import { SupabaseService } from '../common/supabase.service';
 import { CitiesService } from '../cities/cities.service';
@@ -15,7 +10,6 @@ import {
   WHITELABEL_SECTION_KEYS,
 } from './service-templates.types';
 import {
-  HybridConfig,
   slotDocument,
   sourceHash,
   validateSlotValues,
@@ -23,7 +17,7 @@ import {
 import { formatLocationPhrase } from '../common/location-preposition';
 import { VerifiedExternalReference } from '../integrations/whitelabel-api/external-link.types';
 
-type PreparedRow = SectionLibraryRow & { hybrid_config?: HybridConfig | null };
+type PreparedRow = SectionLibraryRow;
 interface HybridAiResponse {
   strategy: 'generic' | 'local';
   reason?: string;
@@ -45,10 +39,17 @@ export interface HybridManifest {
   sections: HybridSelection[];
 }
 
+const LOCAL_SECTIONS = new Set<SectionKey>([
+  'contexto_local',
+  'modulo_12_zonas_contexto_local',
+]);
+
+function isLocalSection(sectionKey: SectionKey) {
+  return LOCAL_SECTIONS.has(sectionKey);
+}
+
 @Injectable()
 export class HybridService {
-  private readonly preparing = new Set<string>();
-  private readonly errors = new Map<string, string>();
   private readonly referenceCache = new Map<
     string,
     { until: number; value: Promise<VerifiedExternalReference[]> }
@@ -62,39 +63,6 @@ export class HybridService {
 
   private source(row: PreparedRow) {
     return row.output_format === 'html' ? row.html : row.content_json;
-  }
-  private ready(row: PreparedRow) {
-    return (
-      row.hybrid_config?.revision === 1 &&
-      row.hybrid_config.source_hash === sourceHash(this.source(row))
-    );
-  }
-
-  async assertReady(serviceId: string) {
-    const { data: service, error } = await this.db
-      .getClient()
-      .from('services')
-      .select('site_id')
-      .eq('id', serviceId)
-      .single();
-    if (error || !service)
-      throw new BadRequestException('Serviço não encontrado.');
-    let format: 'html' | 'whitelabel_json' = 'html';
-    if (service.site_id) {
-      const { data: site, error: siteError } = await this.db
-        .getClient()
-        .from('sites')
-        .select('integration_type')
-        .eq('id', service.site_id)
-        .single();
-      if (siteError) throw new BadRequestException(siteError.message);
-      if (site?.integration_type === 'whitelabel_api')
-        format = 'whitelabel_json';
-    }
-    if (!(await this.summary(serviceId, format)).ready)
-      throw new BadRequestException(
-        'Prepare todas as secções da biblioteca Híbrida antes de gerar.',
-      );
   }
 
   async rows(
@@ -117,172 +85,29 @@ export class HybridService {
     }
   }
 
-  async summary(serviceId: string, format: 'html' | 'whitelabel_json') {
-    const rows = await this.rows(serviceId, format);
-    const keys = format === 'html' ? SECTION_KEYS : WHITELABEL_SECTION_KEYS;
-    const sections = keys.map((key) => {
-      const versions = rows.filter((row) => row.section_key === key);
-      return {
-        section_key: key as SectionKey,
-        versions: versions.map((row) => ({
-          id: row.id,
-          version: row.version,
-          strategy: this.ready(row)
-            ? row.hybrid_config!.strategy
-            : 'unprepared',
-          reason: row.hybrid_config?.reason ?? '',
-        })),
-        generic: versions.filter(
-          (r) => this.ready(r) && r.hybrid_config!.strategy === 'generic',
-        ).length,
-        local: versions.filter(
-          (r) => this.ready(r) && r.hybrid_config!.strategy === 'local',
-        ).length,
-        pending: versions.filter((r) => !this.ready(r)).length,
-      };
-    });
+  private config(row: PreparedRow) {
+    const strategy = isLocalSection(row.section_key) ? 'local' : 'generic';
+    const doc = slotDocument(this.source(row), row.output_format);
     return {
-      ready: sections.every((s) => s.generic + s.local > 0),
-      preparing: this.preparing.has(serviceId),
-      error: this.errors.get(serviceId) ?? null,
-      sections,
-    };
-  }
-
-  startPreparation(serviceId: string, format: 'html' | 'whitelabel_json') {
-    if (this.preparing.has(serviceId))
-      throw new ConflictException('Preparação já em curso.');
-    this.errors.delete(serviceId);
-    void this.prepare(serviceId, format).catch((error: Error) =>
-      this.errors.set(serviceId, error.message),
-    );
-    return { started: true };
-  }
-
-  async prepare(serviceId: string, format: 'html' | 'whitelabel_json') {
-    if (this.preparing.has(serviceId))
-      throw new ConflictException('Preparação já em curso.');
-    this.preparing.add(serviceId);
-    try {
-      const rows = await this.rows(serviceId, format);
-      if (!rows.length)
-        throw new BadRequestException(
-          'Crie um template de localidade antes de preparar o modo Híbrido.',
-        );
-      for (const row of rows) {
-        if (this.ready(row)) continue;
-        const doc = slotDocument(this.source(row), format);
-        const forcedLocal = row.section_key.includes('contexto_local');
-        let config: HybridConfig;
-        if (forcedLocal) {
-          config = {
-            revision: 1,
-            source_hash: sourceHash(this.source(row)),
-            strategy: 'local',
-            reason: 'Contexto local gerado para cada destino.',
-            values: {},
-          };
-        } else {
-          const result = await this
-            .ask(`Classifica esta secção para reutilização entre localidades portuguesas.
-Cidade original: ${row.base_city}. Secção: ${row.section_key}.
-Se existir qualquer facto geográfico (bairros, ruas, monumentos, rios, clima, perfil de imóveis local), entidade ou URL local, escolhe strategy="local". Na dúvida escolhe local.
-Escolhe generic apenas para explicações do serviço independentes da localização. Nesse caso neutraliza os textos, usando {{CITY}} para nome e {{LOCATION}} para preposição + nome. Não inventes factos. Preserva todos os placeholders IMAGE. Preserva URLs exatamente. Não acrescentes HTML.
-Responde JSON {"strategy":"generic" ou "local","reason":"justificação curta","values":{"s0":"..."}}. Para local values pode ser {}.
-Campos: ${JSON.stringify(doc.slots)}`);
-          if (!['generic', 'local'].includes(result.strategy))
-            throw new BadRequestException('Classificação inválida da secção.');
-          if (result.strategy === 'generic') {
-            validateSlotValues(doc.slots, result.values);
-            for (const s of doc.slots) {
-              if (s.kind === 'link' && result.values[s.id] !== s.value)
-                throw new BadRequestException(
-                  'A preparação tentou alterar um URL.',
-                );
-            }
-            const texts = doc.slots
-              .filter((s) => s.kind === 'text')
-              .map((s) => result.values[s.id])
-              .join(' ');
-            const review = await this.ask(
-              `Verifica se estes textos podem ser reutilizados em QUALQUER localidade portuguesa: ${JSON.stringify(result.values)}. Não pode existir qualquer facto específico sobre geografia, bairros, ruas, rios, monumentos, clima, imóveis de uma zona, entidades ou URLs locais. {{CITY}} e {{LOCATION}} são permitidos. URLs técnicos ou de marcas não são factos geográficos. Responde {"valid":true ou false,"issue":"motivo"}.`,
-            );
-            if (
-              review.valid !== true ||
-              this.hasPlace(texts, row.base_city) ||
-              this.cities
-                .getMainLocalities()
-                .some((name) => this.hasPlace(texts, name)) ||
-              doc.slots.some(
-                (s) =>
-                  s.kind === 'link' &&
-                  (this.hasPlace(
-                    s.value.replace(/[-_]/g, ' '),
-                    row.base_city,
-                  ) ||
-                    /municip|autarq|freguesia|cm-/i.test(s.value)),
-              )
-            ) {
-              result.strategy = 'local';
-              result.reason =
-                'Referência geográfica detetada; geração local obrigatória.';
-            }
-          }
-          config = {
-            revision: 1,
-            source_hash: sourceHash(this.source(row)),
-            strategy: result.strategy,
-            reason: String(result.reason ?? ''),
-            values: result.strategy === 'generic' ? result.values : {},
-          };
-        }
-        // The source hash makes concurrent edits stale without putting large HTML/JSON in a URL filter.
-        const { error } = await this.db
-          .getClient()
-          .from('section_library')
-          .update({ hybrid_config: config })
-          .eq('id', row.id);
-        if (error)
-          throw new BadRequestException(
-            `Não foi possível preparar a biblioteca. Aplique a migração Híbrido: ${error.message}`,
-          );
-      }
-      return this.summary(serviceId, format);
-    } finally {
-      this.preparing.delete(serviceId);
-    }
-  }
-
-  async markLocal(serviceId: string, rowId: string) {
-    if (this.preparing.has(serviceId))
-      throw new ConflictException(
-        'Aguarde a preparação antes de alterar a estratégia.',
-      );
-    const { data, error } = (await this.db
-      .getClient()
-      .from('section_library')
-      .select('*')
-      .eq('service_id', serviceId)
-      .eq('id', rowId)
-      .single()) as DbResult<PreparedRow>;
-    if (error || !data)
-      throw new BadRequestException('Secção não encontrada neste serviço.');
-    const row = data;
-    const config: HybridConfig = {
-      revision: 1,
+      strategy,
       source_hash: sourceHash(this.source(row)),
-      strategy: 'local',
-      values: {},
-      reason: 'Geração local escolhida pelo utilizador.',
+      values: Object.fromEntries(
+        doc.slots.map((slot) => [
+          slot.id,
+          slot.kind === 'link'
+            ? slot.value
+            : this.neutralizeCity(slot.value, row.base_city),
+        ]),
+      ),
     };
-    const { error: updateError } = await this.db
-      .getClient()
-      .from('section_library')
-      .update({ hybrid_config: config })
-      .eq('id', rowId)
-      .eq('service_id', serviceId);
-    if (updateError) throw new BadRequestException(updateError.message);
-    return { ok: true };
+  }
+
+  private neutralizeCity(value: string, city: string) {
+    const escaped = city.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (!escaped) return value;
+    return value
+      .replace(new RegExp(`\\b(?:em|na|no)\\s+${escaped}\\b`, 'gi'), '{{LOCATION}}')
+      .replace(new RegExp(escaped, 'gi'), '{{CITY}}');
   }
 
   async assemble(input: {
@@ -303,17 +128,16 @@ Campos: ${JSON.stringify(doc.slots)}`);
     const selected = new Map<SectionKey, PreparedRow>();
     for (const key of keys) {
       const saved = manifest.sections.find((s) => s.section_key === key);
-      const candidates = all.filter(
-        (row) => row.section_key === key && this.ready(row),
-      );
+      const candidates = all.filter((row) => row.section_key === key);
       const row = saved
         ? candidates.find((r) => r.id === saved.row_id)
         : candidates[Math.floor(Math.random() * candidates.length)];
       if (!row)
         throw new BadRequestException(
-          `Prepare a biblioteca Híbrida: secção ${key} sem versão compatível.`,
+          `Biblioteca Híbrida: secção ${key} sem versão compatível.`,
         );
-      if (saved && saved.source_hash !== row.hybrid_config!.source_hash)
+      const config = this.config(row);
+      if (saved && saved.source_hash !== config.source_hash)
         throw new BadRequestException(
           `A versão de ${key} mudou. Inicie uma nova geração.`,
         );
@@ -323,8 +147,8 @@ Campos: ${JSON.stringify(doc.slots)}`);
           section_key: key as SectionKey,
           row_id: row.id,
           version: row.version,
-          strategy: row.hybrid_config!.strategy,
-          source_hash: row.hybrid_config!.source_hash,
+          strategy: config.strategy,
+          source_hash: config.source_hash,
         });
     }
     await input.checkpoint?.(manifest);
@@ -341,7 +165,7 @@ Campos: ${JSON.stringify(doc.slots)}`);
         )
       )
         continue;
-      const config = row.hybrid_config!;
+      const config = this.config(row);
       const doc = slotDocument(this.source(row), input.format);
       let values: Record<string, string>;
       if (config.strategy === 'generic') {
@@ -438,19 +262,6 @@ Textos finais: ${JSON.stringify(result.values)}`);
       });
     }
     return { rows, manifest };
-  }
-
-  private hasPlace(text: string, name: string) {
-    if (!name.trim()) return false;
-    const normalized = (s: string) =>
-      s
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase();
-    return new RegExp(
-      `(?<![\\p{L}])${normalized(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`,
-      'u',
-    ).test(normalized(text));
   }
 
   private async localReferences(service: string, city: string) {
