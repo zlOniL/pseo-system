@@ -226,7 +226,8 @@ ${failure ? `Corrige a tentativa anterior: ${failure}` : ''}`);
               .map((s) => result.values[s.id])
               .join(' ')
               .split(/\s+/).length;
-            if (generatedWords < originalWords * 0.7)
+            const contentIsShort = generatedWords < originalWords * 0.7;
+            if (contentIsShort && localRefs.length)
               throw new Error(
                 'Conteúdo demasiado curto; preserve pelo menos 70% do volume original.',
               );
@@ -251,6 +252,11 @@ Textos finais: ${JSON.stringify(result.values)}`);
               throw new Error(
                 String(review.issue || 'Contexto geográfico não validado.'),
               );
+            if (contentIsShort) {
+              const warning = `Contexto local de ${input.city} gerado com ${generatedWords}/${originalWords} palavras porque não há referências locais verificadas.`;
+              if (!manifest.warnings?.includes(warning))
+                manifest.warnings = [...(manifest.warnings ?? []), warning];
+            }
             values = result.values;
             break;
           } catch (error) {

@@ -111,6 +111,7 @@ describe('Hybrid generation', () => {
     const { service, links, ai, rows } = setup();
     links.research.mockResolvedValue([]);
     const local = rows.find((row) => row.section_key === 'contexto_local')!;
+    local.html = `<h2>Contexto Local em Lisboa</h2><p>${'Texto de contexto '.repeat(100)}</p><a href="https://lisboa.pt/">Câmara de Lisboa</a>`;
     const values = Object.fromEntries(
       slotDocument(
         local.html!.replace(/<a\b[^>]*>([\s\S]*?)<\/a>/i, '$1'),
@@ -138,6 +139,9 @@ describe('Hybrid generation', () => {
     expect(result.rows.get('contexto_local')?.html).not.toContain('<a ');
     expect(result.manifest.warnings).toContain(
       'Sem referências locais verificadas para Faro; a secção de contexto local foi gerada sem links externos.',
+    );
+    expect(result.manifest.warnings).toEqual(
+      expect.arrayContaining([expect.stringContaining('gerado com')]),
     );
   });
 
