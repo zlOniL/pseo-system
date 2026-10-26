@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -202,8 +203,8 @@ export class QueueService {
     serviceId: string,
     templates: TemplateQueuePayload[],
   ): Promise<QueueItem[]> {
-    const { data: service, error: serviceError } = (await this.supabase
-      .getClient()
+    const client = this.supabase.getClient();
+    const { data: service, error: serviceError } = (await client
       .from('services')
       .select('site_id')
       .eq('id', serviceId)
@@ -213,6 +214,32 @@ export class QueueService {
       throw new NotFoundException(
         `Servico ${serviceId} nao encontrado. Selecione um servico valido antes de criar templates.`,
       );
+    }
+
+    const mainPageRequests = templates.filter((template) => template.is_main_page);
+    if (mainPageRequests.length > 1) {
+      throw new BadRequestException(
+        'Adicione apenas uma pagina principal por vez para este servico.',
+      );
+    }
+
+    if (mainPageRequests.length === 1) {
+      const { data: activeJobs, error: activeJobsError } = (await client
+        .from('queue')
+        .select('payload')
+        .eq('service_id', serviceId)
+        .eq('job_type', 'template')
+        .eq('payload->>is_main_page', 'true')
+        .in('status', ['pending', 'processing'])) as DbResult<
+        Array<{ payload: TemplateQueuePayload | null }>
+      >;
+
+      if (activeJobsError) throw new BadRequestException(activeJobsError.message);
+      if (activeJobs?.some((job) => job.payload?.is_main_page)) {
+        throw new ConflictException(
+          'Ja existe uma criacao de pagina principal na fila para este servico.',
+        );
+      }
     }
 
     const rows = templates.map((template) => {
@@ -241,6 +268,11 @@ export class QueueService {
       .insert(rows)
       .select()) as DbResult<QueueItem[]>;
 
+    if (error?.code === '23505' && mainPageRequests.length === 1) {
+      throw new ConflictException(
+        'Ja existe uma criacao de pagina principal na fila para este servico.',
+      );
+    }
     if (error) throw new BadRequestException(error.message);
     return data ?? [];
   }

@@ -246,7 +246,10 @@ function modeLabel(mode: QueueMode) {
 }
 
 function queueJobLabel(item: QueueItem) {
-  return item.job_type === 'template' ? 'Criação de template' : modeLabel(item.mode);
+  if (item.job_type !== 'template') return modeLabel(item.mode);
+  return item.payload?.is_main_page
+    ? 'Criação da página principal'
+    : 'Criação de template';
 }
 
 function StatusBadge({ item }: { item: QueueItem }) {
@@ -414,7 +417,7 @@ function NewGenerationModal({
   regions,
   onClose,
   onCreated,
-  onMainCreated,
+  onMainEnqueued,
 }: {
   open: boolean;
   initialServiceId: string;
@@ -424,7 +427,7 @@ function NewGenerationModal({
   regions: RegionWithCities[];
   onClose: () => void;
   onCreated: (serviceId: string, count: number, pageKind: PageKind) => void;
-  onMainCreated: (serviceId: string) => void;
+  onMainEnqueued: (serviceId: string) => void;
 }) {
   const [serviceId, setServiceId] = useState(initialServiceId);
   const [pageKind, setPageKind] = useState<PageKind>(initialPageKind);
@@ -449,6 +452,13 @@ function NewGenerationModal({
   const canCreateLocalities = mainStatus === 'published';
   const localitiesDisabled = pageKind === 'main' || !canCreateLocalities;
   const mainPageTemplate = templates.find((template) => template.is_main_page) ?? null;
+  const activeMainPageJob = previousItems.find(
+    (item) =>
+      item.service_id === serviceId &&
+      item.job_type === 'template' &&
+      item.payload?.is_main_page &&
+      (item.status === 'pending' || item.status === 'processing'),
+  );
   const regularTemplates = templates.filter((template) => !template.is_main_page);
   const missingMainPage = pageKind === 'locality' && Boolean(selectedService && !mainContent && !mainPageTemplate);
 
@@ -629,6 +639,10 @@ function NewGenerationModal({
 
   async function handleCreateMainPage(recreate = false) {
     if (!selectedService || creatingMainPage) return;
+    if (activeMainPageJob) {
+      toast.error('A criação da página principal deste serviço já está na fila.');
+      return;
+    }
     if (mainContent && !recreate) {
       setExistingPageDialog({ kind: 'main' });
       return;
@@ -643,22 +657,12 @@ function NewGenerationModal({
       const related = validRelatedServices(selectedService.related_services);
       if (related.length > 0) input.related_services = related;
 
-      const result = await api.createTemplate(selectedService.id, input);
-      setTemplates((current) => [
-        result.template,
-        ...current.filter((template) => template.id !== result.template.id),
-      ]);
-      setMainContent(result.content);
+      const jobs = await api.enqueueTemplates(selectedService.id, [input]);
+      setPreviousItems((current) => [...jobs, ...current]);
       setSelectedCities(new Set());
-      onMainCreated(selectedService.id);
-      toast.success('Pagina principal criada. Publique para liberar localidades.', {
-        action: result.content?.id
-          ? {
-              label: 'Revisar e publicar',
-              onClick: () => { window.location.href = `/contents/${result.content.id}`; },
-            }
-          : undefined,
-      });
+      onMainEnqueued(selectedService.id);
+      onClose();
+      toast.success('Pagina principal adicionada à fila. Acompanhe o processamento na fila.');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Erro ao criar pagina principal.');
     } finally {
@@ -890,6 +894,13 @@ function NewGenerationModal({
                       Para manter a estrutura SEO correta, crie primeiro a pagina principal de {selectedService?.name ?? 'este servico'}.
                       Depois de publicar essa pagina, a selecao de cidades e localidades fica disponivel neste modal.
                     </p>
+                    {activeMainPageJob && (
+                      <p className="mt-2 text-sm font-medium text-amber-900">
+                        {activeMainPageJob.status === 'processing'
+                          ? 'A página principal está sendo criada.'
+                          : 'A criação da página principal está aguardando na fila.'}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -1072,10 +1083,10 @@ function NewGenerationModal({
           {pageKind === 'main' || missingMainPage ? (
             <button
               onClick={() => void handleCreateMainPage()}
-              disabled={!serviceId || creatingMainPage}
+              disabled={!serviceId || creatingMainPage || Boolean(activeMainPageJob)}
               className="bib-btn bib-btn-primary"
             >
-              {creatingMainPage ? 'Criando pagina principal...' : 'Criar pagina principal'}
+              {creatingMainPage ? 'Adicionando à fila...' : 'Criar pagina principal'}
             </button>
           ) : (
             <button
@@ -2240,29 +2251,15 @@ function ScalePageContent() {
           );
           toast.success(`${count} cidade(s) adicionada(s) à fila.`);
         }}
-        onMainCreated={(createdServiceId) => {
+        onMainEnqueued={(createdServiceId) => {
           setServiceId(createdServiceId);
-          setActiveView('review');
+          setActiveView('queue');
           setPeriod('all');
           setCityQuery('');
           setSelectedLocality(null);
           setSelectedProductionStatuses([]);
           setSelectedReviewStatuses(['draft']);
           setPage(1);
-          setAppliedFilters(
-            buildQueueFilters({
-              selectedSiteId,
-              serviceId: createdServiceId,
-              selectedStatuses: [],
-              selectedModes: ALL_MODES,
-              period: 'all',
-              fromDate: '',
-              toDate: '',
-              selectedLocality: null,
-              cityQuery: '',
-            }),
-          );
-          void loadPage(true);
         }}
       />
     </div>

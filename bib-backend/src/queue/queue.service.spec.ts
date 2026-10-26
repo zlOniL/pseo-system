@@ -214,6 +214,64 @@ describe('QueueService', () => {
     ]);
   });
 
+  it('enqueues a main-page generation without a city', async () => {
+    const serviceQuery = queryBuilder({ data: { site_id: 'site-1' }, error: null });
+    const activeJobsQuery = queryBuilder({ data: [], error: null });
+    const insertQuery = queryBuilder({
+      data: [{ id: 'main-job', job_type: 'template', city: null }],
+      error: null,
+    });
+    const client = {
+      from: jest
+        .fn()
+        .mockReturnValueOnce(serviceQuery)
+        .mockReturnValueOnce(activeJobsQuery)
+        .mockReturnValueOnce(insertQuery),
+    };
+    const service = new QueueService(
+      { getClient: jest.fn().mockReturnValue(client) } as never,
+      {} as never,
+    );
+
+    await service.enqueueTemplates('service-1', [{ is_main_page: true }]);
+
+    expect(activeJobsQuery.eq).toHaveBeenCalledWith(
+      'payload->>is_main_page',
+      'true',
+    );
+    expect(insertQuery.insert).toHaveBeenCalledWith([
+      expect.objectContaining({
+        service_id: 'service-1',
+        city: null,
+        job_type: 'template',
+        payload: expect.objectContaining({ is_main_page: true }),
+      }),
+    ]);
+  });
+
+  it('rejects another active main-page generation for the same service', async () => {
+    const serviceQuery = queryBuilder({ data: { site_id: 'site-1' }, error: null });
+    const activeJobsQuery = queryBuilder({
+      data: [{ payload: { is_main_page: true } }],
+      error: null,
+    });
+    const client = {
+      from: jest
+        .fn()
+        .mockReturnValueOnce(serviceQuery)
+        .mockReturnValueOnce(activeJobsQuery),
+    };
+    const service = new QueueService(
+      { getClient: jest.fn().mockReturnValue(client) } as never,
+      {} as never,
+    );
+
+    await expect(
+      service.enqueueTemplates('service-1', [{ is_main_page: true }]),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(client.from).toHaveBeenCalledTimes(2);
+  });
+
   it('keeps template jobs for the same city in the queue', async () => {
     const serviceQuery = queryBuilder({
       data: { site_id: 'site-1' },

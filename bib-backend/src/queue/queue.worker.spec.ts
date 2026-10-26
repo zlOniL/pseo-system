@@ -4,17 +4,74 @@ describe('QueueWorker', () => {
   const originalAiConcurrency = process.env.QUEUE_CONCURRENCY_AI;
   const originalTemplateConcurrency = process.env.QUEUE_CONCURRENCY_TEMPLATE;
   const originalLibraryConcurrency = process.env.QUEUE_CONCURRENCY_LIBRARY;
+  const originalWorkerEnabled = process.env.QUEUE_WORKER_ENABLED;
 
   beforeEach(() => {
     process.env.QUEUE_CONCURRENCY_AI = '1';
     process.env.QUEUE_CONCURRENCY_TEMPLATE = '1';
     process.env.QUEUE_CONCURRENCY_LIBRARY = '1';
+    process.env.QUEUE_WORKER_ENABLED = 'true';
   });
 
   afterEach(() => {
     restoreEnv('QUEUE_CONCURRENCY_AI', originalAiConcurrency);
     restoreEnv('QUEUE_CONCURRENCY_TEMPLATE', originalTemplateConcurrency);
     restoreEnv('QUEUE_CONCURRENCY_LIBRARY', originalLibraryConcurrency);
+    restoreEnv('QUEUE_WORKER_ENABLED', originalWorkerEnabled);
+  });
+
+  it('processes a queued main page and marks the job done', async () => {
+    const mainPageJob = {
+      id: 'main-job',
+      service_id: 'service-1',
+      payload: { is_main_page: true },
+      claim_token: 'claim-1',
+    };
+    let claimedMainPage = false;
+    const queue = {
+      pickAndClaim: jest.fn(async (_mode: string, jobType: string) => {
+        if (jobType === 'template' && !claimedMainPage) {
+          claimedMainPage = true;
+          return mainPageJob;
+        }
+        return null;
+      }),
+      hasPending: jest.fn().mockResolvedValue(false),
+      markDone: jest.fn().mockResolvedValue(undefined),
+    };
+    const templateGeneration = {
+      generateQueued: jest.fn().mockResolvedValue({
+        content: { id: 'content-1' },
+        template: { id: 'template-1' },
+      }),
+    };
+    const worker = new QueueWorker(
+      queue as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      templateGeneration as never,
+      {} as never,
+    );
+
+    await worker.processQueue();
+
+    expect(templateGeneration.generateQueued).toHaveBeenCalledWith(
+      'service-1',
+      { is_main_page: true },
+      undefined,
+      { jobId: 'main-job', claimToken: 'claim-1' },
+    );
+    expect(queue.markDone).toHaveBeenCalledWith(
+      'main-job',
+      'content-1',
+      'claim-1',
+      'template-1',
+    );
   });
 
   it('runs every mode again when new work arrives while another mode is active', async () => {
