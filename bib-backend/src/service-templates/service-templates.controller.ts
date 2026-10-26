@@ -23,7 +23,10 @@ import { ValidationService } from '../validation/validation.service';
 import { SitesService } from '../sites/sites.service';
 import { WhitelabelContentService } from '../integrations/whitelabel-api/whitelabel-content.service';
 import { FtpHtmlContentService } from '../integrations/ftp-html/ftp-html-content.service';
-import { parseHtmlSections } from './html-section-parser';
+import {
+  parseHtmlSections,
+  validateExtractedSections,
+} from './html-section-parser';
 import { injectImages } from '../common/image-injector';
 import { slugify } from '../common/slug';
 import { GenerateTemplateDto } from '../services/dto/generate-template.dto';
@@ -133,7 +136,6 @@ export class ServiceTemplatesController {
     @Param('templateId') templateId: string,
     @Body() dto: GenerateTemplateDto,
   ) {
-    await this.library.deleteByTemplate(templateId);
     return this.generateAndSave(serviceId, dto, templateId);
   }
 
@@ -144,8 +146,6 @@ export class ServiceTemplatesController {
     existingTemplateId?: string,
     queueClaim?: { jobId: string; claimToken: string },
   ) {
-    if (existingTemplateId)
-      await this.library.deleteByTemplate(existingTemplateId);
     return this.generateAndSave(serviceId, dto, existingTemplateId, queueClaim);
   }
 
@@ -159,8 +159,9 @@ export class ServiceTemplatesController {
     if (template.is_main_page) return { sections_saved: 0, keys: [] };
     if (template.output_format === 'whitelabel_json')
       return { sections_saved: 0, keys: [] };
-    await this.library.deleteByTemplate(templateId);
     const { sections } = parseHtmlSections(template.html ?? '');
+    validateExtractedSections(sections);
+    await this.library.deleteByTemplate(templateId);
     await this.library.saveAll(
       serviceId,
       templateId,
@@ -179,25 +180,36 @@ export class ServiceTemplatesController {
       templateId: string;
       version: number;
       sections_saved: number;
+      error?: string;
     }> = [];
 
     for (const template of allTemplates) {
       if (template.is_main_page) continue;
       if (template.output_format === 'whitelabel_json') continue;
-      await this.library.deleteByTemplate(template.id);
-      const { sections } = parseHtmlSections(template.html ?? '');
-      await this.library.saveAll(
-        serviceId,
-        template.id,
-        sections,
-        template.base_city!,
-        template.site_id,
-      );
-      results.push({
-        templateId: template.id,
-        version: template.version,
-        sections_saved: sections.size,
-      });
+      try {
+        const { sections } = parseHtmlSections(template.html ?? '');
+        validateExtractedSections(sections);
+        await this.library.deleteByTemplate(template.id);
+        await this.library.saveAll(
+          serviceId,
+          template.id,
+          sections,
+          template.base_city!,
+          template.site_id,
+        );
+        results.push({
+          templateId: template.id,
+          version: template.version,
+          sections_saved: sections.size,
+        });
+      } catch (error) {
+        results.push({
+          templateId: template.id,
+          version: template.version,
+          sections_saved: 0,
+          error: (error as Error).message,
+        });
+      }
     }
 
     return { templates_processed: results.length, results };
@@ -329,6 +341,11 @@ export class ServiceTemplatesController {
     );
     const finalHtml = htmlWithImages;
 
+    const extracted = isMainPage ? null : parseHtmlSections(rawHtml);
+    if (extracted) validateExtractedSections(extracted.sections);
+    else if (existingTemplateId)
+      await this.library.deleteByTemplate(existingTemplateId);
+
     const templateSaveStartedAt = Date.now();
     let template: ServiceTemplate;
     if (existingTemplateId) {
@@ -360,7 +377,9 @@ export class ServiceTemplatesController {
     );
     let sectionsSaved = 0;
     if (!isMainPage) {
-      const { sections } = parseHtmlSections(rawHtml);
+      if (existingTemplateId)
+        await this.library.deleteByTemplate(existingTemplateId);
+      const { sections } = extracted!;
       await this.library.saveAll(
         serviceId,
         template.id,
@@ -445,6 +464,8 @@ export class ServiceTemplatesController {
       baseCity,
       isMainPage,
     });
+    if (isMainPage && existingTemplateId)
+      await this.library.deleteByTemplate(existingTemplateId);
     this.logger.log(
       `[PERF] template_content_generated service=${service.name} city=${baseCity ?? 'main'} duration_ms=${Date.now() - generationStartedAt}`,
     );
@@ -489,6 +510,8 @@ export class ServiceTemplatesController {
     );
     let sectionsSaved = 0;
     if (!isMainPage) {
+      if (existingTemplateId)
+        await this.library.deleteByTemplate(existingTemplateId);
       await this.library.saveAllJson(
         serviceId,
         template.id,
@@ -579,6 +602,9 @@ export class ServiceTemplatesController {
         dto.feedback,
       );
 
+    const extracted = isMainPage ? null : parseHtmlSections(rawHtml);
+    if (extracted) validateExtractedSections(extracted.sections);
+
     const fragmentHtml = injectImages(
       rawHtml,
       images,
@@ -593,6 +619,8 @@ export class ServiceTemplatesController {
       metaDescription,
       city: baseCity,
     });
+    if (isMainPage && existingTemplateId)
+      await this.library.deleteByTemplate(existingTemplateId);
 
     const templateSaveStartedAt = Date.now();
     const template = existingTemplateId
@@ -622,7 +650,9 @@ export class ServiceTemplatesController {
 
     let sectionsSaved = 0;
     if (!isMainPage) {
-      const { sections } = parseHtmlSections(rawHtml);
+      if (existingTemplateId)
+        await this.library.deleteByTemplate(existingTemplateId);
+      const { sections } = extracted!;
       await this.library.saveAll(
         serviceId,
         template.id,

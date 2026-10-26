@@ -1,4 +1,48 @@
 import { ServiceTemplatesController } from './service-templates.controller';
+import { SECTION_KEYS } from './service-templates.types';
+
+describe('ServiceTemplatesController section re-extraction', () => {
+  it('preserves existing library rows when the extracted intro is incomplete', async () => {
+    const templates = {
+      findById: jest.fn(async () => ({
+        id: 'template-1',
+        is_main_page: false,
+        output_format: 'html',
+        html: SECTION_KEYS.map((key) => {
+          const content =
+            key === 'intro'
+              ? '<h1>Título sem introdução</h1>'
+              : `<h2>${key}</h2><p>Conteúdo da seção.</p>`;
+          return `<!-- BIB_SECTION:${key} -->${content}<!-- /BIB_SECTION:${key} -->`;
+        }).join('\n'),
+      })),
+    };
+    const library = {
+      deleteByTemplate: jest.fn(),
+      saveAll: jest.fn(),
+    };
+    const controller = new ServiceTemplatesController(
+      templates as never,
+      library as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    await expect(
+      controller.reextract('service-1', 'template-1'),
+    ).rejects.toThrow(/Introdução incompleta/);
+    expect(library.deleteByTemplate).not.toHaveBeenCalled();
+    expect(library.saveAll).not.toHaveBeenCalled();
+  });
+});
 
 describe('ServiceTemplatesController FTP templates', () => {
   it('keeps locality links enabled for FTP main pages', async () => {
@@ -94,7 +138,9 @@ describe('ServiceTemplatesController FTP templates', () => {
       { save: jest.fn(async () => ({ id: 'content-1' })) } as never,
       { replaceHtmlSections: jest.fn() } as never,
       { validate: jest.fn(() => ({ score: 90, issues: [] })) } as never,
-      { findById: jest.fn(async () => ({ integration_type: 'wordpress' })) } as never,
+      {
+        findById: jest.fn(async () => ({ integration_type: 'wordpress' })),
+      } as never,
       {} as never,
       {} as never,
       {} as never,
