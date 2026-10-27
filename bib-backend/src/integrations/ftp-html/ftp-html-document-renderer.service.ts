@@ -40,9 +40,15 @@ export class FtpHtmlDocumentRenderer {
   render(input: FtpHtmlRenderInput): string {
     this.assertValidFragment(input.fragmentHtml);
 
+    const serviceName = input.textReplacements?.find(item => item.from === '{{SERVICE_NAME}}')?.to
+      ?? input.seo?.title?.trim();
+    const replaceServiceName = (html: string) => html.replace(
+      /\{\{SERVICE_NAME\}\}/g,
+      () => serviceName ? escapeHtml(serviceName) : '{{SERVICE_NAME}}',
+    );
     const prefix = this.applyTextReplacements(
       this.applyBanner(
-        this.applySeo(input.template.document_prefix, input.seo ?? {}),
+        this.applySeo(replaceServiceName(input.template.document_prefix), input.seo ?? {}),
         input.bannerImageUrl,
         input.bannerImageAlt,
       ),
@@ -50,7 +56,7 @@ export class FtpHtmlDocumentRenderer {
     );
     const content = `${renderVideoSection(input.videoUrl)}${input.fragmentHtml}`;
     const document = this.applyContentLayout(
-      `${prefix}${content}${input.template.document_suffix}`,
+      `${prefix}${content}${replaceServiceName(input.template.document_suffix)}`,
     );
 
     this.assertValidDocument(document);
@@ -198,9 +204,10 @@ export class FtpHtmlDocumentRenderer {
       }
     }
 
-    if (/{{[^}]+}}|\[\[[^\]]+\]\]/.test(document)) {
+    const pending = document.match(/{{[^}]+}}|\[\[[^\]]+\]\]/g);
+    if (pending) {
       throw new BadRequestException(
-        'Documento FTP invalido: placeholder pendente.',
+        `Documento FTP invalido: placeholder pendente: ${[...new Set(pending)].join(', ')}.`,
       );
     }
   }

@@ -21,6 +21,27 @@ const template = {
 describe('FtpHtmlDocumentRenderer', () => {
   const renderer = new FtpHtmlDocumentRenderer();
 
+  it('resolves service placeholders throughout the saved shell, including head and footer', () => {
+    const html = renderer.render({
+      template: {
+        document_prefix: template.document_prefix.replace('</head>', '<meta name="custom" content="{{SERVICE_NAME}}"></head>'),
+        document_suffix: template.document_suffix.replace('Rodape', '{{SERVICE_NAME}}'),
+      },
+      fragmentHtml: '<p>Conteudo</p>',
+      textReplacements: [{ from: '{{SERVICE_NAME}}', to: 'Loica & Co' }],
+    });
+    expect(html).toContain('content="Loica &amp; Co"');
+    expect(html).toContain('<footer>Loica &amp; Co</footer>');
+    expect(html).not.toContain('{{SERVICE_NAME}}');
+  });
+
+  it('identifies unknown pending placeholders', () => {
+    expect(() => renderer.render({
+      template: { ...template, document_suffix: template.document_suffix.replace('Rodape', '{{UNKNOWN}}') },
+      fragmentHtml: '<p>Conteudo</p>',
+    })).toThrow('placeholder pendente: {{UNKNOWN}}');
+  });
+
   it('renders a full document preserving shell and inserting fragment once', () => {
     const fragment = '<section><h2>Conteudo novo</h2></section>';
 

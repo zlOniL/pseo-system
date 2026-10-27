@@ -55,11 +55,21 @@ export class FtpHtmlContentService {
   ) {}
 
   async compose(input: ComposeFtpHtmlInput): Promise<ComposedFtpHtml> {
+    const prepared = await this.prepare(input);
+    return prepared(input.fragmentHtml, input.metaDescription);
+  }
+
+  async prepare(input: Omit<ComposeFtpHtmlInput, 'fragmentHtml'>) {
     if (!input.service.site_id) {
       throw new BadRequestException('Servico FTP sem site associado.');
     }
 
-    const remotePage = await this.resolveRemotePage(input.service, input);
+    const config = await this.ftpConfigs.findRawBySiteId(input.service.site_id);
+    if (!config) throw new BadRequestException('Configuracao FTP nao encontrada.');
+    if (!/^https?:\/\//i.test(config.public_base_url ?? '')) {
+      throw new BadRequestException('URL publica FTP invalida.');
+    }
+    const remotePage = await this.resolveRemotePage(input.service, { ...input, fragmentHtml: '' });
     if (!remotePage.active_template_version_id) {
       throw new BadRequestException('Template FTP ativo nao encontrado.');
     }
@@ -67,6 +77,19 @@ export class FtpHtmlContentService {
     const template = await this.findTemplate(
       remotePage.active_template_version_id,
     );
+    const compose = (fragmentHtml: string, metaDescription?: string | null): ComposedFtpHtml => {
+      return this.renderPrepared({ ...input, fragmentHtml, metaDescription }, remotePage, template);
+    };
+    // Exercise the real renderer before any paid AI calls, using the same snapshot.
+    compose('<section>Validacao previa</section>', input.mainKeyword);
+    return compose;
+  }
+
+  private renderPrepared(
+    input: ComposeFtpHtmlInput,
+    remotePage: FtpHtmlRemotePage,
+    template: FtpTemplateVersionRow,
+  ): ComposedFtpHtml {
     const html = this.renderer.render({
       template,
       fragmentHtml: input.fragmentHtml,

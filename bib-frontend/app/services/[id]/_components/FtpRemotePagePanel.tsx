@@ -32,6 +32,7 @@ export default function FtpRemotePagePanel({
 
   async function checkRemotePage() {
     setChecking(true);
+    setCheckResult(null);
     setImportResult(null);
     try {
       const result = await api.checkFtpRemotePage(serviceId, {
@@ -91,9 +92,20 @@ export default function FtpRemotePagePanel({
               : 'bg-gray-100 text-gray-500'
           }`}
         >
-          {hasTemplate ? 'Template FTP gerado' : 'Template FTP pendente'}
+          {hasTemplate ? 'Template guardado no sistema' : 'Sem template guardado'}
         </span>
       </div>
+
+      <p className="text-xs text-gray-600" role="status">
+        {checkResult?.status === 'found'
+          ? 'Ficheiro encontrado no FTP na última verificação.'
+          : checkResult?.status === 'not_found'
+            ? 'Ficheiro não encontrado no FTP.'
+            : checkResult?.status === 'unavailable'
+              ? 'Não foi possível verificar o FTP.'
+              : 'Existência do ficheiro no FTP ainda não verificada.'}
+        {hasTemplate && ' A cópia guardada é independente do ficheiro remoto e será validada antes de consultar a IA. Guardar um template não publica a página.'}
+      </p>
 
       {templateStatus?.remote_page && (
         <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
@@ -123,7 +135,6 @@ export default function FtpRemotePagePanel({
             setRemotePath(event.target.value);
             setCheckResult(null);
             setImportResult(null);
-            setTemplateStatus(null);
           }}
           placeholder={defaultRemotePath}
         />

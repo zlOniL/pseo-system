@@ -30,14 +30,12 @@ describe('Hybrid integration formats', () => {
         }),
       };
       const ftp = {
-        compose: jest.fn(({ fragmentHtml }: { fragmentHtml: string }) =>
-          Promise.resolve({
+        prepare: jest.fn(async () => (fragmentHtml: string) => ({
             html: fragmentHtml,
             externalSlug: 'janelas-em-faro',
             externalUrl: 'https://site.pt/janelas-em-faro.html',
             remotePage: { id: 'remote' },
-          }),
-        ),
+          })),
       };
       const assembler = new SectionAssemblerService(
         library as never,

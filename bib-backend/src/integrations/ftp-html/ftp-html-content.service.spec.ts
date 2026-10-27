@@ -89,10 +89,39 @@ function createSubject() {
     ),
     remoteUpsert,
     remoteSelectEq,
+    template,
+    remotePage,
+    ftpConfigs,
+    client,
   };
 }
 
 describe('FtpHtmlContentService', () => {
+  it('rejects a saved template with unknown placeholders during preparation', async () => {
+    const subject = createSubject();
+    subject.template.document_suffix = '<footer>{{UNKNOWN}}</footer></body></html>';
+    await expect(subject.service.prepare({ service, mainKeyword: service.name }))
+      .rejects.toThrow('placeholder pendente: {{UNKNOWN}}');
+  });
+
+  it('rejects missing configuration and inactive template references before generation', async () => {
+    const subject = createSubject();
+    subject.ftpConfigs.findRawBySiteId.mockResolvedValueOnce(null);
+    await expect(subject.service.prepare({ service, mainKeyword: service.name }))
+      .rejects.toThrow('Configuracao FTP nao encontrada');
+    subject.remotePage.active_template_version_id = '';
+    await expect(subject.service.prepare({ service, mainKeyword: service.name }))
+      .rejects.toThrow('Template FTP ativo nao encontrado');
+  });
+
+  it('renders the prepared template without additional database reads', async () => {
+    const subject = createSubject();
+    const compose = await subject.service.prepare({ service, mainKeyword: service.name });
+    subject.client.from.mockClear();
+    expect(compose('<p>Generated content</p>', 'Description').html).toContain('Generated content');
+    expect(subject.client.from).not.toHaveBeenCalled();
+  });
+
   it('renders the main FTP page as a full document using the imported template', async () => {
     const subject = createSubject();
 

@@ -589,7 +589,6 @@ export class GenerationService {
   }
 
   private async generateFtpHtml(dto: GenerateDto): Promise<Content> {
-    const { html: fragmentHtml, metaDescription } = await this.buildHtml(dto);
     const service = await this.buildFtpService(dto);
     if (!service.id) {
       throw new BadRequestException(
@@ -597,13 +596,13 @@ export class GenerationService {
       );
     }
 
-    const composed = await this.ftpHtmlContent.compose({
+    const compose = await this.ftpHtmlContent.prepare({
       service,
-      fragmentHtml,
       mainKeyword: dto.main_keyword,
-      metaDescription,
       city: dto.city ?? null,
     });
+    const { html: fragmentHtml, metaDescription } = await this.buildHtml(dto);
+    const composed = compose(fragmentHtml, metaDescription);
     const minWords = dto.min_words ?? 5000;
     const result = this.validation.validate(
       composed.html,
@@ -635,10 +634,6 @@ export class GenerationService {
     dto: RegenerateDto,
     totalStartedAt: number,
   ): Promise<Content> {
-    const { html: fragmentHtml, metaDescription } = await this.buildHtml(
-      dto,
-      dto.feedback,
-    );
     const service = await this.buildFtpService(dto);
     if (!service.id) {
       throw new BadRequestException(
@@ -646,13 +641,13 @@ export class GenerationService {
       );
     }
 
-    const composed = await this.ftpHtmlContent.compose({
+    const compose = await this.ftpHtmlContent.prepare({
       service,
-      fragmentHtml,
       mainKeyword: dto.main_keyword,
-      metaDescription,
       city: dto.city ?? null,
     });
+    const { html: fragmentHtml, metaDescription } = await this.buildHtml(dto, dto.feedback);
+    const composed = compose(fragmentHtml, metaDescription);
     const minWords = dto.min_words ?? 5000;
     const result = this.validation.validate(
       composed.html,
@@ -803,6 +798,9 @@ export class GenerationService {
   private async buildFtpService(dto: GenerateDto): Promise<Service> {
     if (!dto.service_id) return this.buildSyntheticService(dto);
     const persisted = await this.services.findById(dto.service_id);
+    if (persisted.site_id !== dto.site_id) {
+      throw new BadRequestException('O servico nao pertence ao site selecionado.');
+    }
     return {
       ...persisted,
       name: dto.service || persisted.name,

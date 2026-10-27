@@ -47,6 +47,9 @@ export class SectionAssemblerService {
       ? await this.sites.findById(service.site_id)
       : null;
     const mode = input.mode ?? 'library';
+    const composeFtp = site?.integration_type === 'ftp_html'
+      ? await this.ftpHtmlContent.prepare({ service, mainKeyword, city })
+      : null;
     const prepared =
       mode === 'hybrid'
         ? await this.hybrid.assemble({
@@ -150,12 +153,7 @@ export class SectionAssemblerService {
     );
 
     if (site?.integration_type === 'ftp_html') {
-      const composed = await this.ftpHtmlContent.compose({
-        service,
-        fragmentHtml: html,
-        mainKeyword,
-        city,
-      });
+      const composed = composeFtp!(html);
       const validationResult = this.validation.validate(
         composed.html,
         mainKeyword,
