@@ -46,14 +46,17 @@ export class FtpHtmlDocumentRenderer {
       /\{\{SERVICE_NAME\}\}/g,
       () => serviceName ? escapeHtml(serviceName) : '{{SERVICE_NAME}}',
     );
-    const prefix = this.applyTextReplacements(
+    const prefixWithReplacements = this.applyTextReplacements(
       this.applyBanner(
-        this.applySeo(replaceServiceName(input.template.document_prefix), input.seo ?? {}),
+        this.applySeo(input.template.document_prefix, input.seo ?? {}),
         input.bannerImageUrl,
         input.bannerImageAlt,
       ),
-      input.textReplacements ?? [],
+      (input.textReplacements ?? []).filter(
+        (replacement) => replacement.from !== '{{SERVICE_NAME}}',
+      ),
     );
+    const prefix = replaceServiceName(prefixWithReplacements);
     const content = `${renderVideoSection(input.videoUrl)}${input.fragmentHtml}`;
     const document = this.applyContentLayout(
       `${prefix}${content}${replaceServiceName(input.template.document_suffix)}`,
