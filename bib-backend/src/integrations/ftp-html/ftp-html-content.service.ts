@@ -100,11 +100,11 @@ export class FtpHtmlContentService {
       },
       textReplacements: [
         {
-          from: '{{SERVICE_NAME}}',
+          from: input.service.name,
           to: input.mainKeyword,
         },
         {
-          from: input.service.name,
+          from: '{{SERVICE_NAME}}',
           to: input.mainKeyword,
         },
       ],
