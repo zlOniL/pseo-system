@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { parse } from 'node-html-parser';
 import { renderVideoSection } from '../../common/html-assembler';
 
 export interface FtpHtmlTemplateVersion {
@@ -57,7 +58,8 @@ export class FtpHtmlDocumentRenderer {
       ),
     );
     const prefix = replaceServiceName(prefixWithReplacements);
-    const content = `${renderVideoSection(input.videoUrl)}${input.fragmentHtml}`;
+    const fragmentHtml = this.reconcileH1(prefix, input.fragmentHtml);
+    const content = `${renderVideoSection(input.videoUrl)}${fragmentHtml}`;
     const document = this.applyContentLayout(
       `${prefix}${content}${replaceServiceName(input.template.document_suffix)}`,
     );
@@ -124,10 +126,48 @@ export class FtpHtmlDocumentRenderer {
     }
   }
 
+  /**
+   * Imported FTP shells can already provide the page H1 (usually in the
+   * banner). In that case the generated fragment's H1 becomes an H2. If the
+   * shell has no H1, the fragment must provide exactly one.
+   */
+  private reconcileH1(prefix: string, fragment: string): string {
+    const shellH1Count = parse(prefix).querySelectorAll('h1').length;
+    const fragmentH1Count = parse(fragment).querySelectorAll('h1').length;
+
+    if (shellH1Count > 1) {
+      throw new BadRequestException(
+        `Template FTP invalido: encontrado(s) ${shellH1Count} H1 antes do conteudo gerado.`,
+      );
+    }
+    if (fragmentH1Count > 1) {
+      throw new BadRequestException(
+        `Fragmento FTP invalido: encontrado(s) ${fragmentH1Count} H1 no conteudo gerado.`,
+      );
+    }
+
+    const normalizedFragment = shellH1Count === 1
+      ? fragment.replace(/<\s*(\/?)\s*h1\b/gi, '<$1h2')
+      : fragment;
+    const finalH1Count = shellH1Count + (shellH1Count === 1 ? 0 : fragmentH1Count);
+
+    if (finalH1Count !== 1) {
+      throw new BadRequestException(
+        `Documento FTP invalido: esperado exatamente 1 H1, encontrado ${finalH1Count}.`,
+      );
+    }
+
+    return normalizedFragment;
+  }
+
   applySeo(prefix: string, seo: FtpHtmlSeoFields): string {
     let next = prefix;
     if (seo.title?.trim()) {
-      next = replaceTagText(next, 'title', seo.title.trim());
+      next = setUniqueHeadElement(
+        next,
+        (tag) => /^<title\b/i.test(tag),
+        `<title>${escapeHtml(seo.title.trim())}</title>`,
+      );
       next = replaceMetaContent(next, 'property', 'og:title', seo.title.trim());
       next = replaceMetaContent(
         next,
@@ -135,13 +175,14 @@ export class FtpHtmlDocumentRenderer {
         'twitter:title',
         seo.title.trim(),
       );
+    } else {
+      next = keepUniqueHeadElement(next, (tag) => /^<title\b/i.test(tag));
     }
     if (seo.description?.trim()) {
-      next = replaceMetaContent(
+      next = setUniqueHeadElement(
         next,
-        'name',
-        'description',
-        seo.description.trim(),
+        (tag) => tagAttribute(tag, 'name')?.toLowerCase() === 'description',
+        `<meta name="description" content="${escapeHtml(seo.description.trim())}">`,
       );
       next = replaceMetaContent(
         next,
@@ -155,17 +196,31 @@ export class FtpHtmlDocumentRenderer {
         'twitter:description',
         seo.description.trim(),
       );
+    } else {
+      next = keepUniqueHeadElement(
+        next,
+        (tag) => tagAttribute(tag, 'name')?.toLowerCase() === 'description',
+      );
     }
     if (seo.canonicalUrl?.trim()) {
-      next = replaceLinkHref(next, 'canonical', seo.canonicalUrl.trim());
+      next = setUniqueHeadElement(
+        next,
+        (tag) => /^<link\b/i.test(tag) && tagAttribute(tag, 'rel')?.toLowerCase() === 'canonical',
+        `<link rel="canonical" href="${escapeHtml(seo.canonicalUrl.trim())}">`,
+      );
       next = replaceMetaContent(
         next,
         'property',
         'og:url',
         seo.canonicalUrl.trim(),
       );
+    } else {
+      next = keepUniqueHeadElement(
+        next,
+        (tag) => /^<link\b/i.test(tag) && tagAttribute(tag, 'rel')?.toLowerCase() === 'canonical',
+      );
     }
-    return next;
+    return stripHeadOnlySeoElementsOutsideHead(next);
   }
 
   private applyTextReplacements(
@@ -207,6 +262,38 @@ export class FtpHtmlDocumentRenderer {
       }
     }
 
+    const h1Count = parse(document).querySelectorAll('h1').length;
+    if (h1Count !== 1) {
+      throw new BadRequestException(
+        `Documento FTP invalido: esperado exatamente 1 H1, encontrado ${h1Count}.`,
+      );
+    }
+
+    const root = parse(document);
+    const head = root.querySelector('head');
+    const titles = root.querySelectorAll('title');
+    if (titles.length !== 1 || titles[0].parentNode !== head) {
+      throw new BadRequestException(
+        'Documento FTP invalido: deve existir exatamente um <title> dentro de <head>.',
+      );
+    }
+    const descriptions = root.querySelectorAll('meta').filter(
+      (tag) => tag.getAttribute('name')?.toLowerCase() === 'description',
+    );
+    if (descriptions.length !== 1 || descriptions.some((tag) => tag.parentNode !== head)) {
+      throw new BadRequestException(
+        'Documento FTP invalido: deve existir exatamente uma meta description dentro de <head>.',
+      );
+    }
+    const canonicals = root.querySelectorAll('link').filter(
+      (tag) => tag.getAttribute('rel')?.toLowerCase() === 'canonical',
+    );
+    if (canonicals.length !== 1 || canonicals.some((tag) => tag.parentNode !== head)) {
+      throw new BadRequestException(
+        'Documento FTP invalido: deve existir exatamente um canonical dentro de <head>.',
+      );
+    }
+
     const pending = document.match(/{{[^}]+}}|\[\[[^\]]+\]\]/g);
     if (pending) {
       throw new BadRequestException(
@@ -214,13 +301,6 @@ export class FtpHtmlDocumentRenderer {
       );
     }
   }
-}
-
-function replaceTagText(html: string, tag: string, value: string): string {
-  return html.replace(
-    new RegExp(`(<${tag}\\b[^>]*>)([\\s\\S]*?)(<\\/${tag}>)`, 'i'),
-    `$1${escapeHtml(value)}$3`,
-  );
 }
 
 function replaceMetaContent(
@@ -234,6 +314,73 @@ function replaceMetaContent(
     'i',
   );
   return html.replace(pattern, `$1$2${escapeHtml(value)}$4`);
+}
+
+function setUniqueHeadElement(
+  html: string,
+  matches: (tag: string) => boolean,
+  replacement: string,
+): string {
+  return rewriteHeadElements(html, matches, replacement);
+}
+
+function keepUniqueHeadElement(
+  html: string,
+  matches: (tag: string) => boolean,
+): string {
+  return rewriteHeadElements(html, matches);
+}
+
+function rewriteHeadElements(
+  html: string,
+  matches: (tag: string) => boolean,
+  replacement?: string,
+): string {
+  const headStart = html.toLowerCase().indexOf('<head');
+  const headEnd = html.toLowerCase().indexOf('</head>');
+  if (headStart === -1 || headEnd === -1 || headEnd < headStart) return html;
+
+  const head = html.slice(headStart, headEnd);
+  const tagPattern = /<title\b[^>]*>[\s\S]*?<\/title\s*>|<(?:meta|link)\b[^>]*>/gi;
+  let found = false;
+  let updatedHead = head.replace(tagPattern, (tag) => {
+    if (!matches(tag)) return tag;
+    if (!found) {
+      found = true;
+      return replacement ?? tag;
+    }
+    return '';
+  });
+
+  if (!found && replacement) updatedHead = `${updatedHead}\n  ${replacement}`;
+  return `${html.slice(0, headStart)}${updatedHead}${html.slice(headEnd)}`;
+}
+
+function tagAttribute(tag: string, name: string): string | undefined {
+  const match = new RegExp(`\\b${escapeRegExp(name)}\\s*=\\s*(["'])(.*?)\\1`, 'i').exec(tag);
+  return match?.[2];
+}
+
+function stripHeadOnlySeoElementsOutsideHead(html: string): string {
+  const lower = html.toLowerCase();
+  const headStart = lower.indexOf('<head');
+  const headCloseStart = lower.indexOf('</head>');
+  if (headStart === -1 || headCloseStart === -1 || headCloseStart < headStart) {
+    return html;
+  }
+
+  const headEnd = headCloseStart + '</head>'.length;
+  const strip = (part: string) => part.replace(
+    /<title\b[^>]*>[\s\S]*?<\/title\s*>|<(?:meta|link)\b[^>]*>/gi,
+    (tag) => {
+      if (/^<title\b/i.test(tag)) return '';
+      if (/^<meta\b/i.test(tag) && tagAttribute(tag, 'name')?.toLowerCase() === 'description') return '';
+      if (/^<link\b/i.test(tag) && tagAttribute(tag, 'rel')?.toLowerCase() === 'canonical') return '';
+      return tag;
+    },
+  );
+
+  return `${strip(html.slice(0, headStart))}${html.slice(headStart, headEnd)}${strip(html.slice(headEnd))}`;
 }
 
 function replaceLinkHref(html: string, rel: string, value: string): string {

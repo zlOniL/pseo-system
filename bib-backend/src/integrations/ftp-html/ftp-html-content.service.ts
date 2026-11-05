@@ -81,7 +81,7 @@ export class FtpHtmlContentService {
       return this.renderPrepared({ ...input, fragmentHtml, metaDescription }, remotePage, template);
     };
     // Exercise the real renderer before any paid AI calls, using the same snapshot.
-    compose('<section>Validacao previa</section>', input.mainKeyword);
+    compose('<h1>Validacao previa</h1>', input.mainKeyword);
     return compose;
   }
 

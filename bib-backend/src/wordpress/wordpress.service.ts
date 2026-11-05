@@ -151,6 +151,17 @@ export class WordPressService {
     }
   }
 
+  private assembleWordPressHtml(content: Content): string {
+    const html = content.generation_mode === 'template'
+      ? assembleTemplateHtml(content.html ?? '', content.video_url)
+      : assemblePageHtml(content.html ?? '', content.video_url);
+
+    // The WordPress theme supplies the visible page title as the page H1.
+    // Keep the generated heading text in the content hierarchy without adding
+    // a second H1 to the public page.
+    return html.replace(/<\s*(\/?)\s*h1\b/gi, '<$1h2');
+  }
+
   private publishSlug(content: Content): string {
     const fallback =
       content.external_page_type === 'service'
@@ -169,10 +180,7 @@ export class WordPressService {
     const content = await this.contents.findById(contentId);
     this.assertPublishableContent(content);
     const site = await this.siteForContent(content);
-    const fullHtml =
-      content.generation_mode === 'template'
-        ? assembleTemplateHtml(content.html ?? '', content.video_url)
-        : assemblePageHtml(content.html ?? '', content.video_url);
+    const fullHtml = this.assembleWordPressHtml(content);
 
     const wpUrl = `${this.wpApiBase(site)}/post`;
     const slug = this.publishSlug(content);
@@ -274,10 +282,7 @@ export class WordPressService {
     categories: { ids: number[]; primaryId: number | null },
     serviceSeo: { title: string; description: string } | null,
   ): object {
-    const fullHtml =
-      content.generation_mode === 'template'
-        ? assembleTemplateHtml(content.html ?? '', content.video_url)
-        : assemblePageHtml(content.html ?? '', content.video_url);
+    const fullHtml = this.assembleWordPressHtml(content);
 
     this.assertPublishableContent(content);
     const slug = this.publishSlug(content);
