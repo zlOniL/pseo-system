@@ -127,9 +127,12 @@ describe('FtpHtmlContentService', () => {
       mainKeyword: service.name,
     });
     subject.client.from.mockClear();
-    expect(compose('<p>Generated content</p>', 'Description').html).toContain(
-      'Generated content',
-    );
+    expect(
+      compose(
+        '<h1>Generated content</h1><h2>Main section</h2><h3>Subsection</h3>',
+        'Description',
+      ).html,
+    ).toContain('Generated content');
     expect(subject.client.from).not.toHaveBeenCalled();
   });
 
@@ -138,7 +141,8 @@ describe('FtpHtmlContentService', () => {
 
     const result = await subject.service.compose({
       service,
-      fragmentHtml: '<section>Conteudo PSEO</section>',
+      fragmentHtml:
+        '<h1>Conteudo PSEO</h1><h2>Secao principal</h2><h3>Subsecao</h3>',
       mainKeyword: 'Reparacao de Estores',
       metaDescription: 'Descricao nova',
     });
@@ -146,7 +150,7 @@ describe('FtpHtmlContentService', () => {
     expect(result.remotePage.id).toBe('remote-page-main');
     expect(result.html).toContain('<title>Reparacao de Estores</title>');
     expect(result.html).toContain('content="Descricao nova"');
-    expect(result.html).toContain('<section>Conteudo PSEO</section>');
+    expect(result.html).toContain('<h1>Conteudo PSEO</h1>');
     expect(subject.remoteUpsert).not.toHaveBeenCalled();
     expect(subject.remoteSelectEq).toHaveBeenCalledWith(
       'remote_path',
@@ -159,7 +163,8 @@ describe('FtpHtmlContentService', () => {
 
     const result = await subject.service.compose({
       service,
-      fragmentHtml: '<section>Conteudo Lisboa</section>',
+      fragmentHtml:
+        '<h1>Conteudo Lisboa</h1><h2>Secao principal</h2><h3>Subsecao</h3>',
       mainKeyword: 'Reparacao de Estores em Lisboa',
       metaDescription: 'Descricao Lisboa',
       city: 'Lisboa',

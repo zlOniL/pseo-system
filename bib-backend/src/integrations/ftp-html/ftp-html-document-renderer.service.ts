@@ -41,12 +41,13 @@ export class FtpHtmlDocumentRenderer {
   render(input: FtpHtmlRenderInput): string {
     this.assertValidFragment(input.fragmentHtml);
 
-    const serviceName = input.textReplacements?.find(item => item.from === '{{SERVICE_NAME}}')?.to
-      ?? input.seo?.title?.trim();
-    const replaceServiceName = (html: string) => html.replace(
-      /\{\{SERVICE_NAME\}\}/g,
-      () => serviceName ? escapeHtml(serviceName) : '{{SERVICE_NAME}}',
-    );
+    const serviceName =
+      input.textReplacements?.find((item) => item.from === '{{SERVICE_NAME}}')
+        ?.to ?? input.seo?.title?.trim();
+    const replaceServiceName = (html: string) =>
+      html.replace(/\{\{SERVICE_NAME\}\}/g, () =>
+        serviceName ? escapeHtml(serviceName) : '{{SERVICE_NAME}}',
+      );
     const prefixWithReplacements = this.applyTextReplacements(
       this.applyBanner(
         this.applySeo(input.template.document_prefix, input.seo ?? {}),
@@ -102,9 +103,9 @@ export class FtpHtmlDocumentRenderer {
   applyContentLayout(document: string): string {
     const withoutOldLayout = document.includes('data-pseo-content-layout')
       ? document.replace(
-        /<style\b[^>]*data-pseo-content-layout[^>]*>[\s\S]*?<\/style>/i,
-        CONTENT_LAYOUT_STYLE,
-      )
+          /<style\b[^>]*data-pseo-content-layout[^>]*>[\s\S]*?<\/style>/i,
+          CONTENT_LAYOUT_STYLE,
+        )
       : document;
 
     if (/class=["'][^"']*\bpseo-content\b[^"']*["']/i.test(withoutOldLayout)) {
@@ -113,7 +114,9 @@ export class FtpHtmlDocumentRenderer {
 
     const headEnd = withoutOldLayout.toLowerCase().indexOf('</head>');
     const contentStart = withoutOldLayout.toLowerCase().indexOf('</main>');
-    const footerStart = withoutOldLayout.toLowerCase().indexOf('<footer', contentStart);
+    const footerStart = withoutOldLayout
+      .toLowerCase()
+      .indexOf('<footer', contentStart);
     if (headEnd === -1 || contentStart === -1 || footerStart === -1) {
       throw new BadRequestException(
         'Documento FTP invalido: nao foi possivel aplicar o layout do conteudo.',
@@ -156,10 +159,12 @@ export class FtpHtmlDocumentRenderer {
       );
     }
 
-    const normalizedFragment = shellH1Count === 1
-      ? fragment.replace(/<\s*(\/?)\s*h1\b/gi, '<$1h2')
-      : fragment;
-    const finalH1Count = shellH1Count + (shellH1Count === 1 ? 0 : fragmentH1Count);
+    const normalizedFragment =
+      shellH1Count === 1
+        ? fragment.replace(/<\s*(\/?)\s*h1\b/gi, '<$1h2')
+        : fragment;
+    const finalH1Count =
+      shellH1Count + (shellH1Count === 1 ? 0 : fragmentH1Count);
 
     if (finalH1Count !== 1) {
       throw new BadRequestException(
@@ -178,12 +183,22 @@ export class FtpHtmlDocumentRenderer {
         (tag) => /^<title\b/i.test(tag),
         `<title>${escapeHtml(seo.title.trim())}</title>`,
       );
-      next = replaceMetaContent(next, 'property', 'og:title', seo.title.trim());
-      next = replaceMetaContent(
+      next = setUniqueHeadElement(
         next,
-        'name',
-        'twitter:title',
-        seo.title.trim(),
+        (tag) =>
+          /^<meta\b/i.test(tag) &&
+          tagAttribute(tag, 'property')?.toLowerCase() === 'og:title',
+        `<meta property="og:title" content="${escapeHtml(seo.title.trim())}">`,
+      );
+      next = setUniqueHeadElement(
+        next,
+        (tag) =>
+          /^<meta\b/i.test(tag) &&
+          ['name', 'property'].some(
+            (attribute) =>
+              tagAttribute(tag, attribute)?.toLowerCase() === 'twitter:title',
+          ),
+        `<meta name="twitter:title" content="${escapeHtml(seo.title.trim())}">`,
       );
     } else {
       next = keepUniqueHeadElement(next, (tag) => /^<title\b/i.test(tag));
@@ -194,17 +209,23 @@ export class FtpHtmlDocumentRenderer {
         (tag) => tagAttribute(tag, 'name')?.toLowerCase() === 'description',
         `<meta name="description" content="${escapeHtml(seo.description.trim())}">`,
       );
-      next = replaceMetaContent(
+      next = setUniqueHeadElement(
         next,
-        'property',
-        'og:description',
-        seo.description.trim(),
+        (tag) =>
+          /^<meta\b/i.test(tag) &&
+          tagAttribute(tag, 'property')?.toLowerCase() === 'og:description',
+        `<meta property="og:description" content="${escapeHtml(seo.description.trim())}">`,
       );
-      next = replaceMetaContent(
+      next = setUniqueHeadElement(
         next,
-        'name',
-        'twitter:description',
-        seo.description.trim(),
+        (tag) =>
+          /^<meta\b/i.test(tag) &&
+          ['name', 'property'].some(
+            (attribute) =>
+              tagAttribute(tag, attribute)?.toLowerCase() ===
+              'twitter:description',
+          ),
+        `<meta name="twitter:description" content="${escapeHtml(seo.description.trim())}">`,
       );
     } else {
       next = keepUniqueHeadElement(
@@ -215,19 +236,24 @@ export class FtpHtmlDocumentRenderer {
     if (seo.canonicalUrl?.trim()) {
       next = setUniqueHeadElement(
         next,
-        (tag) => /^<link\b/i.test(tag) && tagAttribute(tag, 'rel')?.toLowerCase() === 'canonical',
+        (tag) =>
+          /^<link\b/i.test(tag) &&
+          tagAttribute(tag, 'rel')?.toLowerCase() === 'canonical',
         `<link rel="canonical" href="${escapeHtml(seo.canonicalUrl.trim())}">`,
       );
-      next = replaceMetaContent(
+      next = setUniqueHeadElement(
         next,
-        'property',
-        'og:url',
-        seo.canonicalUrl.trim(),
+        (tag) =>
+          /^<meta\b/i.test(tag) &&
+          tagAttribute(tag, 'property')?.toLowerCase() === 'og:url',
+        `<meta property="og:url" content="${escapeHtml(seo.canonicalUrl.trim())}">`,
       );
     } else {
       next = keepUniqueHeadElement(
         next,
-        (tag) => /^<link\b/i.test(tag) && tagAttribute(tag, 'rel')?.toLowerCase() === 'canonical',
+        (tag) =>
+          /^<link\b/i.test(tag) &&
+          tagAttribute(tag, 'rel')?.toLowerCase() === 'canonical',
       );
     }
     return stripHeadOnlySeoElementsOutsideHead(next);
@@ -287,18 +313,26 @@ export class FtpHtmlDocumentRenderer {
         'Documento FTP invalido: deve existir exatamente um <title> dentro de <head>.',
       );
     }
-    const descriptions = root.querySelectorAll('meta').filter(
-      (tag) => tag.getAttribute('name')?.toLowerCase() === 'description',
-    );
-    if (descriptions.length !== 1 || descriptions.some((tag) => tag.parentNode !== head)) {
+    const descriptions = root
+      .querySelectorAll('meta')
+      .filter(
+        (tag) => tag.getAttribute('name')?.toLowerCase() === 'description',
+      );
+    if (
+      descriptions.length !== 1 ||
+      descriptions.some((tag) => tag.parentNode !== head)
+    ) {
       throw new BadRequestException(
         'Documento FTP invalido: deve existir exatamente uma meta description dentro de <head>.',
       );
     }
-    const canonicals = root.querySelectorAll('link').filter(
-      (tag) => tag.getAttribute('rel')?.toLowerCase() === 'canonical',
-    );
-    if (canonicals.length !== 1 || canonicals.some((tag) => tag.parentNode !== head)) {
+    const canonicals = root
+      .querySelectorAll('link')
+      .filter((tag) => tag.getAttribute('rel')?.toLowerCase() === 'canonical');
+    if (
+      canonicals.length !== 1 ||
+      canonicals.some((tag) => tag.parentNode !== head)
+    ) {
       throw new BadRequestException(
         'Documento FTP invalido: deve existir exatamente um canonical dentro de <head>.',
       );
@@ -311,19 +345,6 @@ export class FtpHtmlDocumentRenderer {
       );
     }
   }
-}
-
-function replaceMetaContent(
-  html: string,
-  attr: 'name' | 'property',
-  attrValue: string,
-  value: string,
-): string {
-  const pattern = new RegExp(
-    `(<meta\\b(?=[^>]*\\b${attr}=["']${escapeRegExp(attrValue)}["'])(?=[^>]*\\bcontent=["']))([^>]*\\bcontent=["'])([^"']*)(["'][^>]*>)`,
-    'i',
-  );
-  return html.replace(pattern, `$1$2${escapeHtml(value)}$4`);
 }
 
 function setUniqueHeadElement(
@@ -351,7 +372,8 @@ function rewriteHeadElements(
   if (headStart === -1 || headEnd === -1 || headEnd < headStart) return html;
 
   const head = html.slice(headStart, headEnd);
-  const tagPattern = /<title\b[^>]*>[\s\S]*?<\/title\s*>|<(?:meta|link)\b[^>]*>/gi;
+  const tagPattern =
+    /<title\b[^>]*>[\s\S]*?<\/title\s*>|<(?:meta|link)\b[^>]*>/gi;
   let found = false;
   let updatedHead = head.replace(tagPattern, (tag) => {
     if (!matches(tag)) return tag;
@@ -367,7 +389,10 @@ function rewriteHeadElements(
 }
 
 function tagAttribute(tag: string, name: string): string | undefined {
-  const match = new RegExp(`\\b${escapeRegExp(name)}\\s*=\\s*(["'])(.*?)\\1`, 'i').exec(tag);
+  const match = new RegExp(
+    `\\b${escapeRegExp(name)}\\s*=\\s*(["'])(.*?)\\1`,
+    'i',
+  ).exec(tag);
   return match?.[2];
 }
 
@@ -380,15 +405,24 @@ function stripHeadOnlySeoElementsOutsideHead(html: string): string {
   }
 
   const headEnd = headCloseStart + '</head>'.length;
-  const strip = (part: string) => part.replace(
-    /<title\b[^>]*>[\s\S]*?<\/title\s*>|<(?:meta|link)\b[^>]*>/gi,
-    (tag) => {
-      if (/^<title\b/i.test(tag)) return '';
-      if (/^<meta\b/i.test(tag) && tagAttribute(tag, 'name')?.toLowerCase() === 'description') return '';
-      if (/^<link\b/i.test(tag) && tagAttribute(tag, 'rel')?.toLowerCase() === 'canonical') return '';
-      return tag;
-    },
-  );
+  const strip = (part: string) =>
+    part.replace(
+      /<title\b[^>]*>[\s\S]*?<\/title\s*>|<(?:meta|link)\b[^>]*>/gi,
+      (tag) => {
+        if (/^<title\b/i.test(tag)) return '';
+        if (
+          /^<meta\b/i.test(tag) &&
+          tagAttribute(tag, 'name')?.toLowerCase() === 'description'
+        )
+          return '';
+        if (
+          /^<link\b/i.test(tag) &&
+          tagAttribute(tag, 'rel')?.toLowerCase() === 'canonical'
+        )
+          return '';
+        return tag;
+      },
+    );
 
   return `${strip(html.slice(0, headStart))}${html.slice(headStart, headEnd)}${strip(html.slice(headEnd))}`;
 }

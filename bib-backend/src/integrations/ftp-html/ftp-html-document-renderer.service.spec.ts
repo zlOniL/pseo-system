@@ -19,6 +19,8 @@ const template = {
   document_suffix:
     '<footer>Rodape</footer><script src="site.js"></script></body></html>',
 };
+const validFragment =
+  '<section><h1>Conteudo</h1><h2>Secao principal</h2><h3>Subsecao</h3></section>';
 
 describe('FtpHtmlDocumentRenderer', () => {
   const renderer = new FtpHtmlDocumentRenderer();
@@ -35,7 +37,7 @@ describe('FtpHtmlDocumentRenderer', () => {
           '{{SERVICE_NAME}}',
         ),
       },
-      fragmentHtml: '<p>Conteudo</p>',
+      fragmentHtml: validFragment,
       textReplacements: [{ from: '{{SERVICE_NAME}}', to: 'Loica & Co' }],
     });
     expect(html).toContain('content="Loica &amp; Co"');
@@ -53,13 +55,14 @@ describe('FtpHtmlDocumentRenderer', () => {
             '{{UNKNOWN}}',
           ),
         },
-        fragmentHtml: '<p>Conteudo</p>',
+        fragmentHtml: validFragment,
       }),
     ).toThrow('placeholder pendente: {{UNKNOWN}}');
   });
 
   it('renders a full document preserving shell and inserting fragment once', () => {
-    const fragment = '<section><h2>Conteudo novo</h2></section>';
+    const fragment =
+      '<section><h1>Conteudo</h1><h2>Conteudo novo</h2><h3>Subsecao</h3></section>';
 
     const html = renderer.render({ template, fragmentHtml: fragment });
 
@@ -80,7 +83,7 @@ describe('FtpHtmlDocumentRenderer', () => {
   it('does not duplicate the content layout', () => {
     const html = renderer.render({
       template,
-      fragmentHtml: '<section>Conteudo</section>',
+      fragmentHtml: validFragment,
     });
 
     expect(renderer.applyContentLayout(html)).toBe(html);
@@ -90,13 +93,13 @@ describe('FtpHtmlDocumentRenderer', () => {
   it('prepends the configured video to FTP content', () => {
     const html = renderer.render({
       template,
-      fragmentHtml: '<section>Conteudo</section>',
+      fragmentHtml: validFragment,
       videoUrl: 'https://cdn.example/video.mp4',
     });
 
     expect(html).toContain('<video src="https://cdn.example/video.mp4"');
     expect(html.indexOf('<video')).toBeLessThan(
-      html.indexOf('<section>Conteudo</section>'),
+      html.indexOf('<h1>Conteudo</h1>'),
     );
   });
 
@@ -109,7 +112,7 @@ describe('FtpHtmlDocumentRenderer', () => {
         ),
         document_suffix: template.document_suffix,
       },
-      fragmentHtml: '<section>Conteudo</section>',
+      fragmentHtml: validFragment,
       bannerImageUrl: 'https://cdn.example/termoacumuladores.webp',
       bannerImageAlt: 'Reparação de termoacumuladores',
     });
@@ -127,12 +130,16 @@ describe('FtpHtmlDocumentRenderer', () => {
           '<!DOCTYPE html><html><head><title>Old</title></head><body><main style="{{BANNER_BACKGROUND_STYLE}}"><h1>{{SERVICE_NAME}} 24h</h1><div class="numbers">915 463 419</div></main>',
         document_suffix: '<footer>Footer</footer></body></html>',
       },
-      fragmentHtml: '<section>Conteudo</section>',
+      fragmentHtml: validFragment,
       videoUrl: 'https://cdn.example/video.mp4',
       bannerImageUrl: 'https://cdn.example/service.webp',
       textReplacements: [
         { from: '{{SERVICE_NAME}}', to: 'Reparação de Termoacumuladores' },
       ],
+      seo: {
+        description: 'Assistência profissional 24 horas.',
+        canonicalUrl: 'https://example.com/termoacumuladores.html',
+      },
     });
 
     expect(html).toContain('<div>Reparação de Termoacumuladores 24h</div>');
@@ -177,7 +184,7 @@ describe('FtpHtmlDocumentRenderer', () => {
   it('updates SEO fields and allowed banner text in the prefix', () => {
     const html = renderer.render({
       template,
-      fragmentHtml: '<section>Conteudo</section>',
+      fragmentHtml: validFragment,
       seo: {
         title: 'Reparação de Estores em Lisboa',
         description: 'Assistência de estores em Lisboa.',
@@ -217,7 +224,7 @@ describe('FtpHtmlDocumentRenderer', () => {
     };
     const html = renderer.render({
       template: duplicateTemplate,
-      fragmentHtml: '<section>Conteudo</section>',
+      fragmentHtml: validFragment,
       seo: {
         title: 'Reparação de Estores em Lisboa',
         description: 'Assistência de estores em Lisboa.',
@@ -262,7 +269,7 @@ describe('FtpHtmlDocumentRenderer', () => {
     expect(() =>
       renderer.render({
         template: { ...template, document_suffix: '{{footer}}</body></html>' },
-        fragmentHtml: '<section>Conteudo</section>',
+        fragmentHtml: validFragment,
       }),
     ).toThrow(BadRequestException);
   });
