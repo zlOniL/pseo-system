@@ -57,7 +57,8 @@ ${COMMERCIAL_CLAIMS_GUARDRAIL}
 
 ## VOLUME OBRIGATÓRIO
 
-- Cada parágrafo DEVE ter 3-6 frases completas e ricas (não frases curtas)
+- Cada parágrafo DEVE ter 2-4 frases completas; prefere 15-25 palavras por frase e evita frases acima de 35 palavras
+- Para atingir min_words, cria mais parágrafos sem alongar artificialmente as frases
 - Cada seção DEVE ser completamente preenchida — NUNCA resumir
 - O conteúdo total DEVE atingir o número de palavras indicado em min_words
 - Se a IA sentir que está a aproximar-se do limite, DEVE continuar escrevendo até completar todas as secções
@@ -218,6 +219,13 @@ Não funciona como conclusão — funciona como consolidação avançada de auto
 - P8: CTA final forte com WhatsApp e assistência imediata
 
 ---
+
+## REGRA OBRIGATÓRIA DE HEADINGS
+
+O HTML final deve conter exatamente um <h1>, exatamente um <h2> e exatamente um <h3>.
+Todos os demais títulos de secção e subseção devem usar <h4> (nunca repetir H1, H2 ou H3).
+O H1 é o primeiro título; o H2 identifica a secção principal; o H3 identifica uma subseção dessa secção. Preserve o texto e conteúdo das outras secções, alterando apenas o nível do heading.
+Escreve frases curtas e diretas, preferencialmente com até 25 palavras. Evita frases acima de 35 palavras e limita cada parágrafo a 2-4 frases. Divide explicações longas sem repetir a mesma ideia.
 
 ## TEMPLATE HTML (ESTRUTURA FIXA — NÃO ALTERAR)
 
@@ -573,7 +581,7 @@ SE não houver \`related_services\`, substituir por um parágrafo normal sobre s
 - Retornar JSON ou texto fora do HTML
 - Usar markdown
 - Usar "você" — usar "o cliente", "o utilizador", etc.
-- Parágrafos curtos de 1-2 frases — cada parágrafo deve ter 3-6 frases ricas
+- Cada parágrafo deve ter 2-4 frases. Prefere frases de 15-25 palavras e evita ultrapassar 35 palavras por frase
 - Inventar URLs para links externos — usa apenas URLs reais e verificáveis
 - Alterar ou remover os placeholders \`{{IMAGE_N}}\`
 - Repetir long-tail keywords entre as secções de subcategorias e serviços especializados
@@ -596,7 +604,7 @@ const REINFORCEMENT = `INSTRUÇÕES FINAIS OBRIGATÓRIAS:
 1. Começa SEMPRE com <!-- BIB_META: [descrição 140-160 chars] --> na primeira linha, depois o <h1>.
 2. Retorna APENAS o HTML. Sem markdown. Sem explicações. Sem \`\`\`html.
 3. Todos os elementos de texto (h1, h2, h3, p, li, strong, a) DEVEM ter style="color: #320000;".
-4. VOLUME MÍNIMO ABSOLUTO: cada parágrafo deve ter 3-6 frases completas. O total DEVE atingir min_words. NÃO truncar. NÃO resumir. Escreve todas as secções completas.
+4. VOLUME MÍNIMO ABSOLUTO: cada parágrafo deve ter 2-4 frases completas, preferencialmente com 15-25 palavras por frase e sem ultrapassar 35 palavras. Atinge min_words criando parágrafos adicionais, sem frases artificiosamente longas.
 5. PLACEHOLDERS DE IMAGEM: copia os 8 marcadores {{IMAGE_1}} a {{IMAGE_8}} EXATAMENTE nas posições definidas. NÃO os remove nem os altera.
 6. SERVIÇOS SUBCATEGORIAS: 6 categorias, cada uma com H3 + 6 itens <strong> . Cada item = "[serviço específico] em [cidade]". Os itens devem ser long-tail keywords concretas e distintas.
 7. SERVIÇOS ESPECIALIZADOS: 2 colunas (div flex), 14 itens por coluna. Cada item = <li><strong>[keyword long-tail com cidade]</strong></li>. NÃO repetir keywords já usadas nas subcategorias.
@@ -685,9 +693,11 @@ Mantem exatamente os 15 modulos definidos na instrucao geral.
 
 ${promptContext.guardrailPrompt}
 
-${promptContext.serviceExamplePrompt
-  ? `${SERVICE_EXAMPLE_USAGE_RULE}\n\nPROMPT EXEMPLO DO SERVICO (${promptContext.servicePromptSlug}):\n${promptContext.serviceExamplePrompt}`
-  : ''}
+${
+  promptContext.serviceExamplePrompt
+    ? `${SERVICE_EXAMPLE_USAGE_RULE}\n\nPROMPT EXEMPLO DO SERVICO (${promptContext.servicePromptSlug}):\n${promptContext.serviceExamplePrompt}`
+    : ''
+}
 
 ${COMMERCIAL_CLAIMS_GUARDRAIL}`
     : SYSTEM_PROMPT;

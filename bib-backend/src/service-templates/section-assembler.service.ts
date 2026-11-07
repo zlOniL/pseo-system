@@ -8,6 +8,7 @@ import { Service } from '../services/services.service';
 import { SECTION_KEYS } from './service-templates.types';
 import { replaceKeyword } from '../template-engine/utils/keyword-replacer';
 import { injectImages } from '../common/image-injector';
+import { normalizeGeneratedHeadings } from '../common/heading-normalizer';
 import { LocalityLinksService } from '../cities/locality-links.service';
 import { SitesService } from '../sites/sites.service';
 import { WhitelabelContentService } from '../integrations/whitelabel-api/whitelabel-content.service';
@@ -47,9 +48,10 @@ export class SectionAssemblerService {
       ? await this.sites.findById(service.site_id)
       : null;
     const mode = input.mode ?? 'library';
-    const composeFtp = site?.integration_type === 'ftp_html'
-      ? await this.ftpHtmlContent.prepare({ service, mainKeyword, city })
-      : null;
+    const composeFtp =
+      site?.integration_type === 'ftp_html'
+        ? await this.ftpHtmlContent.prepare({ service, mainKeyword, city })
+        : null;
     const prepared =
       mode === 'hybrid'
         ? await this.hybrid.assemble({
@@ -144,12 +146,8 @@ export class SectionAssemblerService {
       },
       site ?? undefined,
     );
-    html = injectImages(
-      html,
-      service.images ?? [],
-      mainKeyword,
-      service.name,
-      city,
+    html = normalizeGeneratedHeadings(
+      injectImages(html, service.images ?? [], mainKeyword, service.name, city),
     );
 
     if (site?.integration_type === 'ftp_html') {

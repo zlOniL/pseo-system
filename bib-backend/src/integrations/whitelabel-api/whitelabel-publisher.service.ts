@@ -56,6 +56,11 @@ export class WhitelabelPublisherService {
         `Service "${content.service}" has no seo_title for Whitelabel publish — using content fallback`,
       );
     }
+    if (!seoTitle.trim() || !seoDescription.trim()) {
+      throw new BadRequestException(
+        'SEO title e meta description devem estar preenchidos antes de publicar.',
+      );
+    }
 
     const payload: Record<string, unknown> = {
       slug,
@@ -64,7 +69,10 @@ export class WhitelabelPublisherService {
       title,
       seo_title: seoTitle,
       seo_description: seoDescription,
-      content_json: this.withHeroTitle(content.content_json, this.buildHeroTitle(title)),
+      content_json: this.withHeroTitle(
+        content.content_json,
+        this.buildHeroTitle(title),
+      ),
       related_pages_json: [],
     };
 

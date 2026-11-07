@@ -8,6 +8,7 @@ import { AiUsageCall, AiUsageService } from './ai-usage.service';
 
 class RateLimitError extends Error {}
 class TransientAiError extends Error {}
+class EmptyAiResponseError extends Error {}
 
 type OpenRouterResponse = {
   id?: string;
@@ -93,7 +94,7 @@ export class AiService {
     const callId = ++this.callSequence;
     const startedAt = Date.now();
     this.logger.log(
-      `[PERF] ai_call_start id=${callId} models=${this.getModels().join(',')}`,
+      `[PERF] ai_call_start id=${callId} operation=${usageCall.operation ?? 'unknown'} section=${usageCall.sectionKey ?? 'unknown'} attempt=${usageCall.attempt ?? 1} models=${this.getModels().join(',')}`,
     );
     if (!process.env.OPENROUTER_KEY) {
       this.logger.error(
@@ -118,33 +119,44 @@ export class AiService {
     let sawRateLimit = false;
 
     for (const model of available) {
-      try {
-        const result = await this.tryModel(
-          model,
-          systemPrompt,
-          userPrompt,
-          usageCall,
-        );
-        this.logger.log(
-          `[PERF] ai_call_done id=${callId} model=${model} duration_ms=${Date.now() - startedAt} output_chars=${result.length}`,
-        );
-        return result;
-      } catch (err) {
-        if (err instanceof RateLimitError) {
-          sawRateLimit = true;
-          this.markExhausted(model);
-          continue;
-        }
-        if (err instanceof TransientAiError) {
-          this.logger.warn(
-            `Modelo ${model} falhou temporariamente; tentando proximo modelo se existir.`,
+      let emptyResponseAttempt = 0;
+      while (emptyResponseAttempt < 2) {
+        try {
+          const result = await this.tryModel(
+            model,
+            systemPrompt,
+            userPrompt,
+            usageCall,
           );
-          continue;
+          this.logger.log(
+            `[PERF] ai_call_done id=${callId} model=${model} duration_ms=${Date.now() - startedAt} output_chars=${result.length}`,
+          );
+          return result;
+        } catch (err) {
+          if (err instanceof EmptyAiResponseError) {
+            emptyResponseAttempt += 1;
+            this.logger.warn(
+              `[PERF] ai_empty_response id=${callId} model=${model} operation=${usageCall.operation ?? 'unknown'} section=${usageCall.sectionKey ?? 'unknown'} attempt=${emptyResponseAttempt}/2 details=${err.message}`,
+            );
+            if (emptyResponseAttempt < 2) continue;
+            break;
+          }
+          if (err instanceof RateLimitError) {
+            sawRateLimit = true;
+            this.markExhausted(model);
+            break;
+          }
+          if (err instanceof TransientAiError) {
+            this.logger.warn(
+              `Modelo ${model} falhou temporariamente; tentando proximo modelo se existir.`,
+            );
+            break;
+          }
+          this.logger.error(
+            `[PERF] ai_call_failed id=${callId} model=${model} operation=${usageCall.operation ?? 'unknown'} section=${usageCall.sectionKey ?? 'unknown'} duration_ms=${Date.now() - startedAt} reason=${this.compactError((err as Error).message)}`,
+          );
+          throw err;
         }
-        this.logger.error(
-          `[PERF] ai_call_failed id=${callId} model=${model} duration_ms=${Date.now() - startedAt} reason=${this.compactError((err as Error).message)}`,
-        );
-        throw err;
       }
     }
 
@@ -233,7 +245,8 @@ export class AiService {
       requestId: data.id,
       inputTokens: data.usage?.prompt_tokens ?? 0,
       outputTokens: data.usage?.completion_tokens ?? 0,
-      reasoningTokens: data.usage?.completion_tokens_details?.reasoning_tokens ?? 0,
+      reasoningTokens:
+        data.usage?.completion_tokens_details?.reasoning_tokens ?? 0,
       cachedTokens: data.usage?.prompt_tokens_details?.cached_tokens ?? 0,
       cacheWriteTokens:
         data.usage?.prompt_tokens_details?.cache_write_tokens ?? 0,
@@ -241,7 +254,9 @@ export class AiService {
     });
 
     if (!content.trim()) {
-      throw new BadRequestException('OpenRouter retornou uma resposta vazia');
+      throw new EmptyAiResponseError(
+        `request_id=${data.id ?? 'unknown'} provider=${data.openrouter_metadata?.provider_name ?? data.openrouter_metadata?.provider ?? 'unknown'} finish_reason=${choice?.finish_reason ?? 'unknown'} native_finish_reason=${choice?.native_finish_reason ?? 'unknown'} completion_tokens=${data.usage?.completion_tokens ?? 'unknown'} reasoning_tokens=${data.usage?.completion_tokens_details?.reasoning_tokens ?? 'unknown'}`,
+      );
     }
 
     if (choice?.finish_reason === 'length') {
@@ -284,7 +299,10 @@ export class AiService {
         this.logger.warn(
           `OpenRouter network error (${model}) attempt ${attempt}/${maxAttempts}: ${detail}`,
         );
-        if (attempt === maxAttempts || /timeout|timed out|abort/i.test(detail)) {
+        if (
+          attempt === maxAttempts ||
+          /timeout|timed out|abort/i.test(detail)
+        ) {
           throw new ServiceUnavailableException(
             `Falha de conexao com a IA. Tente novamente; se persistir, verifique a rede e a OPENROUTER_KEY. Detalhe: ${detail}`,
           );

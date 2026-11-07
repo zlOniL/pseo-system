@@ -19,12 +19,12 @@ export function stripLocalityBacklinksSection(html: string): string {
     '[data-bib-locality-links], [data-bib-other-locality-links], #dynamic-neighborhood-links',
   ))
     addRange(block.range);
-  for (const heading of root.querySelectorAll('h2')) {
+  for (const heading of root.querySelectorAll('h1, h2, h3, h4, h5, h6')) {
     if (!isLocalityLinksHeading(heading.text)) continue;
     const parent = heading.parentNode;
     if (
       parent?.tagName === 'SECTION' &&
-      parent.querySelectorAll('h2').length === 1 &&
+      parent.querySelectorAll('h1, h2, h3, h4, h5, h6').length === 1 &&
       parent.firstElementChild === heading
     ) {
       addRange(parent.range);
@@ -36,7 +36,7 @@ export function stripLocalityBacklinksSection(html: string): string {
       const sibling = siblings[i];
       if (
         /BIB_SECTION:/.test(sibling.toString()) ||
-        /<h[12]\b/i.test(sibling.toString())
+        /<h[1-6]\b/i.test(sibling.toString())
       )
         break;
       addRange(sibling.range);

@@ -20,6 +20,7 @@ import { ServicesService } from '../services/services.service';
 import { ContentsService } from '../contents/contents.service';
 import { ContentSectionsService } from '../contents/content-sections.service';
 import { ValidationService } from '../validation/validation.service';
+import { normalizeGeneratedHeadings } from '../common/heading-normalizer';
 import { SitesService } from '../sites/sites.service';
 import { WhitelabelContentService } from '../integrations/whitelabel-api/whitelabel-content.service';
 import { FtpHtmlContentService } from '../integrations/ftp-html/ftp-html-content.service';
@@ -339,7 +340,7 @@ export class ServiceTemplatesController {
       service.name,
       baseCity ?? '',
     );
-    const finalHtml = htmlWithImages;
+    const finalHtml = normalizeGeneratedHeadings(htmlWithImages);
 
     const extracted = isMainPage ? null : parseHtmlSections(rawHtml);
     if (extracted) validateExtractedSections(extracted.sections);
@@ -605,12 +606,8 @@ export class ServiceTemplatesController {
     const extracted = isMainPage ? null : parseHtmlSections(rawHtml);
     if (extracted) validateExtractedSections(extracted.sections);
 
-    const fragmentHtml = injectImages(
-      rawHtml,
-      images,
-      mainKeyword,
-      service.name,
-      baseCity ?? '',
+    const fragmentHtml = normalizeGeneratedHeadings(
+      injectImages(rawHtml, images, mainKeyword, service.name, baseCity ?? ''),
     );
     const composed = await this.ftpHtmlContent.compose({
       service,

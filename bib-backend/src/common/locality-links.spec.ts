@@ -163,7 +163,7 @@ describe('dynamic locality links', () => {
     expect(result.faqs).toBe(original.faqs);
     expect(result.article.blocks[2]).toEqual({
       type: 'heading',
-      level: 2,
+      level: 4,
       text: 'Também atendemos',
     });
     expect(result.article.blocks.at(-1)).toBe(faq);

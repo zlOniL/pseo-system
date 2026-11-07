@@ -185,6 +185,7 @@ export function generatedToContentJson(
   }
 
   if (!options.tolerant) validateUnexpectedLegacySections(page.sections);
+  normalizeWhitelabelArticleHeadings(articleBlocks);
   const faqs = extractFaqsFromArticleBlocks(articleBlocks);
 
   return normalizeWhitelabelContentLinks({
@@ -195,6 +196,49 @@ export function generatedToContentJson(
     // Mirror for FAQPage schema only. Visual order is controlled by article.blocks.
     faqs,
   });
+}
+
+/** Keeps the whitelabel article to one H2 and one H3; later headings render as H4. */
+function normalizeWhitelabelArticleHeadings(
+  blocks: Array<Record<string, unknown>>,
+): void {
+  const headingBlocks: Array<Record<string, unknown>> = [];
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (!value || typeof value !== 'object') return;
+    const block = value as Record<string, unknown>;
+    if (
+      ['heading', 'subheading', 'minor_heading'].includes(String(block.type)) &&
+      (typeof block.text === 'string' || typeof block.title === 'string')
+    ) {
+      headingBlocks.push(block);
+    }
+    Object.values(block).forEach(visit);
+  };
+  visit(blocks);
+
+  let keptH2 = false;
+  let keptH3 = false;
+  for (const block of headingBlocks) {
+    const current = Number(
+      block.level ?? (block.type === 'subheading' ? 3 : 2),
+    );
+    if (!keptH2 && current <= 2) {
+      block.level = 2;
+      keptH2 = true;
+    } else if (!keptH3 && current === 3) {
+      block.level = 3;
+      keptH3 = true;
+    } else if (!keptH3 && keptH2) {
+      block.level = 3;
+      keptH3 = true;
+    } else {
+      block.level = 4;
+    }
+  }
 }
 
 function normalizeModuleBlocks(
@@ -216,22 +260,30 @@ function normalizeModuleBlocks(
     first?.type === 'heading' && typeof first.text === 'string';
 
   if (hasOpeningHeading) {
-    return validateVisibleModuleBlocks(key, [
-      {
-        ...first,
-        level: normalizeHeadingLevel(first.level, 2),
-        text: cleanVisibleModuleTitle(String(first.text), expectedTitle),
-      },
-      ...blocks.slice(1).map(cleanVisibleModuleText),
-    ], tolerant);
+    return validateVisibleModuleBlocks(
+      key,
+      [
+        {
+          ...first,
+          level: normalizeHeadingLevel(first.level, 2),
+          text: cleanVisibleModuleTitle(String(first.text), expectedTitle),
+        },
+        ...blocks.slice(1).map(cleanVisibleModuleText),
+      ],
+      tolerant,
+    );
   }
 
-  return validateVisibleModuleBlocks(key, [
-    { type: 'heading', level: 2, text: expectedTitle },
-    ...blocks
-      .filter((block) => block && typeof block === 'object')
-      .map(cleanVisibleModuleText),
-  ], tolerant);
+  return validateVisibleModuleBlocks(
+    key,
+    [
+      { type: 'heading', level: 2, text: expectedTitle },
+      ...blocks
+        .filter((block) => block && typeof block === 'object')
+        .map(cleanVisibleModuleText),
+    ],
+    tolerant,
+  );
 }
 
 function validateVisibleModuleBlocks(

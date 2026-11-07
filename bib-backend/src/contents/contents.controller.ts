@@ -14,6 +14,8 @@ import { ContentsService } from './contents.service';
 import { ListContentsDto } from './dto/list-contents.dto';
 import { ContentSectionsService } from './content-sections.service';
 import { ContentLocalityLinksService } from './content-locality-links.service';
+import { ValidationService } from '../validation/validation.service';
+import { assertSeoReadyForApproval } from '../publishing/seo-readiness';
 import {
   SECTION_KEYS,
   WHITELABEL_SECTION_KEYS,
@@ -26,6 +28,7 @@ export class ContentsController {
     private readonly contentsService: ContentsService,
     private readonly contentSections: ContentSectionsService,
     private readonly localityLinks: ContentLocalityLinksService,
+    private readonly validation: ValidationService,
   ) {}
 
   @Get()
@@ -85,6 +88,22 @@ export class ContentsController {
     @Param('id') id: string,
     @Body('status') status: 'approved' | 'published',
   ) {
+    if (status === 'approved' || status === 'published') {
+      return this.contentsService.findById(id).then((content) => {
+        if (content.html) {
+          const result = this.validation.validate(
+            content.html,
+            content.main_keyword,
+          );
+          content.score_issues = [
+            ...(content.score_issues ?? []),
+            ...result.issues.filter((issue) => issue.startsWith('[BLOQUEIO]')),
+          ];
+        }
+        assertSeoReadyForApproval(content);
+        return this.contentsService.updateStatus(id, status);
+      });
+    }
     return this.contentsService.updateStatus(id, status);
   }
 

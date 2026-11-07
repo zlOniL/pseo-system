@@ -41,6 +41,7 @@ export function buildWhitelabelPrompt(input: WhitelabelPromptInput): {
 Gera apenas JSON valido, sem markdown e sem comentarios.
 O conteudo sera enviado para uma API whitelabel que renderiza textos num template de servico ja existente.
   Nao geres HTML completo. Gera textos estruturados e blocos de artigo compativeis com os blueprints fornecidos.
+Escreve paragrafos com 2-4 frases, preferindo 15-25 palavras por frase e evitando ultrapassar 35 palavras. Atinge o volume pedido com mais paragrafos distintos, nao com frases extensas.
 
   Contexto do site via blueprints:
   ${JSON.stringify(blueprints, null, 2)}`;
@@ -265,6 +266,7 @@ export function buildWhitelabelModulePrompt(
   const system = `Es um especialista em SEO programatico e redacao em portugues europeu.
 Gera apenas um JSON array valido, sem markdown e sem comentarios.
   Nesta chamada gera exclusivamente um modulo de article.blocks.
+Escreve paragrafos com 2-4 frases, preferindo 15-25 palavras por frase e evitando ultrapassar 35 palavras. Atinge o volume pedido com mais paragrafos distintos, nao com frases extensas.
 
   Contexto do site via blueprints:
   ${JSON.stringify(blueprints, null, 2)}`;

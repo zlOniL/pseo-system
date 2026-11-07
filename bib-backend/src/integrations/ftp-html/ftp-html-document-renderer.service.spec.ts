@@ -1,5 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { FtpHtmlDocumentRenderer } from './ftp-html-document-renderer.service';
+import { parse } from 'node-html-parser';
+import { normalizeGeneratedHeadings } from '../../common/heading-normalizer';
 
 const template = {
   document_prefix: [
@@ -24,8 +26,14 @@ describe('FtpHtmlDocumentRenderer', () => {
   it('resolves service placeholders throughout the saved shell, including head and footer', () => {
     const html = renderer.render({
       template: {
-        document_prefix: template.document_prefix.replace('</head>', '<meta name="custom" content="{{SERVICE_NAME}}"></head>'),
-        document_suffix: template.document_suffix.replace('Rodape', '{{SERVICE_NAME}}'),
+        document_prefix: template.document_prefix.replace(
+          '</head>',
+          '<meta name="custom" content="{{SERVICE_NAME}}"></head>',
+        ),
+        document_suffix: template.document_suffix.replace(
+          'Rodape',
+          '{{SERVICE_NAME}}',
+        ),
       },
       fragmentHtml: '<p>Conteudo</p>',
       textReplacements: [{ from: '{{SERVICE_NAME}}', to: 'Loica & Co' }],
@@ -36,10 +44,18 @@ describe('FtpHtmlDocumentRenderer', () => {
   });
 
   it('identifies unknown pending placeholders', () => {
-    expect(() => renderer.render({
-      template: { ...template, document_suffix: template.document_suffix.replace('Rodape', '{{UNKNOWN}}') },
-      fragmentHtml: '<p>Conteudo</p>',
-    })).toThrow('placeholder pendente: {{UNKNOWN}}');
+    expect(() =>
+      renderer.render({
+        template: {
+          ...template,
+          document_suffix: template.document_suffix.replace(
+            'Rodape',
+            '{{UNKNOWN}}',
+          ),
+        },
+        fragmentHtml: '<p>Conteudo</p>',
+      }),
+    ).toThrow('placeholder pendente: {{UNKNOWN}}');
   });
 
   it('renders a full document preserving shell and inserting fragment once', () => {
@@ -48,13 +64,15 @@ describe('FtpHtmlDocumentRenderer', () => {
     const html = renderer.render({ template, fragmentHtml: fragment });
 
     expect(html).toContain(
-      '<body><nav>Menu</nav><main><h1>Reparação de Estores</h1></main>',
+      '<body><nav>Menu</nav><main><div>Reparação de Estores</div></main>',
     );
     expect(html).toContain(fragment);
     expect(html).toContain(template.document_suffix);
     expect(html).toContain('<style data-pseo-content-layout>');
     expect(html).toContain('line-height:1.65!important');
-    expect(html).toContain('width:100%!important;max-width:1120px!important;margin:0 auto!important;padding:32px 16px!important');
+    expect(html).toContain(
+      'width:100%!important;max-width:1120px!important;margin:0 auto!important;padding:32px 16px!important',
+    );
     expect(html).toContain(`<div class="pseo-content">${fragment}</div>`);
     expect(html.match(/Conteudo novo/g)).toHaveLength(1);
   });
@@ -117,7 +135,7 @@ describe('FtpHtmlDocumentRenderer', () => {
       ],
     });
 
-    expect(html).toContain('<h1>Reparação de Termoacumuladores 24h</h1>');
+    expect(html).toContain('<div>Reparação de Termoacumuladores 24h</div>');
     expect(html).toContain('915 463 419');
     expect(html).toContain('background-image:linear-gradient');
     expect(html).toContain('url(&quot;https://cdn.example/service.webp&quot;)');
@@ -179,7 +197,53 @@ describe('FtpHtmlDocumentRenderer', () => {
     expect(html).toContain(
       'href="https://urgentreparacoes.pt/reparacao-de-estores-em-lisboa.html"',
     );
-    expect(html).toContain('<h1>Reparação de Estores em Lisboa</h1>');
+    expect(html).toContain('<div>Reparação de Estores em Lisboa</div>');
+  });
+
+  it('deduplicates SEO metadata and creates a missing canonical URL', () => {
+    const duplicateTemplate = {
+      document_prefix: template.document_prefix
+        .replace(
+          '</head>',
+          [
+            '<meta name="description" content="Outra descrição">',
+            '<meta property="og:title" content="Outro título">',
+            '<meta property="twitter:title" content="Título social antigo">',
+            '</head>',
+          ].join(''),
+        )
+        .replace(/<link rel="canonical"[^>]*>/, ''),
+      document_suffix: template.document_suffix,
+    };
+    const html = renderer.render({
+      template: duplicateTemplate,
+      fragmentHtml: '<section>Conteudo</section>',
+      seo: {
+        title: 'Reparação de Estores em Lisboa',
+        description: 'Assistência de estores em Lisboa.',
+        canonicalUrl:
+          'https://urgentreparacoes.pt/reparacao-de-estores-em-lisboa.html',
+      },
+    });
+    expect(html.match(/<meta\s+name="description"/gi)).toHaveLength(1);
+    expect(html.match(/<meta\s+property="og:title"/gi)).toHaveLength(1);
+    expect(
+      html.match(/<meta\s+(?:name|property)="twitter:title"/gi),
+    ).toHaveLength(1);
+    expect(html.match(/<link\s+rel="canonical"/gi)).toHaveLength(1);
+    expect(html).toContain('content="Assistência de estores em Lisboa."');
+  });
+
+  it('leaves exactly one H1, H2 and H3 across the final FTP document', () => {
+    const fragment = normalizeGeneratedHeadings(
+      '<h1>Reparação de Estores</h1><h2>Assistência</h2><h2>Tipos</h2><h3>Estores interiores</h3><h2>Manutenção</h2>',
+    );
+    const html = renderer.render({ template, fragmentHtml: fragment });
+    const root = parse(html);
+    expect(root.querySelectorAll('h1')).toHaveLength(1);
+    expect(root.querySelectorAll('h2')).toHaveLength(1);
+    expect(root.querySelectorAll('h3')).toHaveLength(1);
+    expect(root.querySelectorAll('h4')).toHaveLength(2);
   });
 
   it.each([

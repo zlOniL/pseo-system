@@ -207,6 +207,7 @@ export class WordPressService {
         `Service "${content.service}" has no seo_title — using default`,
       );
     }
+    this.assertSeoMetadata(seoTitle, metaDescription);
 
     // Resolve categories: always Blog (primary) + service subcategory
     const categories: number[] = [];
@@ -294,6 +295,7 @@ export class WordPressService {
       seoTitle = serviceSeo.title;
       metaDescription = serviceSeo.description;
     }
+    this.assertSeoMetadata(seoTitle, metaDescription);
 
     return {
       title,
@@ -306,6 +308,17 @@ export class WordPressService {
       categories: categories.ids,
       primary_category_id: categories.primaryId,
     };
+  }
+
+  private assertSeoMetadata(title: string, description: string): void {
+    if (!title.trim())
+      throw new BadRequestException(
+        'SEO title vazio; corrija antes de publicar.',
+      );
+    if (!description.trim())
+      throw new BadRequestException(
+        'Meta description vazia; corrija antes de publicar.',
+      );
   }
 
   private async resolveCategoriesForBulk(
@@ -716,7 +729,9 @@ export class WordPressService {
 
     const site = await this.sites.findById(siteId);
     if (site.integration_type !== 'wordpress') {
-      throw new BadRequestException(`Site "${site.name}" nao usa integracao WordPress.`);
+      throw new BadRequestException(
+        `Site "${site.name}" nao usa integracao WordPress.`,
+      );
     }
 
     const wpUrl = `${this.wpApiBase(site)}/media?${params.toString()}`;

@@ -2,6 +2,7 @@ import { Body, Controller, HttpCode, Param, Post } from '@nestjs/common';
 import { ContentsService } from '../contents/contents.service';
 import { BulkActionDto } from '../contents/dto/bulk-action.dto';
 import { PublishingService } from '../publishing/publishing.service';
+import { assertSeoReadyForApproval } from '../publishing/seo-readiness';
 
 @Controller('contents')
 export class WordPressController {
@@ -12,7 +13,9 @@ export class WordPressController {
 
   @Post('bulk-approve')
   @HttpCode(200)
-  bulkApprove(@Body() dto: BulkActionDto) {
+  async bulkApprove(@Body() dto: BulkActionDto) {
+    const contents = await this.contentsService.findByIds(dto.ids);
+    for (const content of contents) assertSeoReadyForApproval(content);
     return this.contentsService.bulkUpdateStatus(dto.ids, 'approved');
   }
 

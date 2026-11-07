@@ -2,6 +2,7 @@ import { Content } from '../contents/contents.service';
 import { Service } from '../services/services.service';
 import { ValidationResult } from '../validation/validation.types';
 import { TemplateEngineService } from './template-engine.service';
+import { normalizeGeneratedHeadings } from '../common/heading-normalizer';
 import {
   buildLocalityLinks,
   withLocalityLinksHtml,
@@ -85,9 +86,11 @@ describe('TemplateEngineService characterization', () => {
       }),
     ).resolves.toBe(savedContent);
 
-    const expectedHtml = withLocalityLinksHtml(
-      '<main><h1>Estores no Porto</h1></main>',
-      buildLocalityLinks(['Maia'], service.name, 'https://site.example'),
+    const expectedHtml = normalizeGeneratedHeadings(
+      withLocalityLinksHtml(
+        '<main><h1>Estores no Porto</h1></main>',
+        buildLocalityLinks(['Maia'], service.name, 'https://site.example'),
+      ),
     );
     expect(deps.validation.validate).toHaveBeenCalledWith(
       expectedHtml,
@@ -118,9 +121,11 @@ describe('TemplateEngineService characterization', () => {
     await deps.subject.generate({ service, city: 'Amadora' });
 
     expect(deps.validation.validate).toHaveBeenCalledWith(
-      withLocalityLinksHtml(
-        '<main>DB Amadora</main>',
-        buildLocalityLinks(['Lisboa'], service.name, 'https://site.example'),
+      normalizeGeneratedHeadings(
+        withLocalityLinksHtml(
+          '<main>DB Amadora</main>',
+          buildLocalityLinks(['Lisboa'], service.name, 'https://site.example'),
+        ),
       ),
       'Reparacao de Estores na Amadora',
       700,

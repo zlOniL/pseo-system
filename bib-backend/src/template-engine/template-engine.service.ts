@@ -9,6 +9,7 @@ import { replaceKeyword } from './utils/keyword-replacer';
 import { stripLocalityBacklinksSection } from '../common/locality-backlinks-stripper';
 import { LocalityLinksService } from '../cities/locality-links.service';
 import { buildLocalKeyword } from '../common/location-preposition';
+import { normalizeGeneratedHeadings } from '../common/heading-normalizer';
 
 export interface TemplateGenerateInput {
   service: Service;
@@ -55,10 +56,11 @@ export class TemplateEngineService {
 
     // 3. Replace all occurrences of the base city with the target city
     // Remove source-city links before replacing city text, then rebuild for the target.
-    const html = await this.localityLinks.html(
+    const linkedHtml = await this.localityLinks.html(
       replaceKeyword(stripLocalityBacklinksSection(rawHtml), baseCity, city),
       { service: service.name, city, site_id: service.site_id },
     );
+    const html = normalizeGeneratedHeadings(linkedHtml);
 
     // 5. Validate (score + issues)
     const mainKeyword = buildLocalKeyword(service.name, city);

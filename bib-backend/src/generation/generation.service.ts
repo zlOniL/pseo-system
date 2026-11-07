@@ -1,4 +1,10 @@
-import { BadRequestException, forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  forwardRef,
+  Inject,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { AiService } from '../ai/ai.service';
 import { AiUsageService } from '../ai/ai-usage.service';
 import { ValidationService } from '../validation/validation.service';
@@ -8,6 +14,7 @@ import { buildPrompt } from './prompt.builder';
 import { slugify } from '../common/slug';
 import { buildLocalKeyword } from '../common/location-preposition';
 import { injectImages } from '../common/image-injector';
+import { normalizeGeneratedHeadings } from '../common/heading-normalizer';
 import { LocalityLinksService } from '../cities/locality-links.service';
 import { parseHtmlSections } from '../service-templates/html-section-parser';
 import { GenerateDto } from './dto/generate.dto';
@@ -578,12 +585,14 @@ export class GenerationService {
       dto,
       feedback,
     );
-    const html = injectImages(
-      rawHtml,
-      dto.images ?? [],
-      dto.main_keyword,
-      dto.service,
-      dto.city ?? '',
+    const html = normalizeGeneratedHeadings(
+      injectImages(
+        rawHtml,
+        dto.images ?? [],
+        dto.main_keyword,
+        dto.service,
+        dto.city ?? '',
+      ),
     );
     return { html, metaDescription };
   }
@@ -646,7 +655,10 @@ export class GenerationService {
       mainKeyword: dto.main_keyword,
       city: dto.city ?? null,
     });
-    const { html: fragmentHtml, metaDescription } = await this.buildHtml(dto, dto.feedback);
+    const { html: fragmentHtml, metaDescription } = await this.buildHtml(
+      dto,
+      dto.feedback,
+    );
     const composed = compose(fragmentHtml, metaDescription);
     const minWords = dto.min_words ?? 5000;
     const result = this.validation.validate(
@@ -799,7 +811,9 @@ export class GenerationService {
     if (!dto.service_id) return this.buildSyntheticService(dto);
     const persisted = await this.services.findById(dto.service_id);
     if (persisted.site_id !== dto.site_id) {
-      throw new BadRequestException('O servico nao pertence ao site selecionado.');
+      throw new BadRequestException(
+        'O servico nao pertence ao site selecionado.',
+      );
     }
     return {
       ...persisted,

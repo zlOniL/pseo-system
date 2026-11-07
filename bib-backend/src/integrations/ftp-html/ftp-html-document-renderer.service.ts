@@ -57,7 +57,9 @@ export class FtpHtmlDocumentRenderer {
         (replacement) => replacement.from !== '{{SERVICE_NAME}}',
       ),
     );
-    const prefix = replaceServiceName(prefixWithReplacements);
+    const prefix = this.demoteTemplateMainHeadings(
+      replaceServiceName(prefixWithReplacements),
+    );
     const fragmentHtml = this.reconcileH1(prefix, input.fragmentHtml);
     const content = `${renderVideoSection(input.videoUrl)}${fragmentHtml}`;
     const document = this.applyContentLayout(
@@ -87,6 +89,14 @@ export class FtpHtmlDocumentRenderer {
     const url = escapeHtml(image);
     const section = `<section class="pseo-template-banner" style="width:100%;max-width:1120px;margin:0 auto;padding:24px 16px 0"><img src="${url}" alt="${alt}" loading="eager" style="display:block;width:100%;max-height:360px;object-fit:cover;border-radius:12px"></section>`;
     return html.replace(/\{\{BANNER_SECTION\}\}/g, section);
+  }
+
+  private demoteTemplateMainHeadings(prefix: string): string {
+    return prefix.replace(/<main\b[^>]*>[\s\S]*?<\/main>/i, (main) =>
+      main
+        .replace(/<h[1-6](\b[^>]*)>/gi, '<div$1>')
+        .replace(/<\/h[1-6]\s*>/gi, '</div>'),
+    );
   }
 
   applyContentLayout(document: string): string {

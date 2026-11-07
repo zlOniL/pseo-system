@@ -281,7 +281,8 @@ export function buildWhitelabelSectionPrompt(
 ): { system: string; user: string } {
   const system = `Es um especialista em SEO programatico e redacao em portugues europeu.
 Gera apenas JSON valido, sem markdown e sem comentarios.
-Nao geres HTML completo.`;
+Nao geres HTML completo.
+Escreve paragrafos com 2-4 frases, preferindo 15-25 palavras por frase e evitando ultrapassar 35 palavras. Atinge o volume pedido com mais paragrafos distintos, nao com frases extensas.`;
 
   const user = `Gera somente a secao "${input.sectionKey}" para uma pagina whitelabel.
 
@@ -318,7 +319,8 @@ export function buildWhitelabelSectionExpansionPrompt(
   input: WhitelabelSectionExpansionPromptInput,
 ): { system: string; user: string } {
   const system = `Es um editor SEO senior.
-Gera apenas JSON valido, sem markdown e sem comentarios.`;
+Gera apenas JSON valido, sem markdown e sem comentarios.
+Escreve paragrafos com 2-4 frases, preferindo 15-25 palavras por frase e evitando ultrapassar 35 palavras. Atinge o volume pedido com mais paragrafos distintos, nao com frases extensas.`;
 
   const user = `Expande e melhora somente a secao "${input.sectionKey}".
 

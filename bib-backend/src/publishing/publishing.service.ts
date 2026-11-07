@@ -1,10 +1,14 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ContentsService, Content } from '../contents/contents.service';
 import { SitesService } from '../sites/sites.service';
-import { WordPressService, BulkPublishResult } from '../wordpress/wordpress.service';
+import {
+  WordPressService,
+  BulkPublishResult,
+} from '../wordpress/wordpress.service';
 import { WhitelabelPublisherService } from '../integrations/whitelabel-api/whitelabel-publisher.service';
 import { FtpHtmlPublisherService } from '../integrations/ftp-html/ftp-html-publisher.service';
 import { ContentPublisher, PublishOptions } from './content-publisher';
+import { assertSeoReadyForApproval } from './seo-readiness';
 
 @Injectable()
 export class PublishingService {
@@ -17,6 +21,7 @@ export class PublishingService {
   ) {}
 
   async publish(contentId: string, options?: PublishOptions): Promise<Content> {
+    assertSeoReadyForApproval(await this.contents.findById(contentId));
     const publisher = await this.publisherForContentId(contentId);
     if (options?.forceRemoteConflict) {
       return publisher.publish(contentId, options);
@@ -33,6 +38,7 @@ export class PublishingService {
 
     for (const content of contents) {
       try {
+        assertSeoReadyForApproval(content);
         const publisher = await this.publisherForContent(content);
         if (publisher === this.wordpress) {
           wordpressIds.push(content.id);
@@ -85,7 +91,9 @@ export class PublishingService {
     return this.publisherForContent(await this.contents.findById(contentId));
   }
 
-  private async publisherForContent(content: Content): Promise<ContentPublisher> {
+  private async publisherForContent(
+    content: Content,
+  ): Promise<ContentPublisher> {
     if (!content.site_id) return this.wordpress;
 
     const site = await this.sites.findById(content.site_id);

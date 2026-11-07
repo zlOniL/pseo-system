@@ -84,7 +84,7 @@ ${COMMERCIAL_CLAIMS_GUARDRAIL}
 - Nao inventes URLs externas. Se nao tiveres certeza, omite o link.
 - Volume alvo desta secao: aproximadamente ${targetWords} palavras visiveis.
 - Nao ultrapasses ${maximumWords} palavras visiveis salvo se for indispensavel para cumprir a estrutura.
-- Escreve paragrafos desenvolvidos, com 3-6 frases; nao resumas topicos nem substituas explicacoes por listas curtas.`;
+- Escreve paragrafos completos, com 2-4 frases. Prefere 15-25 palavras por frase e evita ultrapassar 35 palavras. Para cumprir o volume, acrescenta paragrafos distintos em vez de alongar frases.`;
 }
 
 function sectionInstructions(
@@ -118,66 +118,66 @@ function sectionInstructions(
 - No fim inclui exatamente {{IMAGE_2}}.`;
     case 'tipos':
       return `Gera a secao completa:
-<h2 style="color: #320000;">Tipos de ${service}${citySuffix}</h2>
-- Lista e explica os principais tipos relacionados ao servico.
-- Cria varios H3s, cada um com 2 a 4 paragrafos curtos e especificos.
+<h3 style="color: #320000;">Tipos de ${service}${citySuffix}</h3>
+- Esta e a unica secao H3 da pagina. Lista e explica os principais tipos relacionados ao servico usando titulos H4 para cada tipo.
+- Cria titulos H4 com 2 a 4 paragrafos curtos e especificos.
 - Adapta os tipos ao servico pedido, sem importar problemas de outros servicos.
 - No fim inclui exatamente {{IMAGE_3}}.`;
     case 'servicos':
       return `Gera a secao completa:
-<h2 style="color: #320000;">Servicos Realizados de ${service}${citySuffix}</h2>
+<h4 style="color: #320000;">Servicos Realizados de ${service}${citySuffix}</h4>
 - Explica de forma completa os servicos realizados dentro desta area.
 - Inclui os servicos mais procurados, manutencao, assistencia urgente e diagnostico antes do orcamento.
-- Inclui uma subseccao <h3 style="color: #320000;">Marcas e componentes compativeis</h3>.
+- Inclui uma subseccao <h4 style="color: #320000;">Marcas e componentes compativeis</h4>.
 - Nesta subseccao, inclui links externos clicaveis para sites oficiais de marcas/componentes relacionados ao servico sempre que o URL real for conhecido.
 - Nao uses links internos nem URLs inventados nesta subseccao.
 - No fim inclui exatamente {{IMAGE_4}}.`;
     case 'avarias_comuns':
       return `Gera a secao completa:
-<h2 style="color: #320000;">Principais Problemas que Resolvemos em ${service}${citySuffix}</h2>
-- Cria varios H3s com problemas/avarias reais do servico.
+<h4 style="color: #320000;">Principais Problemas que Resolvemos em ${service}${citySuffix}</h4>
+- Cria varios H4s com problemas/avarias reais do servico.
 - Cada problema deve ter causa provavel, consequencia, solucao e pelo menos 2 a 3 paragrafos curtos.
 - Fecha com posicionamento de autoridade e chamada para contacto.`;
     case 'como_funciona':
       return `Gera a secao:
-<h2 style="color: #320000;">Como Funciona o Nosso Servico de ${service}${citySuffix}</h2>
+<h4 style="color: #320000;">Como Funciona o Nosso Servico de ${service}${citySuffix}</h4>
 - Explica passo a passo: contacto, fotos/videos, deslocacao, diagnostico no local, solucao, orcamento justo e antecipado, autorizacao, reparacao e testes finais.`;
     case 'servico_24h':
       return `Gera a secao:
-<h2 style="color: #320000;">Servico de ${service}${citySuffix} 24H/7</h2>
+<h4 style="color: #320000;">Servico de ${service}${citySuffix} 24H/7</h4>
 - Foca urgencia, atendimento 24H/7, sabados, domingos e feriados.
 - Explica situacoes que nao podem esperar no servico especifico.
 - Reforca piquetes moveis, diagnostico antes da intervencao e servico sem improvisos.
 - No fim inclui exatamente {{IMAGE_5}}.`;
     case 'prevencao':
       return `Gera a secao:
-<h2 style="color: #320000;">Manutencao e Prevencao de ${service}${citySuffix}</h2>
+<h4 style="color: #320000;">Manutencao e Prevencao de ${service}${citySuffix}</h4>
 - Explica a importancia da manutencao preventiva e os sinais pequenos que devem ser resolvidos cedo.
 - Mostra como a manutencao reduz urgencias, evita custos maiores e prolonga a vida util.
 - Inclui lista de acoes preventivas concretas.
 - No fim inclui exatamente {{IMAGE_6}}.`;
     case 'reparar_ou_substituir':
       return `Gera a secao:
-<h2 style="color: #320000;">Reparar ou Substituir ${service}${citySuffix}?</h2>
+<h4 style="color: #320000;">Reparar ou Substituir ${service}${citySuffix}?</h4>
 - Ajuda o cliente a tomar decisao.
 - Explica que nem sempre e preciso substituir tudo.
 - Reforca que reparar com seguranca e a primeira opcao quando for tecnicamente viavel.
 - Quando a substituicao for mais adequada, explica criterios como seguranca, custo, idade, estado geral e durabilidade.`;
     case 'por_que_escolher':
       return `Gera a secao:
-<h2 style="color: #320000;">Por Que Escolher a Empresa para ${service}${citySuffix}</h2>
+<h4 style="color: #320000;">Por Que Escolher a Empresa para ${service}${citySuffix}</h4>
 - Secao comercial e de confianca.
 - Inclui tecnicos qualificados, atendimento 24H/7, diagnostico antes do orcamento, orcamento justo e antecipado, materiais de qualidade, piquetes moveis, explicacao clara, testes finais, seguranca e durabilidade.`;
     case 'integracao_servicos':
       return `Gera a secao:
-<h2 style="color: #320000;">Integracao com Outros Servicos de ${service}${citySuffix}</h2>
+<h4 style="color: #320000;">Integracao com Outros Servicos de ${service}${citySuffix}</h4>
 - Liga o servico principal a servicos complementares.
 - Se houver servicos relacionados, cria uma lista com exatamente um <li> por servico relacionado, usando o URL real fornecido.
 - Se nao houver servicos relacionados, cita servicos complementares naturalmente, sem links e sem inventar URLs.
 - No fim inclui exatamente {{IMAGE_7}}.`;
     case 'contexto_local':
       return `Gera a secao:
-<h2 style="color: #320000;">${city ? `Contexto Local ${formatLocationPhrase(city)}` : 'Zonas de Atendimento'}</h2>
+<h4 style="color: #320000;">${city ? `Contexto Local ${formatLocationPhrase(city)}` : 'Zonas de Atendimento'}</h4>
 - Se houver cidade, este modulo DEVE chamar-se exatamente "Contexto Local ${formatLocationPhrase(city)}".
 - Se nao houver cidade, este modulo DEVE chamar-se exatamente "Zonas de Atendimento".
 - Para pagina principal, incluir grandes regioes: Grande Lisboa, Margem Sul, Grande Porto, Braga e Algarve.
@@ -188,19 +188,19 @@ function sectionInstructions(
 - Nao gerar o bloco "Também atendemos" nem links para outras paginas locais do servico; o backend insere esse bloco depois da geracao.`;
     case 'perguntas_frequentes':
       return `Gera a secao:
-<h2 style="color: #320000;">Perguntas Frequentes sobre ${mainKeyword}</h2>
+<h4 style="color: #320000;">Perguntas Frequentes sobre ${mainKeyword}</h4>
 - Perguntas frequentes completas sobre atendimento 24H/7, orcamento, diagnostico, avarias, reparacao no local, empresas, condominios, reparar/substituir e perguntas especificas do servico.
 - Cada resposta deve comecar com <strong style="color: #320000;">SIM.</strong> ou confirmacao equivalente.
 - No fim inclui exatamente {{IMAGE_8}}.`;
     case 'contacte_empresa':
       return `Gera a secao:
-<h2 style="color: #320000;">Contacte a Empresa para ${service}${citySuffix}</h2>
+<h4 style="color: #320000;">Contacte a Empresa para ${service}${citySuffix}</h4>
 - Chamada para acao forte.
 - Repete a keyword principal e variacoes naturais.
 - Reforca principais problemas resolvidos, tecnicos especializados, materiais de qualidade, diagnostico antes do orcamento, orcamento justo e antecipado, servico 24H/7, sabados, domingos e feriados.`;
     case 'mais_sobre':
       return `Gera a secao:
-<h2 style="color: #320000;">Mais Sobre ${service}${citySuffix}</h2>
+<h4 style="color: #320000;">Mais Sobre ${service}${citySuffix}</h4>
 - Fechamento SEO forte, explicativo e humano.
 - Fala sobre importancia do servico, pequenas avarias, agir cedo, manutencao, diagnostico, seguranca, transparencia e melhor resultado.
 - Inclui obrigatoriamente links externos para Google.pt (https://www.google.pt) e ChatGPT.com (https://chatgpt.com), integrados de forma natural no texto.`;
@@ -214,13 +214,11 @@ export function buildWpSectionPrompt(input: WpSectionPromptInput): {
   const system = `Es um especialista em SEO programatico e redacao em portugues europeu.
 Preenche apenas uma secao HTML fixa para uma pagina WordPress.
   Retorna somente HTML valido.
+Contrato global de headings: a pagina completa deve ter exatamente um H1, um H2 e um H3. O H1 pertence ao modulo intro, o H2 ao modulo assistencia_especializada e o H3 ao modulo tipos. Todos os outros titulos em todas as secoes devem ser H4. Nao repitas H1/H2/H3.
+Escreve frases curtas e diretas, com preferencia por ate 25 palavras. Evita frases acima de 35 palavras e limita cada paragrafo a 2-4 frases. Divide explicacoes longas em varios paragrafos sem repetir a mesma ideia.
   ${promptContextRules(input.promptContext)}`;
 
-  const user = `${commonRules(
-    input.dto,
-    input.targetWords,
-    input.maximumWords,
-  )}
+  const user = `${commonRules(input.dto, input.targetWords, input.maximumWords)}
 Secao solicitada: ${input.sectionKey}
 ${sectionInstructions(input.dto, input.sectionKey)}
 
@@ -243,11 +241,7 @@ Expande uma secao HTML mantendo a mesma estrutura visual.
   Retorna somente HTML valido.
   ${promptContextRules(input.promptContext)}`;
 
-  const user = `${commonRules(
-    input.dto,
-    input.targetWords,
-    input.maximumWords,
-  )}
+  const user = `${commonRules(input.dto, input.targetWords, input.maximumWords)}
 Secao solicitada: ${input.sectionKey}
 Palavras atuais estimadas: ${input.currentWords}
 

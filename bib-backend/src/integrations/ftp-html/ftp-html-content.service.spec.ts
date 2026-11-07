@@ -69,7 +69,9 @@ function createSubject() {
       return {
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({ data: template, error: null }),
+            single: jest
+              .fn()
+              .mockResolvedValue({ data: template, error: null }),
           }),
         }),
       };
@@ -99,26 +101,35 @@ function createSubject() {
 describe('FtpHtmlContentService', () => {
   it('rejects a saved template with unknown placeholders during preparation', async () => {
     const subject = createSubject();
-    subject.template.document_suffix = '<footer>{{UNKNOWN}}</footer></body></html>';
-    await expect(subject.service.prepare({ service, mainKeyword: service.name }))
-      .rejects.toThrow('placeholder pendente: {{UNKNOWN}}');
+    subject.template.document_suffix =
+      '<footer>{{UNKNOWN}}</footer></body></html>';
+    await expect(
+      subject.service.prepare({ service, mainKeyword: service.name }),
+    ).rejects.toThrow('placeholder pendente: {{UNKNOWN}}');
   });
 
   it('rejects missing configuration and inactive template references before generation', async () => {
     const subject = createSubject();
     subject.ftpConfigs.findRawBySiteId.mockResolvedValueOnce(null);
-    await expect(subject.service.prepare({ service, mainKeyword: service.name }))
-      .rejects.toThrow('Configuracao FTP nao encontrada');
+    await expect(
+      subject.service.prepare({ service, mainKeyword: service.name }),
+    ).rejects.toThrow('Configuracao FTP nao encontrada');
     subject.remotePage.active_template_version_id = '';
-    await expect(subject.service.prepare({ service, mainKeyword: service.name }))
-      .rejects.toThrow('Template FTP ativo nao encontrado');
+    await expect(
+      subject.service.prepare({ service, mainKeyword: service.name }),
+    ).rejects.toThrow('Template FTP ativo nao encontrado');
   });
 
   it('renders the prepared template without additional database reads', async () => {
     const subject = createSubject();
-    const compose = await subject.service.prepare({ service, mainKeyword: service.name });
+    const compose = await subject.service.prepare({
+      service,
+      mainKeyword: service.name,
+    });
     subject.client.from.mockClear();
-    expect(compose('<p>Generated content</p>', 'Description').html).toContain('Generated content');
+    expect(compose('<p>Generated content</p>', 'Description').html).toContain(
+      'Generated content',
+    );
     expect(subject.client.from).not.toHaveBeenCalled();
   });
 
@@ -163,6 +174,6 @@ describe('FtpHtmlContentService', () => {
       }),
       { onConflict: 'site_id,remote_path' },
     );
-    expect(result.html).toContain('<h1>Reparacao de Estores em Lisboa</h1>');
+    expect(result.html).toContain('<div>Reparacao de Estores em Lisboa</div>');
   });
 });

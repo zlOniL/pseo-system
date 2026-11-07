@@ -7,6 +7,7 @@ import { AiUsageService } from '../ai/ai-usage.service';
 import { SupabaseService } from '../common/supabase.service';
 import { DbError, DbResult } from '../common/supabase.types';
 import { ValidationService } from '../validation/validation.service';
+import { normalizeGeneratedHeadings } from '../common/heading-normalizer';
 import {
   SECTION_KEYS,
   SectionKey,
@@ -138,8 +139,8 @@ export class ContentSectionsService {
         if (section.output_format === 'html') {
           const currentHtml = section.html ?? '';
           const raw = await this.ai.generateText(
-          'Es um editor SEO senior. Reescreve apenas uma secao HTML. Retorna somente HTML valido, sem markdown.',
-          `Reescreve e melhora a secao "${sectionKey}" da pagina "${content.main_keyword}".
+            'Es um editor SEO senior. Reescreve apenas uma secao HTML. Retorna somente HTML valido, sem markdown.',
+            `Reescreve e melhora a secao "${sectionKey}" da pagina "${content.main_keyword}".
 
 Servico: ${content.service}
 Cidade: ${content.city ?? ''}
@@ -161,8 +162,8 @@ Regras:
 
         const currentJson = section.content_json;
         const raw = await this.ai.generateText(
-        'Es um editor SEO senior. Reescreve apenas uma secao JSON. Retorna somente JSON valido, sem markdown.',
-        `Reescreve e melhora a secao "${sectionKey}" da pagina "${content.main_keyword}".
+          'Es um editor SEO senior. Reescreve apenas uma secao JSON. Retorna somente JSON valido, sem markdown.',
+          `Reescreve e melhora a secao "${sectionKey}" da pagina "${content.main_keyword}".
 
 Servico: ${content.service}
 Cidade: ${content.city ?? ''}
@@ -180,7 +181,9 @@ Regras:
         const nextJson = this.parseJsonPayload(raw);
         return this.applyJsonSection(content, section, nextJson);
       } catch (err) {
-        await this.setSectionStatus(section.id, 'failed').catch(() => undefined);
+        await this.setSectionStatus(section.id, 'failed').catch(
+          () => undefined,
+        );
         throw err;
       }
     };
@@ -224,10 +227,8 @@ Regras:
     }
 
     const replacement = this.wrapSection(section.section_key, nextHtml);
-    const nextPageHtml = this.replaceMarkedSection(
-      content.html,
-      section.section_key,
-      replacement,
+    const nextPageHtml = normalizeGeneratedHeadings(
+      this.replaceMarkedSection(content.html, section.section_key, replacement),
     );
 
     const validation = this.validation.validate(

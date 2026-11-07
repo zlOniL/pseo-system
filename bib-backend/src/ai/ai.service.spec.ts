@@ -19,12 +19,14 @@ describe('AiService', () => {
     process.env.OPENROUTER_TIMEOUT_MS = '25000';
     const signal = new AbortController().signal;
     const timeout = jest.spyOn(AbortSignal, 'timeout').mockReturnValue(signal);
-    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({ choices: [{ message: { content: 'resultado' } }] }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } },
-      ),
-    );
+    const fetchMock = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ choices: [{ message: { content: 'resultado' } }] }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      );
 
     await expect(new AiService().generateText('system', 'user')).resolves.toBe(
       'resultado',
@@ -40,15 +42,14 @@ describe('AiService', () => {
   it('does not retry an ambiguous timeout while reading the response body', async () => {
     process.env.OPENROUTER_KEY = 'test-key';
     process.env.OPENROUTER_MODELS = 'test/model';
-    jest.spyOn(global, 'fetch')
-      .mockResolvedValueOnce({
-        status: 200,
-        text: jest.fn().mockRejectedValue(new Error('body timed out')),
-      } as unknown as Response);
+    jest.spyOn(global, 'fetch').mockResolvedValueOnce({
+      status: 200,
+      text: jest.fn().mockRejectedValue(new Error('body timed out')),
+    } as unknown as Response);
 
-    await expect(new AiService().generateText('system', 'user')).rejects.toThrow(
-      'Falha de conexao com a IA',
-    );
+    await expect(
+      new AiService().generateText('system', 'user'),
+    ).rejects.toThrow('Falha de conexao com a IA');
 
     expect(fetch).toHaveBeenCalledTimes(1);
   });
@@ -56,12 +57,13 @@ describe('AiService', () => {
   it('does not retry OpenRouter timeout status 524', async () => {
     process.env.OPENROUTER_KEY = 'test-key';
     process.env.OPENROUTER_MODELS = 'test/model';
-    jest.spyOn(global, 'fetch')
+    jest
+      .spyOn(global, 'fetch')
       .mockResolvedValueOnce(new Response('upstream timeout', { status: 524 }));
 
-    await expect(new AiService().generateText('system', 'user')).rejects.toThrow(
-      'Todos os modelos de IA',
-    );
+    await expect(
+      new AiService().generateText('system', 'user'),
+    ).rejects.toThrow('Todos os modelos de IA');
 
     expect(fetch).toHaveBeenCalledTimes(1);
   });
@@ -69,15 +71,61 @@ describe('AiService', () => {
   it('retries one safe transient server failure', async () => {
     process.env.OPENROUTER_KEY = 'test-key';
     process.env.OPENROUTER_MODELS = 'test/model';
-    jest.spyOn(global, 'fetch')
+    jest
+      .spyOn(global, 'fetch')
       .mockResolvedValueOnce(new Response('server error', { status: 503 }))
-      .mockResolvedValueOnce(new Response(
-        JSON.stringify({ choices: [{ message: { content: 'resultado' } }] }),
-        { status: 200 },
-      ));
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ choices: [{ message: { content: 'resultado' } }] }),
+          { status: 200 },
+        ),
+      );
 
-    await expect(new AiService().generateText('system', 'user')).resolves.toBe('resultado');
+    await expect(new AiService().generateText('system', 'user')).resolves.toBe(
+      'resultado',
+    );
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries an empty model response once and then returns its content', async () => {
+    process.env.OPENROUTER_KEY = 'test-key';
+    process.env.OPENROUTER_MODELS = 'test/model';
+    const fetchMock = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: 'empty-request',
+            model: 'test/model',
+            choices: [
+              {
+                finish_reason: 'length',
+                message: { content: '' },
+              },
+            ],
+            usage: {
+              completion_tokens: 100,
+              completion_tokens_details: { reasoning_tokens: 100 },
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ choices: [{ message: { content: 'resultado' } }] }),
+          { status: 200 },
+        ),
+      );
+
+    await expect(
+      new AiService().generateText('system', 'user', {
+        operation: 'html_section',
+        sectionKey: 'intro',
+      }),
+    ).resolves.toBe('resultado');
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('sends the cache session and records cached-token usage', async () => {

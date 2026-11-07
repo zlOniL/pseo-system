@@ -108,7 +108,7 @@ export function renderLocalityLinksHtml(links: LocalityLink[]): string {
   const half = Math.ceil(items.length / 2);
   const column = (rows: string[]) =>
     `<div style="flex: 1; min-width: 260px;"><ul style="list-style: none; padding-left: 0;">\n${rows.join('\n')}\n</ul></div>`;
-  return `<section data-bib-locality-links="true">\n<h2 style="color: #320000;">${LOCALITY_LINKS_TITLE}</h2>\n<div style="display: flex; flex-wrap: wrap; gap: 20px;">\n${column(items.slice(0, half))}\n${column(items.slice(half))}\n</div>\n</section>`;
+  return `<section data-bib-locality-links="true">\n<h4 style="color: #320000;">${LOCALITY_LINKS_TITLE}</h4>\n<div style="display: flex; flex-wrap: wrap; gap: 20px;">\n${column(items.slice(0, half))}\n${column(items.slice(half))}\n</div>\n</section>`;
 }
 
 export function renderOtherLocalityLinksHtml(
@@ -125,7 +125,7 @@ export function renderOtherLocalityLinksHtml(
   const half = Math.ceil(items.length / 2);
   const column = (rows: string[]) =>
     `<div style="flex: 1; min-width: 260px;"><ul style="padding-left: 20px; margin: 0;">\n${rows.join('\n')}\n</ul></div>`;
-  return `<section data-bib-other-locality-links="true">\n<h2 style="color: #320000;">${OTHER_LOCALITY_LINKS_TITLE_PREFIX} ${escapedService} ${OTHER_LOCALITY_LINKS_TITLE_SUFFIX}</h2>\n<p style="color: #320000;">Para além desta localidade, prestamos <strong>serviços profissionais de ${serviceLower}</strong> em várias zonas de Portugal, com <strong>atendimento 24h / 7 dias</strong>, técnicos especializados e soluções completas para <strong>${serviceLower}</strong>, manutenção, assistência técnica, intervenções urgentes e acompanhamento programado.</p>\n<div style="display: flex; flex-wrap: wrap; gap: 20px;">\n${column(items.slice(0, half))}\n${column(items.slice(half))}\n</div>\n</section>`;
+  return `<section data-bib-other-locality-links="true">\n<h4 style="color: #320000;">${OTHER_LOCALITY_LINKS_TITLE_PREFIX} ${escapedService} ${OTHER_LOCALITY_LINKS_TITLE_SUFFIX}</h4>\n<p style="color: #320000;">Para além desta localidade, prestamos <strong>serviços profissionais de ${serviceLower}</strong> em várias zonas de Portugal, com <strong>atendimento 24h / 7 dias</strong>, técnicos especializados e soluções completas para <strong>${serviceLower}</strong>, manutenção, assistência técnica, intervenções urgentes e acompanhamento programado.</p>\n<div style="display: flex; flex-wrap: wrap; gap: 20px;">\n${column(items.slice(0, half))}\n${column(items.slice(half))}\n</div>\n</section>`;
 }
 
 /** Insert outside editable BIB_SECTION ranges. */
@@ -178,28 +178,34 @@ function insertHtmlAt(html: string, index: number, block: string): string {
 
 function findMoreAboutEndIndex(root: ReturnType<typeof parse>): number {
   const heading = root
-    .querySelectorAll('h2')
+    .querySelectorAll('h1, h2, h3, h4, h5, h6')
     .find((node) => /mais\s+sobre/i.test(node.text));
   if (!heading) return -1;
   const parent = heading.parentNode;
-  if (parent?.tagName === 'SECTION' && parent.querySelector('h2') === heading)
+  if (
+    parent?.tagName === 'SECTION' &&
+    parent.querySelector('h1, h2, h3, h4, h5, h6') === heading
+  )
     return parent.range[1];
   if (!parent) return heading.range[1];
   const siblings = parent.childNodes;
   const headingIndex = siblings.indexOf(heading);
   for (let i = headingIndex + 1; i < siblings.length; i++) {
-    if (/<h2\b/i.test(siblings[i].toString())) return siblings[i].range[0];
+    if (/<h[1-6]\b/i.test(siblings[i].toString())) return siblings[i].range[0];
   }
   return siblings.at(-1)?.range[1] ?? heading.range[1];
 }
 
 function findFaqStartIndex(root: ReturnType<typeof parse>): number {
   const heading = root
-    .querySelectorAll('h2')
+    .querySelectorAll('h1, h2, h3, h4, h5, h6')
     .find((node) => /perguntas\s+frequentes/i.test(node.text));
   if (!heading) return -1;
   const parent = heading.parentNode;
-  if (parent?.tagName === 'SECTION' && parent.querySelector('h2') === heading)
+  if (
+    parent?.tagName === 'SECTION' &&
+    parent.querySelector('h1, h2, h3, h4, h5, h6') === heading
+  )
     return parent.range[0];
   return heading.range[0];
 }
@@ -228,9 +234,8 @@ export function withLocalityLinksJson(
   let skipping = false;
   for (const block of content.article.blocks) {
     if (block.type === 'faq_list') skipping = false;
-    if (block.type === 'heading' && Number(block.level ?? 2) === 2) {
+    if (block.type === 'heading')
       skipping = isLocalityLinksHeading(String(block.text ?? ''));
-    }
     if (!skipping) blocks.push(block);
   }
   if (links.length) {
@@ -245,7 +250,7 @@ export function withLocalityLinksJson(
     blocks.splice(
       index,
       0,
-      { type: 'heading', level: 2, text: LOCALITY_LINKS_TITLE },
+      { type: 'heading', level: 4, text: LOCALITY_LINKS_TITLE },
       {
         type: 'list',
         items: links.map(
