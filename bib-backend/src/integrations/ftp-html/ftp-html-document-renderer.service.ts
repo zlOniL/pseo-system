@@ -36,6 +36,15 @@ const CONTENT_LAYOUT_STYLE = `<style data-pseo-content-layout>
 @media (max-width:600px){.pseo-content{width:100%!important;padding:24px 12px!important}}
 </style>`;
 
+const TEMPLATE_HEADING_FALLBACK_STYLE = `<style data-pseo-template-heading-fallback>
+:where([data-pseo-heading-level="1"]){font-size:2em;font-weight:bold;margin-block:.67em}
+:where([data-pseo-heading-level="2"]){font-size:1.5em;font-weight:bold;margin-block:.83em}
+:where([data-pseo-heading-level="3"]){font-size:1.17em;font-weight:bold;margin-block:1em}
+:where([data-pseo-heading-level="4"]){font-size:1em;font-weight:bold;margin-block:1.33em}
+:where([data-pseo-heading-level="5"]){font-size:.83em;font-weight:bold;margin-block:1.67em}
+:where([data-pseo-heading-level="6"]){font-size:.67em;font-weight:bold;margin-block:2.33em}
+</style>`;
+
 @Injectable()
 export class FtpHtmlDocumentRenderer {
   render(input: FtpHtmlRenderInput): string {
@@ -95,18 +104,30 @@ export class FtpHtmlDocumentRenderer {
   private demoteTemplateMainHeadings(prefix: string): string {
     return prefix.replace(/<main\b[^>]*>[\s\S]*?<\/main>/i, (main) =>
       main
-        .replace(/<h[1-6](\b[^>]*)>/gi, '<div$1>')
+        .replace(/<h([1-6])(\b[^>]*)>/gi, (_tag, level, attributes) =>
+          `<div${attributes} data-pseo-heading-level="${level}">`,
+        )
         .replace(/<\/h[1-6]\s*>/gi, '</div>'),
     );
   }
 
   applyContentLayout(document: string): string {
-    const withoutOldLayout = document.includes('data-pseo-content-layout')
-      ? document.replace(
+    const withHeadingFallback = document.includes(
+      'data-pseo-template-heading-fallback',
+    )
+      ? document
+      : document.replace(
+          /<\/head>/i,
+          `${TEMPLATE_HEADING_FALLBACK_STYLE}</head>`,
+        );
+    const withoutOldLayout = withHeadingFallback.includes(
+      'data-pseo-content-layout',
+    )
+      ? withHeadingFallback.replace(
           /<style\b[^>]*data-pseo-content-layout[^>]*>[\s\S]*?<\/style>/i,
           CONTENT_LAYOUT_STYLE,
         )
-      : document;
+      : withHeadingFallback;
 
     if (/class=["'][^"']*\bpseo-content\b[^"']*["']/i.test(withoutOldLayout)) {
       return withoutOldLayout;

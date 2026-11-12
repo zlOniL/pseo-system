@@ -67,8 +67,9 @@ describe('FtpHtmlDocumentRenderer', () => {
     const html = renderer.render({ template, fragmentHtml: fragment });
 
     expect(html).toContain(
-      '<body><nav>Menu</nav><main><div>Reparação de Estores</div></main>',
+      '<body><nav>Menu</nav><main><div data-pseo-heading-level="1">Reparação de Estores</div></main>',
     );
+    expect(html).toContain('data-pseo-template-heading-fallback');
     expect(html).toContain(fragment);
     expect(html).toContain(template.document_suffix);
     expect(html).toContain('<style data-pseo-content-layout>');
@@ -142,7 +143,9 @@ describe('FtpHtmlDocumentRenderer', () => {
       },
     });
 
-    expect(html).toContain('<div>Reparação de Termoacumuladores 24h</div>');
+    expect(html).toContain(
+      '<div data-pseo-heading-level="1">Reparação de Termoacumuladores 24h</div>',
+    );
     expect(html).toContain('915 463 419');
     expect(html).toContain('background-image:linear-gradient');
     expect(html).toContain('url(&quot;https://cdn.example/service.webp&quot;)');
@@ -204,7 +207,9 @@ describe('FtpHtmlDocumentRenderer', () => {
     expect(html).toContain(
       'href="https://urgentreparacoes.pt/reparacao-de-estores-em-lisboa.html"',
     );
-    expect(html).toContain('<div>Reparação de Estores em Lisboa</div>');
+    expect(html).toContain(
+      '<div data-pseo-heading-level="1">Reparação de Estores em Lisboa</div>',
+    );
   });
 
   it('deduplicates SEO metadata and creates a missing canonical URL', () => {
