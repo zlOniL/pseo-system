@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { publishContentWithRemoteConfirm } from '@/lib/publish';
+import { contentQualityWarning } from '@/lib/score-warning';
 import {
   Content,
   RelatedService,
@@ -438,6 +439,8 @@ export function UnifiedLayout({ initialContent }: Props) {
     setError(null);
 
     try {
+      const scoreWarning = contentQualityWarning([content]);
+      if (scoreWarning) toast.warning(scoreWarning);
       const result = await api.approveContent(content.id);
       setContent(result);
       toast.success('Página aprovada.');
@@ -457,6 +460,8 @@ export function UnifiedLayout({ initialContent }: Props) {
     setError(null);
 
     try {
+      const scoreWarning = contentQualityWarning([content]);
+      if (scoreWarning) toast.warning(scoreWarning);
       const result = await publishContentWithRemoteConfirm(content.id);
       setContent(result);
       toast.success(

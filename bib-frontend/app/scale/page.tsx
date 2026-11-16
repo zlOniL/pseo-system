@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { publishContentWithRemoteConfirm } from '@/lib/publish';
+import { contentQualityWarning } from '@/lib/score-warning';
 import {
   Content,
   ContentSummary,
@@ -1576,6 +1577,10 @@ function ScalePageContent() {
       .filter((item): item is ContentSummary => activeView === 'review' && item.status === 'draft')
       .map((item) => item.id);
     if (ids.length === 0) return;
+    const scoreWarning = contentQualityWarning(selectedRows.filter(
+      (item): item is ContentSummary => activeView === 'review' && item.status === 'draft',
+    ));
+    if (scoreWarning) toast.warning(scoreWarning);
 
     setBulkLoading(true);
     try {
@@ -1593,6 +1598,8 @@ function ScalePageContent() {
   async function handleBulkPublish() {
     const selected = selectedRows.filter((item): item is ContentSummary => activeView === 'review' && item.status === 'approved');
     if (!selected.length) return;
+    const scoreWarning = contentQualityWarning(selected);
+    if (scoreWarning) toast.warning(scoreWarning);
     setBulkLoading(true);
     setActionErrors([]);
     const failures: string[] = [];
@@ -1632,6 +1639,8 @@ function ScalePageContent() {
 
   async function approveContentItem(content: ContentSummary) {
     try {
+      const scoreWarning = contentQualityWarning([content]);
+      if (scoreWarning) toast.warning(scoreWarning);
       await api.approveContent(content.id);
       toast.success(`${content.main_keyword} aprovada.`);
       void loadPage(false);
@@ -1642,6 +1651,8 @@ function ScalePageContent() {
 
   async function publishContentItem(content: ContentSummary) {
     try {
+      const scoreWarning = contentQualityWarning([content]);
+      if (scoreWarning) toast.warning(scoreWarning);
       await publishContentWithRemoteConfirm(content.id);
       toast.success(`${content.main_keyword} publicada.`);
       void loadPage(false);

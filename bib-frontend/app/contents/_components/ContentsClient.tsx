@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { PaginatedContents, Service } from '@/lib/types';
+import { contentQualityWarning } from '@/lib/score-warning';
 import { ContentRow } from './ContentRow';
 
 const LIMIT_OPTIONS = [10, 25, 50, 100, 250, 500, 1000];
@@ -137,6 +138,8 @@ export default function ContentsClient({ services, siteId }: ContentsClientProps
       (id) => result.data.find((c) => c.id === id)?.status === 'draft',
     );
     if (ids.length === 0) return;
+    const scoreWarning = contentQualityWarning(result.data.filter((content) => ids.includes(content.id)));
+    if (scoreWarning) toast.warning(scoreWarning);
     setBulkLoading(true);
     try {
       await api.bulkApprove(ids);
@@ -179,6 +182,8 @@ export default function ContentsClient({ services, siteId }: ContentsClientProps
       (id) => result.data.find((c) => c.id === id)?.status === 'approved',
     );
     if (ids.length === 0) return;
+    const scoreWarning = contentQualityWarning(result.data.filter((content) => ids.includes(content.id)));
+    if (scoreWarning) toast.warning(scoreWarning);
 
     setBulkLoading(true);
     setBulkProgress(0);

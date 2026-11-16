@@ -32,7 +32,7 @@ export class ValidationService {
       if (count !== 1) {
         validHeadingCounts = false;
         issues.push(
-          `[BLOQUEIO] ${tag}: esperado exatamente 1, encontrados ${count}`,
+          `[AVISO] ${tag}: esperado exatamente 1, encontrados ${count}`,
         );
       }
     }
@@ -41,12 +41,12 @@ export class ValidationService {
     );
     if (!h1 || firstContentHeading !== h1) {
       validHeadingCounts = false;
-      issues.push('[BLOQUEIO] O H1 deve ser o primeiro titulo do conteudo');
+      issues.push('[AVISO] O H1 deve ser o primeiro titulo do conteudo');
     }
     for (const heading of allHeadings) {
       if (!heading.text.trim()) {
         validHeadingCounts = false;
-        issues.push(`[BLOQUEIO] ${heading.tagName} vazio`);
+        issues.push(`[AVISO] ${heading.tagName} vazio`);
       }
     }
     if (validHeadingCounts) structure += 20;
@@ -60,7 +60,7 @@ export class ValidationService {
     });
     if (!headingOrder) {
       validHeadingCounts = false;
-      issues.push('[BLOQUEIO] Hierarquia de headings com salto de nivel');
+      issues.push('[AVISO] Hierarquia de headings com salto de nivel');
     }
     if (h4Plus.length > 0) structure += 10;
 
@@ -118,7 +118,7 @@ export class ValidationService {
     if (!hasUnfilledPlaceholders) {
       content += 10;
     } else {
-      issues.push('[BLOQUEIO] Existem placeholders {{...}} nao preenchidos');
+      issues.push('[AVISO] Existem placeholders {{...}} nao preenchidos');
     }
 
     const links = contentRoot.querySelectorAll('a');

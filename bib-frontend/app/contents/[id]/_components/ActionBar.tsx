@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { publishContentWithRemoteConfirm } from "@/lib/publish";
 import { Content } from "@/lib/types";
 import { scaleReviewHrefForContent } from "@/lib/routes";
+import { contentQualityWarning } from "@/lib/score-warning";
 import { RegenerateForm } from "./RegenerateForm";
 import { ScoreCard } from "@/app/generate/_components/ScoreCard";
 
@@ -19,6 +20,8 @@ export function ActionBar({ content }: { content: Content }) {
   async function handleApprove() {
     setLoading(true);
     try {
+      const scoreWarning = contentQualityWarning([content]);
+      if (scoreWarning) toast.warning(scoreWarning);
       await api.approveContent(content.id);
       toast.success("Página aprovada!");
       router.refresh();
@@ -32,6 +35,8 @@ export function ActionBar({ content }: { content: Content }) {
   async function handlePublish() {
     setLoading(true);
     try {
+      const scoreWarning = contentQualityWarning([content]);
+      if (scoreWarning) toast.warning(scoreWarning);
       await publishContentWithRemoteConfirm(content.id);
       toast.success("Publicado no WordPress!");
       router.refresh();
