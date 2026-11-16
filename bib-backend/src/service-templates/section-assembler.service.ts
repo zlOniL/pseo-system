@@ -127,14 +127,16 @@ export class SectionAssemblerService {
       prepared?.rows ?? (await this.library.getRandomVersions(service.id));
 
     const parts: string[] = [];
+    const hasImages = service.images.some((image) => image?.trim());
     for (const key of SECTION_KEYS) {
       const section = randomVersions.get(key);
       if (!section) continue;
-      parts.push(
-        prepared
-          ? (section.html ?? '')
-          : replaceKeyword(section.html ?? '', section.base_city, city),
-      );
+      const html = prepared
+        ? (section.html ?? '')
+        : replaceKeyword(section.html ?? '', section.base_city, city);
+      parts.push(hasImages
+        ? `<!-- BIB_SECTION:${key} -->\n${html}\n<!-- /BIB_SECTION:${key} -->`
+        : html);
     }
 
     let html = await this.localityLinks.html(

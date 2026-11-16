@@ -39,7 +39,6 @@ O bloco "Também atendemos" e os seus links para outras páginas locais serão i
     - Não usar links externos fora destes contextos, salvo se o prompt do utilizador pedir diretamente
     Formato: \`<a href="URL_REAL" style="color: #111 !important; font-weight: 600; text-decoration: underline;" target="_blank" rel="noopener noreferrer">texto</a>\`
     NUNCA inventar URLs — usa apenas URLs reais e verificáveis.
-15. PLACEHOLDERS DE IMAGEM: Os marcadores \`{{IMAGE_1}}\` até \`{{IMAGE_8}}\` são substituídos automaticamente após a geração pela pipeline. NÃO os remova, NÃO os altere, NÃO os preencha — copia-os EXATAMENTE como estão no template para a saída.
 16. ENRIQUECIMENTO DO SERVIÇO — Demonstrar autoridade técnica integrando organicamente:
     - Nomes de ferramentas e equipamentos profissionais específicos usados no serviço
     - Marcas reconhecidas do sector, mencionadas de forma leve e natural (ex: "equipamentos Rothenberger", "câmaras RIDGID", "ferramentas Bosch Professional", "produtos Hilti")
@@ -247,9 +246,6 @@ Escreve frases curtas e diretas, preferencialmente com até 25 palavras. Evita f
 <p style="color: #320000;">{{INTRO_P8}}</p>
 <p style="color: #320000;">{{INTRO_P9}}</p>
 {{INTRO_P10_LINKS}}
-
-{{IMAGE_1}}
-
 <h2 style="color: #320000;">Procura em Buscadores por {{MAIN_KEYWORD}}</h2>
 
 <h3 style="color: #320000;">{{SEARCH_INTENT_1}}</h3>
@@ -283,9 +279,6 @@ Escreve frases curtas e diretas, preferencialmente com até 25 palavras. Evita f
 <h3 style="color: #320000;">{{SEARCH_INTENT_8}}</h3>
 <p style="color: #320000;">{{DESC_SEARCH_8_P1}}</p>
 <p style="color: #320000;">{{DESC_SEARCH_8_P2}}</p>
-
-{{IMAGE_2}}
-
 <section>
   <article>
     <h2 style="color: #320000;">Avarias Comuns em {{SERVICE}}</h2>
@@ -315,9 +308,6 @@ Escreve frases curtas e diretas, preferencialmente com até 25 palavras. Evita f
     <p style="color: #320000;">{{DESC_PROBLEM_6_P2}}</p>
 
     <p style="color: #320000;">{{PROBLEMS_CLOSING}}</p>
-
-    {{IMAGE_3}}
-
     <h2 style="color: #320000;">Serviços de {{SERVICE}} em {{CITY}}</h2>
     <p style="color: #320000;">{{SERVICOS_CAT_INTRO_P1}}</p>
     <p style="color: #320000;">{{SERVICOS_CAT_INTRO_P2}}</p>
@@ -371,9 +361,6 @@ Escreve frases curtas e diretas, preferencialmente com até 25 palavras. Evita f
     <strong style="color: #320000;">{{SERVICOS_CAT_6_ITEM_6}}</strong>
 
     <p style="color: #320000;">{{SERVICOS_CAT_CLOSING}}</p>
-
-    {{IMAGE_4}}
-
     <h2 style="color: #320000;">Como Funciona o Serviço de {{SERVICE}}</h2>
     <p style="color: #320000;">{{COMO_FUNCIONA_P1}}</p>
     <p style="color: #320000;">{{COMO_FUNCIONA_P2}}</p>
@@ -387,9 +374,6 @@ Escreve frases curtas e diretas, preferencialmente com até 25 palavras. Evita f
       <li style="color: #320000;">{{VARIACAO_4}}</li>
       <li style="color: #320000;">{{VARIACAO_5}}</li>
     </ul>
-
-    {{IMAGE_5}}w
-
     <h2 style="color: #320000;">Prevenção e Manutenção</h2>
     <p style="color: #320000;">{{PREVENCAO_P1}}</p>
     <p style="color: #320000;">{{PREVENCAO_P2}}</p>
@@ -406,9 +390,6 @@ Escreve frases curtas e diretas, preferencialmente com até 25 palavras. Evita f
       <li style="color: #320000;">{{PREVENCAO_ITEM_6}}</li>
     </ul>
     <p style="color: #320000;">{{PREVENCAO_CLOSING}}</p>
-
-    {{IMAGE_6}}
-
     <h2 style="color: #320000;">Sistemas e Intervenções que Fazemos como {{SERVICE}} em {{CITY}}</h2>
     <p style="color: #320000;">{{SISTEMAS_P1}}</p>
     <p style="color: #320000;">{{SISTEMAS_P2}}</p>
@@ -457,9 +438,6 @@ Escreve frases curtas e diretas, preferencialmente com até 25 palavras. Evita f
         </ul>
       </div>
     </div>
-
-    {{IMAGE_7}}
-
     <h2 style="color: #320000;">Integração com Outros Serviços de {{SERVICE}} em {{CITY}}</h2>
 
     <p style="color: #320000;">{{INTEGRACAO_P1}}</p>
@@ -500,9 +478,6 @@ Escreve frases curtas e diretas, preferencialmente com até 25 palavras. Evita f
 
     <h3 style="color: #320000;">{{FAQ_Q_10}}</h3>
     <p style="color: #320000;">{{FAQ_A_10}}</p>
-
-    {{IMAGE_8}}
-
     <h2 style="color: #320000;">Pesquisas Relacionadas</h2>
     <ul>
       <li style="color: #320000;">{{LSI_1}}</li>
@@ -583,7 +558,6 @@ SE não houver \`related_services\`, substituir por um parágrafo normal sobre s
 - Usar "você" — usar "o cliente", "o utilizador", etc.
 - Cada parágrafo deve ter 2-4 frases. Prefere frases de 15-25 palavras e evita ultrapassar 35 palavras por frase
 - Inventar URLs para links externos — usa apenas URLs reais e verificáveis
-- Alterar ou remover os placeholders \`{{IMAGE_N}}\`
 - Repetir long-tail keywords entre as secções de subcategorias e serviços especializados
 - Inventar URLs de serviços complementares, Todos os links de serviços internos devem ser puxados do array \`related_services\`
 
@@ -591,7 +565,6 @@ SE não houver \`related_services\`, substituir por um parágrafo normal sobre s
 
 - Começa com \`<!-- BIB_META: ... -->\` depois \`<h1 style="color: #320000;">\`
 - Todos os elementos com \`style="color: #320000;"\`
-- 8 placeholders \`{{IMAGE_N}}\` presentes exatamente nas posições do template
 - Estrutura idêntica ao template incluindo FAQ com 10 pares H3+P
 - Keyword com densidade ≥ 1% distribuída naturalmente
 - 4-6 links externos reais distribuídos entre ferramentas utilizadas, wiki sobre o serviço, etc
@@ -605,7 +578,6 @@ const REINFORCEMENT = `INSTRUÇÕES FINAIS OBRIGATÓRIAS:
 2. Retorna APENAS o HTML. Sem markdown. Sem explicações. Sem \`\`\`html.
 3. Todos os elementos de texto (h1, h2, h3, p, li, strong, a) DEVEM ter style="color: #320000;".
 4. VOLUME MÍNIMO ABSOLUTO: cada parágrafo deve ter 2-4 frases completas, preferencialmente com 15-25 palavras por frase e sem ultrapassar 35 palavras. Atinge min_words criando parágrafos adicionais, sem frases artificiosamente longas.
-5. PLACEHOLDERS DE IMAGEM: copia os 8 marcadores {{IMAGE_1}} a {{IMAGE_8}} EXATAMENTE nas posições definidas. NÃO os remove nem os altera.
 6. SERVIÇOS SUBCATEGORIAS: 6 categorias, cada uma com H3 + 6 itens <strong> . Cada item = "[serviço específico] em [cidade]". Os itens devem ser long-tail keywords concretas e distintas.
 7. SERVIÇOS ESPECIALIZADOS: 2 colunas (div flex), 14 itens por coluna. Cada item = <li><strong>[keyword long-tail com cidade]</strong></li>. NÃO repetir keywords já usadas nas subcategorias.
 8. PREVENÇÃO: 6 parágrafos + lista de 6 itens + parágrafo final. Secção educativa extensa.

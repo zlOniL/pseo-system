@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { AiService } from '../ai/ai.service';
 import { AiUsageService } from '../ai/ai-usage.service';
+import { parse } from 'node-html-parser';
 import { ValidationService } from '../validation/validation.service';
 import { ContentsService, Content } from '../contents/contents.service';
 import { ContentSectionsService } from '../contents/content-sections.service';
@@ -184,7 +185,7 @@ export class GenerationService {
     return content;
   }
 
-  /** Returns raw HTML (with {{IMAGE_N}} still present) before image injection. */
+  /** Returns raw HTML before backend image placement. */
   async buildHtmlRaw(
     dto: GenerateDto,
     feedback?: string,
@@ -252,29 +253,33 @@ export class GenerationService {
     const promptContext = this.promptContext.resolve({ service: dto.service });
     const config = getSectionVolumeConfig();
 
+    const generateSection = async (sectionKey: HtmlSectionKey): Promise<void> => {
+      const targetWords = sectionTargetWords(sectionKey, minWords, config);
+      const minimumWords = sectionMinimumWords(sectionKey, minWords, config);
+      const maximumWords = sectionMaximumWords(sectionKey, minWords, config);
+      const startedAt = Date.now();
+      const html = await this.generateWpSectionWithRepair({
+        dto,
+        feedback,
+        sectionKey,
+        targetWords,
+        minimumWords,
+        maximumWords,
+        generatedSummary: this.parallelSectionSummary(sectionKey),
+        promptContext,
+      });
+      sections[sectionKey] = html;
+      this.logger.log(
+        `Generated WP section ${sectionKey} (${this.countVisibleWords(html)} words) in ${Date.now() - startedAt}ms`,
+      );
+    };
+
+    // Fail fast on a missing H1 before spending calls on the other sections.
+    await generateSection('intro');
     await runWithConcurrency(
-      SECTION_KEYS,
+      SECTION_KEYS.filter((sectionKey) => sectionKey !== 'intro'),
       config.sectionConcurrency,
-      async (sectionKey) => {
-        const targetWords = sectionTargetWords(sectionKey, minWords, config);
-        const minimumWords = sectionMinimumWords(sectionKey, minWords, config);
-        const maximumWords = sectionMaximumWords(sectionKey, minWords, config);
-        const startedAt = Date.now();
-        const html = await this.generateWpSectionWithRepair({
-          dto,
-          feedback,
-          sectionKey,
-          targetWords,
-          minimumWords,
-          maximumWords,
-          generatedSummary: this.parallelSectionSummary(sectionKey),
-          promptContext,
-        });
-        sections[sectionKey] = html;
-        this.logger.log(
-          `Generated WP section ${sectionKey} (${this.countVisibleWords(html)} words) in ${Date.now() - startedAt}ms`,
-        );
-      },
+      generateSection,
     );
 
     this.logger.log(
@@ -561,7 +566,17 @@ export class GenerationService {
       )
       .trim();
 
-    return `<!-- BIB_SECTION:${sectionKey} -->\n${html}\n<!-- /BIB_SECTION:${sectionKey} -->`;
+    const sectionHtml = `<!-- BIB_SECTION:${sectionKey} -->\n${html}\n<!-- /BIB_SECTION:${sectionKey} -->`;
+    if (sectionKey === 'intro') {
+      const h1Count = parse(sectionHtml).querySelectorAll('h1').length;
+      if (h1Count !== 1) {
+        throw new BadRequestException(
+          `Secao intro invalida: esperado exatamente 1 H1, encontrado ${h1Count}.`,
+        );
+      }
+    }
+
+    return sectionHtml;
   }
 
   private countVisibleWords(html: string): number {

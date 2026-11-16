@@ -108,21 +108,21 @@ function sectionInstructions(
 - Termina com chamada para contacto.
 - Se houver servicos relacionados, gera um paragrafo com links internos usando apenas os URLs fornecidos.
 - Nao geres nenhum <h2> nesta secao.
-- No fim inclui exatamente {{IMAGE_1}}.`;
+- Termina a secao sem adicionar marcadores nem imagens.`;
     case 'assistencia_especializada':
       return `Gera a secao completa:
 <h2 style="color: #320000;">Assistencia Especializada de ${service}${citySuffix}</h2>
 - Explica por que o servico deve ser feito por tecnicos especializados.
 - Mostra que a avaria pode ter varias causas e que nao se deve trocar pecas ou intervir sem diagnostico.
 - Reforca diagnostico tecnico, seguranca, durabilidade, prevencao de avarias maiores e evitar trocas desnecessarias.
-- No fim inclui exatamente {{IMAGE_2}}.`;
+- Termina a secao sem adicionar marcadores nem imagens.`;
     case 'tipos':
       return `Gera a secao completa:
 <h3 style="color: #320000;">Tipos de ${service}${citySuffix}</h3>
 - Esta e a unica secao H3 da pagina. Lista e explica os principais tipos relacionados ao servico usando titulos H4 para cada tipo.
 - Cria titulos H4 com 2 a 4 paragrafos curtos e especificos.
 - Adapta os tipos ao servico pedido, sem importar problemas de outros servicos.
-- No fim inclui exatamente {{IMAGE_3}}.`;
+- Termina a secao sem adicionar marcadores nem imagens.`;
     case 'servicos':
       return `Gera a secao completa:
 <h4 style="color: #320000;">Servicos Realizados de ${service}${citySuffix}</h4>
@@ -131,7 +131,7 @@ function sectionInstructions(
 - Inclui uma subseccao <h4 style="color: #320000;">Marcas e componentes compativeis</h4>.
 - Nesta subseccao, inclui links externos clicaveis para sites oficiais de marcas/componentes relacionados ao servico sempre que o URL real for conhecido.
 - Nao uses links internos nem URLs inventados nesta subseccao.
-- No fim inclui exatamente {{IMAGE_4}}.`;
+- Termina a secao sem adicionar marcadores nem imagens.`;
     case 'avarias_comuns':
       return `Gera a secao completa:
 <h4 style="color: #320000;">Principais Problemas que Resolvemos em ${service}${citySuffix}</h4>
@@ -148,14 +148,14 @@ function sectionInstructions(
 - Foca urgencia, atendimento 24H/7, sabados, domingos e feriados.
 - Explica situacoes que nao podem esperar no servico especifico.
 - Reforca piquetes moveis, diagnostico antes da intervencao e servico sem improvisos.
-- No fim inclui exatamente {{IMAGE_5}}.`;
+- Termina a secao sem adicionar marcadores nem imagens.`;
     case 'prevencao':
       return `Gera a secao:
 <h4 style="color: #320000;">Manutencao e Prevencao de ${service}${citySuffix}</h4>
 - Explica a importancia da manutencao preventiva e os sinais pequenos que devem ser resolvidos cedo.
 - Mostra como a manutencao reduz urgencias, evita custos maiores e prolonga a vida util.
 - Inclui lista de acoes preventivas concretas.
-- No fim inclui exatamente {{IMAGE_6}}.`;
+- Termina a secao sem adicionar marcadores nem imagens.`;
     case 'reparar_ou_substituir':
       return `Gera a secao:
 <h4 style="color: #320000;">Reparar ou Substituir ${service}${citySuffix}?</h4>
@@ -174,7 +174,7 @@ function sectionInstructions(
 - Liga o servico principal a servicos complementares.
 - Se houver servicos relacionados, cria uma lista com exatamente um <li> por servico relacionado, usando o URL real fornecido.
 - Se nao houver servicos relacionados, cita servicos complementares naturalmente, sem links e sem inventar URLs.
-- No fim inclui exatamente {{IMAGE_7}}.`;
+- Termina a secao sem adicionar marcadores nem imagens.`;
     case 'contexto_local':
       return `Gera a secao:
 <h4 style="color: #320000;">${city ? `Contexto Local ${formatLocationPhrase(city)}` : 'Zonas de Atendimento'}</h4>
@@ -191,7 +191,7 @@ function sectionInstructions(
 <h4 style="color: #320000;">Perguntas Frequentes sobre ${mainKeyword}</h4>
 - Perguntas frequentes completas sobre atendimento 24H/7, orcamento, diagnostico, avarias, reparacao no local, empresas, condominios, reparar/substituir e perguntas especificas do servico.
 - Cada resposta deve comecar com <strong style="color: #320000;">SIM.</strong> ou confirmacao equivalente.
-- No fim inclui exatamente {{IMAGE_8}}.`;
+- Termina a secao sem adicionar marcadores nem imagens.`;
     case 'contacte_empresa':
       return `Gera a secao:
 <h4 style="color: #320000;">Contacte a Empresa para ${service}${citySuffix}</h4>
@@ -251,7 +251,6 @@ ${input.currentHtml}
 Regras:
 - Reescreve e expande a mesma secao.
 - Mantem o H2/H3/listas principais da secao.
-- Nao removas placeholders {{IMAGE_N}} se existirem.
 - Nao alteres a secao para outro tema.
 - Nova versao deve mirar ${input.targetWords} palavras visiveis.
 

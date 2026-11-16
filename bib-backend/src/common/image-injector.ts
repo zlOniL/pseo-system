@@ -1,16 +1,26 @@
 import { formatLocationPhrase } from './location-preposition';
 
-// Structural anchor patterns: inject images BEFORE these section headers.
-// Ordered to match the 8 template positions used by the 15-module prompt.
-const STRUCTURAL_ANCHORS = [
-  /(<h2[^>]*>[^<]*Assist[eê]ncia\s+Especializada)/i,
-  /(<h2[^>]*>[^<]*Tipos\s+de\s)/i,
-  /(<h2[^>]*>[^<]*Servi[cç]os\s+Realizados)/i,
-  /(<h2[^>]*>[^<]*Manuten[cç][aã]o\s+e\s+Preven)/i,
-  /(<h2[^>]*>[^<]*Reparar\s+ou\s+Substituir)/i,
-  /(<h2[^>]*>[^<]*Integra[cç][aã]o\s+com)/i,
-  /(<h2[^>]*>[^<]*(?:Zonas\s+de\s+Atendimento|Contexto\s+Local))/i,
-  /(<h2[^>]*>[^<]*Perguntas\s+Frequentes)/i,
+const IMAGE_SECTIONS = [
+  ['intro', 0],
+  ['assistencia_especializada', 1],
+  ['tipos', 2],
+  ['servicos', 3],
+  ['servico_24h', 4],
+  ['prevencao', 5],
+  ['integracao_servicos', 6],
+  ['perguntas_frequentes', 7],
+] as const;
+
+// Legacy monolithic HTML has different section names and image positions.
+const MONOLITHIC_ANCHORS = [
+  /(<h2\b[^>]*>[^<]*Procura\s+em\s+Buscadores)/i,
+  /(<h2\b[^>]*>[^<]*Avarias\s+Comuns)/i,
+  /(<h2\b[^>]*>[^<]*Servi[cç]os\s+de\s)/i,
+  /(<h2\b[^>]*>[^<]*Como\s+Funciona)/i,
+  /(<h2\b[^>]*>[^<]*Preven[cç][aã]o\s+e\s+Manuten[cç][aã]o)/i,
+  /(<h2\b[^>]*>[^<]*Sistemas\s+e\s+Interven[cç][oõ]es)/i,
+  /(<h2\b[^>]*>[^<]*Integra[cç][aã]o\s+com)/i,
+  /(<h2\b[^>]*>[^<]*Pesquisas\s+Relacionadas)/i,
 ];
 
 export function injectImages(
@@ -24,54 +34,67 @@ export function injectImages(
   const alts = [
     keyword,
     `${service} profissional${location}`,
+    `tipos de ${service}${location}`,
     `servicos de ${service}${location}`,
-    `manutencao de ${service}${location}`,
-    `reparar ou substituir ${service}${location}`,
+    `atendimento ${service} 24 horas${location}`,
+    `manutencao preventiva de ${service}${location}`,
     `servicos relacionados com ${service}${location}`,
-    `atendimento de ${service}${location}`,
-    `${service} urgente 24h${location}`,
+    `perguntas frequentes sobre ${service}${location}`,
   ];
 
-  const injected = new Set<number>();
+  const hasSectionMarkers = /<!--\s*BIB_SECTION:/i.test(html);
+  if (hasSectionMarkers) {
+    // Section-keyed placement is deterministic; legacy model tokens are discarded.
+    html = stripImagePlaceholders(html);
+    for (const [sectionKey, imageIndex] of IMAGE_SECTIONS) {
+      const src = images[imageIndex]?.trim();
+      if (!src) continue;
+      const section = new RegExp(
+        `(<!--\\s*BIB_SECTION:${sectionKey}\\s*-->)([\\s\\S]*?)(<!--\\s*\\/BIB_SECTION:${sectionKey}\\s*-->)`,
+        'i',
+      );
+      html = html.replace(section, (_match, open: string, content: string, close: string) =>
+        `${open}${content}${/<img\b/i.test(content) ? '' : buildImgHtml(src, alts[imageIndex] ?? keyword)}${close}`,
+      );
+    }
+    return stripImagePlaceholders(html);
+  }
 
+  // Preserve old, backend-stored slots while migrating to deterministic placement.
+  const injected = new Set<number>();
   for (let i = 0; i < 8; i++) {
     const src = images[i]?.trim();
     const imgHtml = src ? buildImgHtml(src, alts[i] ?? keyword) : '';
-
-    const withPTag = new RegExp(
-      `<p[^>]*>\\s*\\{\\{\\s*IMAGE_${i + 1}\\s*\\}\\}\\s*<\\/p>`,
-      'gi',
-    );
-    const plain = new RegExp(`\\{\\{\\s*IMAGE_${i + 1}\\s*\\}\\}`, 'gi');
-
-    const before = html;
-    html = html.replace(withPTag, imgHtml);
-    if (html === before) {
-      html = html.replace(plain, imgHtml);
-    }
-    if (html !== before) {
-      injected.add(i);
+    const token = new RegExp(`\\{\\{\\s*IMAGE_${i + 1}\\s*\\}\\}`, 'gi');
+    if (token.test(html)) {
+      token.lastIndex = 0;
+      html = html.replace(token, imgHtml);
+      if (src) injected.add(i);
     }
   }
 
   for (let i = 0; i < 8; i++) {
-    if (injected.has(i)) continue;
     const src = images[i]?.trim();
-    if (!src) continue;
-
-    const anchor = STRUCTURAL_ANCHORS[i];
-    if (anchor && anchor.test(html)) {
-      html = html.replace(
-        anchor,
-        `${buildImgHtml(src, alts[i] ?? keyword)}\n$1`,
-      );
-    }
+    if (!src || injected.has(i)) continue;
+    const anchor = MONOLITHIC_ANCHORS[i];
+    if (anchor?.test(html))
+      html = html.replace(anchor, `${buildImgHtml(src, alts[i] ?? keyword)}\n$1`);
   }
 
-  html = html.replace(/<p[^>]*>\s*\{\{\s*IMAGE_\d+\s*\}\}\s*<\/p>/gi, '');
-  html = html.replace(/\{\{\s*IMAGE_\d+\s*\}\}/gi, '');
+  return stripImagePlaceholders(html);
+}
 
-  return html;
+function stripImagePlaceholders(html: string): string {
+  return html.replace(/\{\{[^}]+\}\}/gi, (token) =>
+    isImagePlaceholder(token) ? '' : token,
+  );
+}
+
+function isImagePlaceholder(token: string): boolean {
+  const name = token.slice(2, -2).replace(/[^a-z]/gi, '').toUpperCase();
+  return ['IMAGE', 'IMAG', 'IMGE', 'IMAE', 'MAGE'].some((prefix) =>
+    name.startsWith(prefix),
+  );
 }
 
 function buildImgHtml(src: string, alt: string): string {

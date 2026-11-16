@@ -32,7 +32,7 @@ function classifyH2(h2Text: string): SectionKey | 'atendemos_tambem' | null {
   return null;
 }
 
-/** Normalises injected <img> blocks back to {{IMAGE_N}} placeholders. */
+/** Keeps backend-managed image slots when extracting reusable sections. */
 function normaliseImages(html: string): string {
   let counter = 0;
   return html.replace(
@@ -108,7 +108,7 @@ function sectionsFromHeadings(html: string): Map<SectionKey, string> {
 /**
  * Extracts marked sections first, then falls back to known H2 headings.
  * Returns only sections present in SECTION_KEYS (excludes atendemos_tambem).
- * Image blocks are normalised to {{IMAGE_N}} placeholders.
+ * Existing image blocks become backend-managed slots for later placement.
  */
 export function parseHtmlSections(html: string): ParsedSections {
   const normalised = normaliseImages(

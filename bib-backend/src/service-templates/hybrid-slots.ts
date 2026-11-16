@@ -131,12 +131,6 @@ export function validateSlotValues(
       /<\/?[a-z][^>]*>/i.test(value)
     )
       throw new Error(`A IA inseriu HTML num campo de texto (slot ${s.id}).`);
-    const tokens = (s.value.match(/\{\{IMAGE_\d+\}\}/g) ?? []).sort();
-    if (
-      JSON.stringify(tokens) !==
-      JSON.stringify((value.match(/\{\{IMAGE_\d+\}\}/g) ?? []).sort())
-    )
-      throw new Error('A IA alterou placeholders de imagem.');
   }
 }
 
