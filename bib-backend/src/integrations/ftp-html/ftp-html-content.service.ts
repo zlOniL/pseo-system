@@ -112,6 +112,7 @@ export class FtpHtmlContentService {
       bannerImageUrl: this.getBannerUrl(input.service),
       bannerImageAlt:
         input.service.featured_image_alt ?? `${input.service.name} - assistência profissional`,
+      preserveTemplateH1: isUrgenteReparacoesSite(remotePage.public_url),
     });
 
     return {
@@ -348,6 +349,17 @@ export class FtpHtmlContentService {
 
   private getBannerUrl(service: Service): string | null {
     return service.featured_image_url ?? service.images?.find(Boolean) ?? null;
+  }
+}
+
+function isUrgenteReparacoesSite(publicUrl: string | null): boolean {
+  if (!publicUrl) return false;
+
+  try {
+    return new URL(publicUrl).hostname.replace(/^www\./i, '').toLowerCase()
+      === 'urgentreparacoes.pt';
+  } catch {
+    return false;
   }
 }
 

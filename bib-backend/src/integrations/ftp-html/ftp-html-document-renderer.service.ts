@@ -19,6 +19,7 @@ export interface FtpHtmlRenderInput {
   videoUrl?: string | null;
   bannerImageUrl?: string | null;
   bannerImageAlt?: string | null;
+  preserveTemplateH1?: boolean;
   seo?: FtpHtmlSeoFields;
   textReplacements?: Array<{ from: string; to: string }>;
 }
@@ -67,16 +68,19 @@ export class FtpHtmlDocumentRenderer {
         (replacement) => replacement.from !== '{{SERVICE_NAME}}',
       ),
     );
-    const prefix = this.demoteTemplateMainHeadings(
-      replaceServiceName(prefixWithReplacements),
-    );
-    const fragmentHtml = this.reconcileH1(prefix, input.fragmentHtml);
+    const resolvedPrefix = replaceServiceName(prefixWithReplacements);
+    const prefix = input.preserveTemplateH1
+      ? this.demoteTemplateMainHeadings(resolvedPrefix)
+      : resolvedPrefix;
+    const fragmentHtml = input.preserveTemplateH1
+      ? this.reconcileH1(prefix, input.fragmentHtml)
+      : input.fragmentHtml;
     const content = `${renderVideoSection(input.videoUrl)}${fragmentHtml}`;
     const document = this.applyContentLayout(
       `${prefix}${content}${replaceServiceName(input.template.document_suffix)}`,
     );
 
-    this.assertValidDocument(document);
+    this.assertValidDocument(document, input.preserveTemplateH1 === true);
     return document;
   }
 
@@ -298,7 +302,7 @@ export class FtpHtmlDocumentRenderer {
     return `${head}${shell}`;
   }
 
-  private assertValidDocument(document: string): void {
+  private assertValidDocument(document: string, requireSingleH1: boolean): void {
     const checks: Array<[string, RegExp, number]> = [
       ['DOCTYPE', /<!doctype\b/gi, 1],
       ['html', /<html\b/gi, 1],
@@ -320,7 +324,7 @@ export class FtpHtmlDocumentRenderer {
     }
 
     const h1Count = parse(document).querySelectorAll('h1').length;
-    if (h1Count !== 1) {
+    if (requireSingleH1 && h1Count !== 1) {
       throw new BadRequestException(
         `Documento FTP invalido: esperado exatamente 1 H1, encontrado ${h1Count}.`,
       );
