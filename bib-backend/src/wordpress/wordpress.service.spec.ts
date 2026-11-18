@@ -141,7 +141,8 @@ describe('WordPressService', () => {
       categories: [10, 11],
       primary_category_id: 10,
     });
-    expect(payload.content).toContain('<h2>Reparacao de Estores</h2>');
+    expect(payload.content).toContain('<h1>Reparacao de Estores</h1>');
+    expect(payload.content).not.toContain('<h2>Reparacao de Estores</h2>');
     expect(contents.setPublished).toHaveBeenCalledWith(
       content.id,
       123,

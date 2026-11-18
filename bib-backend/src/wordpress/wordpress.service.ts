@@ -156,10 +156,7 @@ export class WordPressService {
       ? assembleTemplateHtml(content.html ?? '', content.video_url)
       : assemblePageHtml(content.html ?? '', content.video_url);
 
-    // The WordPress theme supplies the visible page title as the page H1.
-    // Keep the generated heading text in the content hierarchy without adding
-    // a second H1 to the public page.
-    return html.replace(/<\s*(\/?)\s*h1\b/gi, '<$1h2');
+    return html;
   }
 
   private publishSlug(content: Content): string {
