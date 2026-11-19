@@ -52,16 +52,14 @@ export class ValidationService {
     if (validHeadingCounts) structure += 20;
     else if (h1s.length === 1) structure += 10;
 
-    const headingOrder = allHeadings.every((heading, index) => {
-      if (index === 0) return heading.tagName === 'H1';
-      const previousLevel = Number(allHeadings[index - 1].tagName.slice(1));
+    allHeadings.forEach((heading, index) => {
       const level = Number(heading.tagName.slice(1));
-      return level <= previousLevel + 1;
+      const previousLevel = index === 0 ? 0 : Number(allHeadings[index - 1].tagName.slice(1));
+      if (level > previousLevel + 1) {
+        const title = heading.text.trim().replace(/\s+/g, ' ').slice(0, 100);
+        issues.push(`[AVISO] Headings: salto de H${previousLevel} para H${level} em "${title}"`);
+      }
     });
-    if (!headingOrder) {
-      validHeadingCounts = false;
-      issues.push('[AVISO] Hierarquia de headings com salto de nivel');
-    }
     if (h4Plus.length > 0) structure += 10;
 
     let seo = 0;
